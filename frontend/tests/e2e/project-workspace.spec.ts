@@ -1,0 +1,150 @@
+import { expect, test } from "@playwright/test";
+import type { ProjectDetail, TerrainReport } from "../../lib/api";
+
+const SITE = {type:"Polygon" as const, coordinates:[[[101.07,4.66],[101.08,4.66],[101.08,4.67],[101.07,4.67],[101.07,4.66]]]};
+const polygonFeature={type:"Feature" as const,properties:{class_id:1},geometry:SITE};
+const contours={type:"FeatureCollection" as const,features:[]};
+const now="2026-11-02T03:50:00Z";
+const analysisId="44444444-4444-4444-8444-444444444444";
+const report:TerrainReport={
+  analysis_id:analysisId,created_at_utc:now,geometry:SITE,
+  source:{id:"test-fixture",name:"E2E test DEM (mock, not real terrain)",publisher:"Test suite",
+    data_type:"DSM",nominal_resolution_m:30,verified:"Synthetic fixture only"},
+  metrics:{
+    site_area_ha:1.23,elevation_min_m:10,elevation_mean_m:18.6,elevation_max_m:30,
+    elevation_range_m:20,slope_mean_deg:4.2,slope_max_deg:10.3,
+    coverage_percent_est:100,analysis_resolution_m_est:30,
+    valid_elevation_pixels:120,valid_slope_pixels:120,
+    slope_classes:[
+      {id:1,name:"Class I",min_deg:0,max_deg:15,color:"#4cc9a3",area_ha_est:1.23,percent_of_valid_slope:100},
+      {id:2,name:"Class II",min_deg:15,max_deg:25,color:"#e5c46d",area_ha_est:0,percent_of_valid_slope:0},
+      {id:3,name:"Class III",min_deg:25,max_deg:35,color:"#eb8c64",area_ha_est:0,percent_of_valid_slope:0},
+      {id:4,name:"Class IV",min_deg:35,max_deg:null,color:"#cb626f",area_ha_est:0,percent_of_valid_slope:0}
+    ],
+    contour_interval_m:5,contour_features:0,
+    elevation_legend:[{class_id:1,color:"#38679B",min_m:10,max_m:30}],
+    horizontal_crs:"EPSG:32647",method:"E2E fixture"
+  },
+  slope_geojson:{type:"FeatureCollection",features:[polygonFeature]},
+  elevation_geojson:{type:"FeatureCollection",features:[polygonFeature]},
+  contours_geojson:contours,
+  warnings:["TEST FIXTURE ONLY - NOT REAL TERRAIN."],assessment_scope:"CI UI test only"
+};
+
+test("project survives refresh, associates DEM and restores layers; site isolation after switching",async({page})=>{
+  test.setTimeout(130000);
+  const database=new Map<string,ProjectDetail>();
+  let counter=0;
+  const headers={
+    "access-control-allow-origin":"http://127.0.0.1:3000",
+    "access-control-allow-methods":"GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers":"Content-Type"
+  };
+  await page.route("http://localhost:8000/api/**",async route=>{
+    const req=route.request(), method=req.method(), path=new URL(req.url()).pathname;
+    const reply=async(status:number,body:unknown)=>route.fulfill({status,headers,json:body});
+    if(method==="OPTIONS"){await route.fulfill({status:204,headers});return;}
+    if(path==="/api/health"){await reply(200,{status:"ok"});return;}
+    if(path==="/api/copilot/capabilities"){await reply(200,{generative_ai_configured:false});return;}
+    if(path==="/api/analyses"){await reply(200,{analyses:[]});return;}
+    if(path==="/api/projects"&&method==="GET"){await reply(200,{projects:[...database.values()]});return;}
+    if(path==="/api/projects"&&method==="POST"){
+      const input=req.postDataJSON() as {name:string;description:string;geometry?:ProjectDetail["geometry"]};
+      counter++;
+      const id="11111111-1111-4111-8111-"+String(counter).padStart(12,"0");
+      const value:ProjectDetail={
+        id,name:input.name,description:input.description,geometry:input.geometry??null,
+        has_site:Boolean(input.geometry),site_area_ha:input.geometry?1.23:null,
+        active_analysis_id:null,analyses:[],revision:1,
+        created_at_utc:now,updated_at_utc:now
+      };
+      database.set(id,value);
+      await reply(201,value);
+      return;
+    }
+    const match=path.match(/^\/api\/projects\/([^/]+)(?:\/(activate-analysis))?$/);
+    if(match){
+      const id=match[1], item=database.get(id);
+      if(!item){await reply(404,{detail:"Project missing"});return;}
+      if(method==="GET"){await reply(200,item);return;}
+      if(method==="PATCH"){
+        const input=req.postDataJSON() as {expected_revision:number;geometry?:ProjectDetail["geometry"];name?:string;description?:string};
+        if(input.expected_revision!==item.revision){await reply(409,{detail:"Stale revision"});return;}
+        if("geometry" in input) {
+          item.geometry=input.geometry??null;
+          item.has_site=Boolean(input.geometry);
+          item.site_area_ha=input.geometry?1.23:null;
+          item.active_analysis_id=null;
+        }
+        if(input.name)item.name=input.name;
+        if(input.description!==undefined)item.description=input.description;
+        item.revision++;
+        item.updated_at_utc=now;
+        await reply(200,item);return;
+      }
+      if(method==="POST"&&match[2]==="activate-analysis"){
+        const {analysis_id}=req.postDataJSON() as {analysis_id:string};
+        if(!item.analyses.some(a=>a.analysis_id===analysis_id)){await reply(404,{detail:"Not linked"});return;}
+        item.geometry=SITE;item.has_site=true;item.active_analysis_id=analysisId;item.revision++;
+        await reply(200,item);return;
+      }
+      if(method==="DELETE"){database.delete(id);await route.fulfill({status:204,headers});return;}
+    }
+    if(path==="/api/terrain/auto"&&method==="POST"){
+      const input=req.postDataJSON() as {project_id?:string};
+      const item=input.project_id?database.get(input.project_id):null;
+      if(item){
+        item.active_analysis_id=analysisId;item.revision++;
+        item.analyses=[{analysis_id:analysisId,created_at_utc:now,site_area_ha:1.23,
+          source_name:"E2E test DEM (mock, not real terrain)"}];
+      }
+      await reply(200,report);return;
+    }
+    if(path==="/api/analyses/"+analysisId&&method==="GET"){await reply(200,report);return;}
+    await reply(404,{detail:"No mock handler for "+method+" "+path});
+  });
+  await page.goto("/");
+  await page.getByRole("button",{name:/Project Workspace/}).click();
+  await expect(page.getByText("No saved projects yet")).toBeVisible();
+  await page.getByRole("button",{name:"New project"}).click();
+  await page.getByPlaceholder("e.g. Meru Raya — Development Site A").fill("Terrain Site Alpha");
+  await page.getByRole("button",{name:"Create & open"}).click();
+  await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
+
+  await page.locator('input[type="file"][accept*=".geojson"]').setInputFiles({
+    name:"site.geojson",mimeType:"application/geo+json",
+    buffer:Buffer.from(JSON.stringify({type:"Feature",properties:{},geometry:SITE}))
+  });
+  await expect(page.getByText("PROJECT SAVED")).toBeVisible({timeout:15000});
+  await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await page.reload();
+  await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha",{timeout:15000});
+  await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.getByText("PROJECT SAVED")).toBeVisible();
+
+  await page.getByRole("button",{name:/Get DEM & Run Analysis/}).click();
+  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:15000});
+  await expect(page.getByText("4.20°")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
+  await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await page.getByRole("button",{name:/Saved Analyses/}).click();
+  await expect(page.getByText("E2E test DEM (mock, not real terrain)")).toBeVisible();
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
+  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible();
+
+  await page.getByRole("button",{name:/Project Workspace/}).click();
+  await page.getByRole("button",{name:"New project"}).click();
+  await page.getByPlaceholder("e.g. Meru Raya — Development Site A").fill("Terrain Site Bravo");
+  await page.getByRole("button",{name:"Create & open"}).click();
+  await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo");
+  await expect(page.locator(".terrain-map[data-site-polygon='absent']")).toBeVisible({timeout:30000});
+  await page.reload();
+  await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo",{timeout:15000});
+  await page.getByRole("button",{name:/Project Workspace/}).click();
+  const alpha=page.locator(".project-entry").filter({hasText:"Terrain Site Alpha"});
+  await alpha.getByRole("button",{name:/Open/}).click();
+  await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
+  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
+  await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+});
