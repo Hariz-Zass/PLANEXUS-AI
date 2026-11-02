@@ -53,7 +53,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   const headers={
     "access-control-allow-origin":"http://127.0.0.1:3000",
     "access-control-allow-methods":"GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers":"Content-Type"
+    "access-control-allow-headers":"Content-Type, X-Planexus-Workspace"
   };
   await page.route("http://localhost:8000/api/**",async route=>{
     const req=route.request(), method=req.method(), path=new URL(req.url()).pathname;
@@ -141,7 +141,11 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:15000});
   await expect(page.getByText("4.20°")).toBeVisible();
   await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
-  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Slope",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".terrain-map[data-slope-features]")).toBeVisible({timeout:30000});
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Elevation",exact:true}).click();
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Elevation",exact:true})).toHaveAttribute("aria-pressed","true");
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".suitability-panel")).toContainText("Lower terrain constraint");
   await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");

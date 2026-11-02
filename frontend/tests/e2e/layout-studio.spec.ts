@@ -92,7 +92,7 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
   const cors={
     "access-control-allow-origin":"http://127.0.0.1:3000",
     "access-control-allow-methods":"GET,POST,PATCH,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers":"Content-Type",
+    "access-control-allow-headers":"Content-Type, X-Planexus-Workspace",
   };
   await page.addInitScript(id=>localStorage.setItem("planexus:active-project:v1",id),ID);
   await page.route("http://localhost:8000/api/**",async route=>{

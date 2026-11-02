@@ -4,7 +4,7 @@ test("Copilot gives honest workflow help before DEM analysis when GIS is connect
   const cors = {
     "access-control-allow-origin": "http://127.0.0.1:3000",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "Content-Type",
+    "access-control-allow-headers": "Content-Type, X-Planexus-Workspace",
   };
   await page.route("http://localhost:8000/api/**", async (route) => {
     const request = route.request();
@@ -34,6 +34,7 @@ test("Copilot gives honest workflow help before DEM analysis when GIS is connect
   });
 
   await page.goto("/");
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.getByText("GIS ENGINE CONNECTED")).toBeVisible({timeout:15000});
   await expect(page.getByText("Workflow guidance only")).toBeVisible();
   const composer = page.locator(".copilot-compose textarea");

@@ -17,7 +17,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   const cors={
     "access-control-allow-origin":"http://127.0.0.1:3000",
     "access-control-allow-methods":"GET,POST,PUT,DELETE,PATCH,OPTIONS",
-    "access-control-allow-headers":"Content-Type",
+    "access-control-allow-headers":"Content-Type, X-Planexus-Workspace",
   };
 
   function calculation(input:ProposalInputs):ProposalCalculation{
