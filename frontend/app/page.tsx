@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowDownToLine, ArrowRight, BarChart3, BrainCircuit, Check, CheckCircle2, ChevronDown,
   CircleAlert, CloudDownload, Compass, Database, FileCode2, FileText, FolderOpen, GitBranch,
-  Globe2, Info, Layers3, LoaderCircle, Map as MapIcon, MapPin, Menu, Mountain,
+  Globe2, Info, Layers3, LoaderCircle, Map as MapIcon, MapPin, Menu, Mountain, Route,
   Plus, ScanSearch, Send, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X, Radar, Ruler, Crosshair, Orbit, ChevronRight, WandSparkles, CircleDot, MoveUpRight
 } from "lucide-react";
 import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
@@ -13,10 +13,11 @@ import ProjectWorkspace from "@/components/ProjectWorkspace";
 import SuitabilityPanel from "@/components/SuitabilityPanel";
 import ProposalStudio from "@/components/ProposalStudio";
 import GppLibrary from "@/components/GppLibrary";
+import LayoutStudio from "@/components/LayoutStudio";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
-type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy";
+type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy" | "layout";
 const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
 type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
 type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null; policy_sources?: {title:string;url:string;evidence:string}[] };
@@ -488,7 +489,7 @@ export default function Home() {
       <div className="layout">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="sidebar-inner-title"><span className="sidebar-studio-icon"><NexusMark size={18}/></span><div><strong>Planner Studio</strong><small>GEOSPATIAL WORKSPACE</small></div></div>
-          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 06</span></div>
+          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 07</span></div>
           <nav className="nav-list" aria-label="Modul PLANEXUS">
             <button className={"nav-item "+(tab === "workspace" ? "selected" : "")} onClick={() => { setTab("workspace"); setMobileNav(false); }}><span className="nav-index">01</span><Mountain size={18}/><span>Terrain Intelligence</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "sources" ? "selected" : "")} onClick={() => { setTab("sources"); setMobileNav(false); }}><span className="nav-index">02</span><Database size={18}/><span>Data Registry</span></button>
@@ -496,6 +497,7 @@ export default function Home() {
             <button className={"nav-item "+(tab === "projects" ? "selected" : "")} onClick={() => { setTab("projects"); setMobileNav(false); }}><span className="nav-index">04</span><Database size={18}/><span>Project Workspace</span>{projects.length > 0 && <span className="nav-count">{projects.length}</span>}</button>
             <button className={"nav-item "+(tab === "proposals" ? "selected" : "")} onClick={() => { setTab("proposals"); setMobileNav(false); }}><span className="nav-index">05</span><BarChart3 size={18}/><span>Development Studio</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "policy" ? "selected" : "")} onClick={() => { setTab("policy"); setMobileNav(false); }}><span className="nav-index">06</span><FileText size={18}/><span>GPP Knowledge Registry</span><span className="nav-on-dot"/></button>
+            <button className={"nav-item "+(tab === "layout" ? "selected" : "")} onClick={() => { setTab("layout"); setMobileNav(false); }}><span className="nav-index">07</span><Route size={18}/><span>Smart Layout Studio</span><span className="nav-on-dot"/></button>
           </nav>
           <div className="sidebar-section-title secondary-title">FUTURE INTELLIGENCE <span>ROADMAP</span></div>
           <div className="nav-list locked-modules">
@@ -657,6 +659,9 @@ export default function Home() {
               </aside>
             </div>
           </>}
+          {tab === "layout" && <LayoutStudio key={activeProject?.id??"no-project"} project={activeProject} report={report}
+            backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}
+            onOpenTerrain={()=>setTab("workspace")} />}
           {tab === "policy" && <GppLibrary backendConnected={gisStatus==="online"} onOpenStudio={()=>setTab("proposals")}/>}
           {tab === "proposals" && <ProposalStudio key={activeProject?.id??"no-project"} project={activeProject} backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}/>}
           {tab === "projects" && <ProjectWorkspace projects={projects} activeId={activeProject?.id??null}
