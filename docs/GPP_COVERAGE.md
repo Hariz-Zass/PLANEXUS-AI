@@ -11,8 +11,8 @@ The user can select a GPP jurisdiction in Development Studio. The interface disp
 
 | ID | Source, responsible agency, year | Indexed numerical clauses | Status |
 |---|---|---|---|
-| gp001a_2016 | PLANMalaysia, GP001-A GPP Perumahan, 2016 | Selected Jadual 2 housing lot minima by house type/storeys, pp.44–45 | CURATED |
-| perak_housing_2023 | PLANMalaysia Perak / Kerajaan Negeri Perak, Garis Panduan Piawaian Perumahan Negeri Perak 2023 | PR1 terrace housing minimum floor area by state cost band, 3-storey maximum, 60-ft roof height, minimum 3 bedrooms | CURATED |
+| gp001a_2016 | PLANMalaysia, GP001-A GPP Perumahan, 2016 | Jadual 2 lot minima by house/storey, selected one-storey floor minima, pp.44–45 | CURATED |
+| perak_housing_2023 | PLANMalaysia Perak / Kerajaan Negeri Perak, Garis Panduan Piawaian Perumahan Negeri Perak 2023 | PR1 min floor, 3-storey max, 60-ft max height, min 3 bedrooms; 10 unchecked road/lane/setback design references | CURATED |
 | gpp_commercial_gp003a | PLANMalaysia, GP003-A Kawasan Perdagangan (Addendum 2017) | None: commercial/shoplot lot-size rules NOT entered | CATALOG ONLY |
 | gpp_parking_gp011a | PLANMalaysia, GP011-A Tempat Letak Kenderaan | None: parking ratios NOT entered | CATALOG ONLY |
 | gpp_hills_gp007a11 | PLANMalaysia, GP007-A(11) Pembangunan Kawasan Bukit dan Tanah Tinggi | None: no numerical slope statutory thresholds entered | CATALOG ONLY |
@@ -22,7 +22,7 @@ This is **not all Malaysian GPP**. The wider official catalog covers many other 
 
 Official references:
 - National housing PDF: https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf — **GP001-A (2016), Jadual 2, printed pp.44–45**.
-- Perak 2023 PDF: https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023 — **PR1, printed p.5**.
+- Perak 2023 PDF (LPHP official mirror): https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file — **PR1, printed p.5**. Alternate PLANMalaysia Perak copy: https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023 .
 - PLANMalaysia full GPP portal: https://www.planmalaysia.gov.my/main/garis-panduan-perancangan .
 - PLANMalaysia facilities guideline publication: https://www.planmalaysia.gov.my/main/latest-news-details?id=999087c8-ffc9-11ef-bf69-fa163eda1aa9 .
 
@@ -42,7 +42,7 @@ Official references:
 | Detached | 1–3 | 15.2 × 22.9 |
 | Detached, zero lot boundary | 1–3 | 13.7 × 21.3 |
 
-These are **lot measurements** only, not the floor area of the house, an allowance for roads or a permitted site density. Selected 1-storey floor-area entries are stored where explicitly transcribed; don't assume an arbitrary floor-area limit for multi-storey buildings.
+These are **lot measurements** only, not the floor area of the house, an allowance for roads or a permitted site density. Selected 1-storey floor-area minima (low-cost terrace 65 m²; lower-middle terrace 69.7 m²; middle terrace 79 m²; cluster 83.6 m²; semi-detached 97.5 m²; detached 125.4 m²; zero-lot 92.9 m²) are stored where Jadual 2 explicitly provides them. These values must **not** be propagated to 2–3-storey classifications where a numeric floor minimum is not printed.
 
 **Maximum lot size:** No maximum lot width or depth is recorded in Jadual 2. Fields \`max_lot_width_m\` and \`max_lot_depth_m\` must remain \`null\`. Developer-only numeric input guardrails such as width \`<=150 m\` are technical validation ranges, **not a GPP maximum**.
 
@@ -55,7 +55,7 @@ These are **lot measurements** only, not the floor area of the house, an allowan
 | Affordable / Rumah Perakku III | 1,000 sq ft |
 | Open market | 1,001 sq ft and above |
 
-The indexed Perak PR1 also sets a **three-storey maximum**, a maximum **60-ft ground-to-roof building height**, and at least **three bedrooms** for the covered terrace housing category. PR1 also describes road reserve, rear/side-lane and setback conditions but those geospatial design checks have **not** been implemented.
+The indexed Perak PR1 also sets a **three-storey maximum**, a maximum **60-ft ground-to-roof building height**, and at least **three bedrooms** for the covered terrace housing category. The registry also lists **10 additional PR1 design references**, including a minimum 50-ft service road, 15-ft rear lane, 20-ft firebreak/side lane, 15-ft front setback for low-cost terrace and 20-ft for other terrace categories, 20-ft corner and 5-ft end-lot side setbacks, and a 320-ft cul-de-sac maximum for applicable non-low-cost categories. The original wording is preserved as 'minimum', 'maximum' or merely 'stated' as appropriate. These dimensions are **NOT yet automatically checked against map geometry**, so no layout compliance result is issued.
 
 **Crucially:** The Perak PR1 table supplies floor-space criteria rather than the national lot frontage/depth columns. The program labels national GP001-A lot minima as \`supplementary_national_reference\` when profile \`perak_2023\` is selected. This is **not a claim that Perak/PBT adopted those numeric lot minima**.
 
