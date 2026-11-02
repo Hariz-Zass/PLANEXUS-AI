@@ -33,3 +33,17 @@
 @media(max-width:920px){.shell-v2 .site-preservation-bar{flex-direction:column;align-items:flex-start}.shell-v2 .site-preservation-actions{width:100%}.shell-v2 .site-preservation-actions button{flex:1;justify-content:center}}
 @media(max-width:520px){.shell-v2 .site-preservation-actions{flex-wrap:wrap}.saved-site-history{align-items:flex-start}.saved-site-history>button{flex:1}}
 @media(prefers-reduced-motion:reduce){.shell-v2 .site-preservation-actions button{transition:none}}
+
+/* Actual regression root cause (Chromium, 2026-11-02): MapLibre's .maplibregl-map
+   position:relative overrides the old .terrain-map absolute sizing, leaving it
+   at height:0 although the map-wrapper is 565px. Target both classes with
+   greater specificity, and explicitly set width and height. */
+.shell-v2 .map-wrapper > .terrain-map.maplibregl-map,
+.shell-v2 .map-wrapper > .terrain-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: block;
+}
