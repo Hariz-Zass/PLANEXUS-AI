@@ -164,6 +164,11 @@ export type PolicyCatalog = {
     max_width_m:null;max_depth_m:null
   }[];
   perak_floor_min_sqft:Record<string,number>;
+  perak_layout_references?:{
+    id:string;label:string;value_ft:number;value_type:string;
+    value_m:number;applicability:string;source_id:string;source_url:string;
+    source_page:string;automated_geometry_check:false;
+  }[];
   perak_market_segments:{id:string;label:string}[];
   not_indexed:string[];disclaimer:string;
 };

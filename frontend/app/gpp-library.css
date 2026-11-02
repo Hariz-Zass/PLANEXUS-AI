@@ -66,3 +66,15 @@
 .shell-v2 .gpp-chat-citations{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px 12px;background:#1f3a34;border:1px solid #47674e;border-radius:8px}
 .shell-v2 .gpp-chat-citations a{display:inline-flex;align-items:center;gap:6px;color:#b9e9a7;font-size:10px;line-height:1.5;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:760px){.shell-v2 .gpp-check{padding:14px}.shell-v2 .gpp-title-row,.shell-v2 .gpp-action,.shell-v2 .gpp-suggestion{flex-wrap:wrap}.shell-v2 .gpp-field-grid{grid-template-columns:1fr}.shell-v2 .gpp-title-row .gpp-version{max-width:100%}.shell-v2 .gpp-action button,.shell-v2 .gpp-suggestion button{width:100%;justify-content:center}.shell-v2 .gpp-library-source-top{flex-direction:column}.shell-v2 .gpp-library-source{padding:14px;gap:10px}.shell-v2 .gpp-library-source-status{align-self:flex-start}}
+
+.shell-v2 .gpp-manual-layout{border:1px solid #507359;background:#1b3432;border-radius:9px;padding:13px;margin:14px 0}
+.shell-v2 .gpp-manual-layout-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.shell-v2 .gpp-manual-layout-head strong{font-size:11px;color:#e4f0e4}
+.shell-v2 .gpp-manual-layout-head span{font:700 8px var(--display);color:#e3c59b;background:#473c31;border:1px solid #826b4a;border-radius:6px;padding:5px}
+.shell-v2 .gpp-manual-layout>p{font:400 10px/1.75 var(--display);color:#a8bdb5}
+.shell-v2 .gpp-layout-list{display:grid;grid-template-columns:1fr;gap:0}
+.shell-v2 .gpp-layout-list>div{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid #456252}
+.shell-v2 .gpp-layout-list>div>span{font:600 10px/1.6 var(--display);color:#c9ded0;flex:1}
+.shell-v2 .gpp-layout-list small{display:block;color:#91aba0;font-weight:400}
+.shell-v2 .gpp-layout-list strong{flex:none;font:700 10px var(--display);color:#c9edb1}
+.shell-v2 .gpp-manual-layout>a{margin-top:10px;display:inline-flex;align-items:center;gap:7px;font-size:10px;color:#b9eaa7;text-decoration:underline;text-underline-offset:3px}

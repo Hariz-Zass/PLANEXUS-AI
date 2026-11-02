@@ -128,6 +128,23 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
       {profile==="perak_2023"&&<p className="gpp-notice"><CircleAlert size={15}/>
         Perak PR1 sets terrace floor-space/height rules; GP001-A lot dimensions are <strong>supplementary national references</strong>. Verify adopted PBT and gazetted local-plan provisions before any compliance claim.
       </p>}
+      {profile==="perak_2023"&&inputs.development_type==="terrace_housing"&&Boolean(catalog?.perak_layout_references?.length)&&<div className="gpp-manual-layout">
+        <div className="gpp-manual-layout-head">
+          <strong>Perak PR1 — rujukan geometri jalan / anjakan</strong>
+          <span>NOT AUTOMATICALLY CHECKED</span>
+        </div>
+        <p>Peraturan ini memerlukan pelan susun atur yang boleh diukur. PLANEXUS hanya menyenaraikan angka dalam PR1; ia belum menilai jarak jalan, blok atau anjakan pada peta.</p>
+        <div className="gpp-layout-list">
+          {catalog?.perak_layout_references?.map(rule=><div key={rule.id}>
+            <span>{rule.label}<small>{rule.applicability}</small></span>
+            <strong>{rule.value_type==="minimum"?"Min ":rule.value_type==="maximum"?"Max ":"Rujukan "}
+              {rule.value_ft}′{rule.value_type==="stated_square"?" × "+rule.value_ft+"′":""}
+            </strong>
+          </div>)}
+        </div>
+        <a target="_blank" rel="noopener noreferrer" href={catalog.sources.find(s=>s.id==="perak_housing_2023")?.url||"https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file"}>Buka PDF PR1 negeri Perak <ArrowUpRight size={14}/></a>
+      </div>}
+
     </>}
     {inputs.development_type==="shoplots"&&profile!=="none"&&
       <p className="gpp-notice"><CircleAlert size={15}/> Commercial shoplot GPP is listed in the source catalog but its numerical dimensions have NOT been indexed. Residential minima cannot be reused for shoplots.</p>}
