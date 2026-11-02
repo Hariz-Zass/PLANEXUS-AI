@@ -1,1 +1,1 @@
-git+https://github.com/Hariz-Zass/PLANEXUS-AI.git@2acf307743098ba4ce219c3b54d18164f63a47f7#subdirectory=backend
+planexus-geoengine @ git+https://github.com/Hariz-Zass/PLANEXUS-AI.git@2acf307743098ba4ce219c3b54d18164f63a47f7#subdirectory=backend
