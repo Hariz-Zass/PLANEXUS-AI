@@ -321,3 +321,12 @@ The first numerical edition includes selected national housing lot and one-store
 Input values in exact feet (20 ft = 6.096 m) no longer fail because a GPP rounds the same figure to 6.1 m. The backend still compares each selected category and number of storeys against its actual official numeric minimum with document/page citations. Perak 2023 PR1 gives different **house floor area** minima, not a new 20 × 70 ft land lot rule. The user must choose appropriate state/PBT scope; "high" is not automatically mapped to a Perak market cost band.
 
 Sources, foot/metre accuracy, all housing-category audits and comparison rules: [docs/GPP_COVERAGE.md](docs/GPP_COVERAGE.md). No Vercel deployment is performed by this change.
+
+
+### Smart Layout Studio - projected road and land envelopes (Phase 5 Module 3, Steps 1–2)
+
+The new local-only Smart Layout Studio sidebar module lets planners sketch/import/export WGS84 road-centreline GeoJSON, enter assumed reservation width and conceptual road-front/perimeter offsets, preview their **projected UTM polygon footprint** and save one revisioned layout concept per project in SQLite. Overlaps are unioned, not double-counted. With a complete matching GIS suitability overlay, an **indicative lower-slope area** and disconnected-patch count are displayed; otherwise no slope-backed land claim is made. Widths are user assumptions, not measured existing road/lot widths.
+
+Optional Perak PR1 road and front setback numeric comparisons only compare typed input values to cited reference amounts: they are NOT verified building setback compliance or PBT approval. Stored lines are invalidated if project boundary changes; DEM changes require review. SQLite backups include layout sketches.
+
+Read [the Smart Layout limits and QA guide](docs/LAYOUT_SCREENING.md). This feature remains on GitHub only, without a Vercel deployment.
