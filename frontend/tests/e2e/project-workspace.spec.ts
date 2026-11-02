@@ -28,6 +28,21 @@ const report:TerrainReport={
   slope_geojson:{type:"FeatureCollection",features:[polygonFeature]},
   elevation_geojson:{type:"FeatureCollection",features:[polygonFeature]},
   contours_geojson:contours,
+  suitability:{
+    version:"1.0.0",method:"Synthetic slope-cell screening only",
+    bands:[
+      {id:1,key:"lower_constraint",label:"Lower terrain constraint",min_deg:0,max_deg:15,color:"#7bd99e",reason:"Fixture only",pixels:84,area_ha_est:0.861,share_of_assessed_pct:70},
+      {id:2,key:"moderate_constraint",label:"Moderate terrain constraint",min_deg:15,max_deg:25,color:"#e7ca76",reason:"Fixture only",pixels:30,area_ha_est:0.307,share_of_assessed_pct:25},
+      {id:3,key:"higher_constraint",label:"Higher terrain constraint",min_deg:25,max_deg:null,color:"#e78282",reason:"Fixture only",pixels:6,area_ha_est:0.062,share_of_assessed_pct:5},
+      {id:4,key:"unassessed",label:"Not assessed",min_deg:null,max_deg:null,color:"#80919a",reason:"Fixture only",pixels:0,area_ha_est:0,share_of_assessed_pct:null}
+    ],
+    assessed_pixels:120,site_mask_pixels:120,assessed_area_ha_est:1.23,unassessed_area_ha_est:0,
+    coverage_of_site_pct_est:100,area_exceeds_site_due_to_pixelization:false,source_resolution_m:30,
+    class_overlay_truncated:false,
+    disclaimer:"Provisional terrain screening only. Not planning permission.",
+    warnings:["Synthetic fixture only, not an actual terrain determination."]
+  },
+  suitability_geojson:{type:"FeatureCollection",features:[{type:"Feature",properties:{class_id:1,screening_only:true},geometry:SITE}]},
   warnings:["TEST FIXTURE ONLY - NOT REAL TERRAIN."],assessment_scope:"CI UI test only"
 };
 
@@ -125,9 +140,15 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await page.getByRole("button",{name:/Get DEM & Run Analysis/}).click();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:15000});
   await expect(page.getByText("4.20°")).toBeVisible();
+  await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Suitability"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".suitability-panel")).toContainText("Lower terrain constraint");
+  await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");
   await page.reload();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Saved Analyses/}).click();
   await expect(page.getByText("E2E test DEM (mock, not real terrain)")).toBeVisible();
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
@@ -139,6 +160,8 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await page.getByRole("button",{name:"Create & open"}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo");
   await expect(page.locator(".terrain-map[data-site-polygon='absent']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".suitability-panel")).toContainText("Awaiting verified DEM analysis");
+  await expect(page.getByRole("button",{name:"Suitability"})).toBeDisabled();
   await page.reload();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo",{timeout:15000});
   await page.getByRole("button",{name:/Project Workspace/}).click();
@@ -147,4 +170,5 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
 });
