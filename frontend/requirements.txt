@@ -1,1 +1,1 @@
-planexus-geoengine @ git+https://github.com/Hariz-Zass/PLANEXUS-AI.git@4f3beef52feb3a1899516614b88ef5919d5ba817
+planexus-geoengine @ git+https://github.com/Hariz-Zass/PLANEXUS-AI.git@438f72c17ca360288f4d7431e7451392ce0c18ef
