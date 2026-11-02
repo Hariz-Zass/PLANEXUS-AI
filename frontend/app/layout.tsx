@@ -3,6 +3,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import "./v2.css";
 import "./site-persistence.css";
+import "./workspace-projects.css";
 
 export const metadata: Metadata = {
   title: "PLANEXUS AI | Geospatial Planning Copilot",

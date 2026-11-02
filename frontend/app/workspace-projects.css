@@ -1,0 +1,79 @@
+/* PLANEXUS V2.5 — durable local project workspace */
+.shell-v2 .active-project-strip {
+  display:flex;align-items:center;gap:15px;margin:0 0 18px;padding:15px 18px;
+  border:1px solid #466c53;background:linear-gradient(105deg,#1f3932,#102431 65%);
+  border-radius:13px;box-shadow:0 12px 35px #0003;
+}
+.shell-v2 .active-project-icon {
+  flex:none;width:44px;height:44px;display:grid;place-items:center;
+  background:#2a4638;color:#b4f77d;border:1px solid #628766;border-radius:11px;
+}
+.shell-v2 .active-project-text{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
+.shell-v2 .active-project-text small{font:700 9px var(--display);letter-spacing:1.6px;color:#a2d79f}
+.shell-v2 .active-project-text strong{font:700 15px var(--display);color:#f1f9ed;overflow-wrap:anywhere}
+.shell-v2 .active-project-text span{font-size:10px;color:#98b4ad;line-height:1.5}
+.shell-v2 .active-project-strip button{flex:none;white-space:nowrap;gap:8px;font-size:10px}
+.shell-v2 .project-error{display:flex;align-items:center;border:1px solid #865852;padding:13px 17px;background:#472a2c;color:#ffe1c9;border-radius:10px;font-size:11px;line-height:1.6;margin-bottom:16px}
+.shell-v2 .project-directory{max-width:1150px}
+.shell-v2 .project-directory-heading{display:flex;justify-content:space-between;align-items:center;gap:25px;margin:20px 0 26px}
+.shell-v2 .project-directory-heading h1{margin:0 0 11px}
+.shell-v2 .project-directory-heading p{margin:0;font-size:12px;color:#98afa9;line-height:1.7}
+.shell-v2 .project-directory-heading>button{min-width:155px}
+.shell-v2 .project-storage-status{display:flex;align-items:center;gap:15px;padding:19px 20px;border:1px solid #3d6753;border-radius:13px;background:radial-gradient(circle at 15% 50%,#2b5c412d,transparent 45%),#13292c}
+.shell-v2 .project-storage-icon{display:grid;place-items:center;flex:none;width:47px;height:47px;border:1px solid #4b7556;background:#264437;color:#b4f77d;border-radius:11px}
+.shell-v2 .project-storage-status>div:nth-child(2){display:flex;flex-direction:column;flex:1;gap:7px;min-width:0}
+.shell-v2 .project-storage-status strong{font:700 13px var(--display);color:#e8f5e9}
+.shell-v2 .project-storage-status span{font-size:11px;line-height:1.7;color:#95b8ab}
+.shell-v2 .project-storage-local{display:inline-flex;align-items:center;gap:5px;flex:none;font:800 9px var(--display)!important;letter-spacing:1px;border:1px solid #4e7858;border-radius:30px;padding:7px 10px;color:#c9f4bb!important}
+.shell-v2 .project-create{background:#162936;border:1px solid #56715a;border-radius:14px;margin:17px 0 25px;padding:25px;display:flex;flex-direction:column;gap:17px;box-shadow:0 17px 44px #0004}
+.shell-v2 .project-create h2{margin:9px 0 0;font:700 21px var(--display)}
+.shell-v2 .project-create label{color:#bbd4cc;font-size:11px;font-weight:700;display:flex;flex-direction:column;gap:8px}
+.shell-v2 .project-create input:not([type="checkbox"]),.shell-v2 .project-create textarea{width:100%;background:#0e1f29;border:1px solid #426254;border-radius:9px;color:#f0f7ed;font:400 13px var(--display);padding:13px 14px;outline-offset:2px}
+.shell-v2 .project-create input:focus,.shell-v2 .project-create textarea:focus{outline:1px solid #b4f77d;border-color:#b4f77d}
+.shell-v2 .project-create label.project-check{display:flex;flex-direction:row;align-items:center;gap:10px;cursor:pointer;font-weight:500}
+.shell-v2 .project-check input{accent-color:#b4f77d;width:15px;height:15px}
+.shell-v2 .project-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:5px}
+.shell-v2 .projects-title-row{display:flex;align-items:center;justify-content:space-between;margin:33px 0 15px}
+.shell-v2 .projects-title-row h2{font:700 19px var(--display);margin:0;letter-spacing:-.5px}
+.shell-v2 .projects-title-row h2 span{font:500 12px var(--display);color:#93c09e;margin-left:5px}
+.shell-v2 .projects-title-row small{font-size:10px;color:#74938e}
+.shell-v2 .project-list{display:flex;flex-direction:column;gap:12px}
+.shell-v2 .project-entry{background:linear-gradient(110deg,#132531,#101e2b);border:1px solid #344957;border-radius:12px;padding:19px 18px;display:flex;align-items:center;gap:17px;transition:border-color .2s ease,background-color .2s ease}
+.shell-v2 .project-entry:hover{border-color:#638469}
+.shell-v2 .project-entry-active{background:linear-gradient(100deg,#1f3830,#132a32);border-color:#709261;box-shadow:inset 3px 0 #b4f77d}
+.shell-v2 .project-entry-icon{display:grid;place-items:center;width:48px;height:48px;flex:none;border:1px solid #405a50;background:#1f3832;color:#b4f77d;border-radius:12px}
+.shell-v2 .project-entry-body{flex:1;min-width:0}
+.shell-v2 .project-entry h3{display:flex;align-items:center;gap:10px;font:700 15px var(--display);line-height:1.5;overflow-wrap:anywhere;margin:0 0 6px}
+.shell-v2 .project-current{font:700 8px var(--display);letter-spacing:1px;color:#c5efa8;background:#2d4e37;border-radius:5px;padding:4px 6px}
+.shell-v2 .project-entry p{font-size:11px;color:#87a6a5;margin:0 0 11px;line-height:1.6}
+.shell-v2 .project-entry-meta{display:flex;gap:17px;flex-wrap:wrap}
+.shell-v2 .project-entry-meta span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#a0c1b0}
+.shell-v2 .project-entry-actions{display:flex;align-items:center;gap:8px;flex:none}
+.shell-v2 .project-entry-actions .btn{font-size:10px;padding:8px 12px;min-height:35px}
+.shell-v2 .project-icon-action{background:#192c32;border:1px solid #3c5c54;color:#a9c4bd;width:35px;height:35px;display:grid;place-items:center;border-radius:9px;cursor:pointer}
+.shell-v2 .project-icon-action:hover:not(:disabled){background:#2b483d;color:#d8f5cb}
+.shell-v2 .project-icon-action.project-delete{border-color:#604c52;color:#d7aaa4}
+.shell-v2 .project-icon-action:disabled{opacity:.4;cursor:not-allowed}
+.shell-v2 .project-inline-edit{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.shell-v2 .project-inline-edit input{flex:1;min-width:100px;background:#0c222b;border:1px solid #639174;color:#e3f7e5;border-radius:7px;padding:9px}
+.shell-v2 .project-inline-edit button{border:1px solid #4e705c;color:#c5e7ca;background:#204033;padding:7px;border-radius:7px;cursor:pointer}
+.shell-v2 .projects-empty{text-align:center;padding:48px 20px;border:1px dashed #456157;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:13px;color:#b4f77d}
+.shell-v2 .projects-empty h3{font:700 18px var(--display);color:#f2f8ef;margin:0}
+.shell-v2 .projects-empty p{font-size:11px;line-height:1.8;color:#99afa8;margin:0 0 7px;max-width:340px}
+.shell-v2 .project-footnote{max-width:900px;margin:24px 0;color:#789b94;font-size:11px;line-height:1.75}
+@media(max-width:950px){.shell-v2 .project-entry{flex-wrap:wrap}.shell-v2 .project-entry-actions{margin-left:auto}}
+@media(max-width:760px){
+  .shell-v2 .active-project-strip{padding:13px;flex-wrap:wrap;gap:11px}
+  .shell-v2 .active-project-strip button{margin-left:0;width:100%;justify-content:center}
+  .shell-v2 .project-directory-heading{align-items:flex-start;flex-direction:column;gap:15px}
+  .shell-v2 .project-directory-heading button{width:100%}
+  .shell-v2 .project-storage-status{align-items:flex-start;flex-wrap:wrap;padding:15px}
+  .shell-v2 .project-storage-local{margin-left:auto}
+  .shell-v2 .project-entry{padding:15px;gap:11px}
+  .shell-v2 .project-entry-icon{width:39px;height:39px}
+  .shell-v2 .project-entry-body{flex-basis:calc(100% - 55px)}
+  .shell-v2 .project-entry-actions{width:100%;justify-content:flex-end}
+  .shell-v2 .project-entry-actions .btn{flex:1;justify-content:center}
+  .shell-v2 .project-create{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){.shell-v2 .project-entry{transition:none}}
