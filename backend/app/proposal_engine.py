@@ -27,7 +27,7 @@ class ProposalInput(BaseModel):
     # Optional for legacy scenarios; never infer PBT scope from coordinates.
     policy_profile: Literal["none", "national_2016", "perak_2023"] = "none"
     housing_category: Literal[
-        "terrace_low_cost", "terrace_lower_middle", "terrace_middle",
+        "terrace_low_cost", "terrace_lower_middle", "terrace_middle", "terrace_high",
         "cluster", "semi_detached", "detached", "zero_lot", "townhouse"
     ] | None = None
     storeys: int | None = Field(default=None, ge=1, le=20)
