@@ -15,6 +15,8 @@ from rasterio.errors import RasterioError
 from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
+from .proposal_engine import ProposalInput
+from .proposal_store import create_proposal, list_proposals, get_proposal, update_proposal, delete_proposal
 from .geometry import validate_site
 from .project_store import (create_project, list_projects, get_project, update_project, remove_project,
                             attach_analysis, activate_analysis)
@@ -22,7 +24,7 @@ from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.3.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.5.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 
@@ -119,6 +121,53 @@ def projects_delete(project_id: str):
 def projects_activate_analysis(project_id: str, payload: ActivateAnalysisPayload):
     report = load_report(payload.analysis_id)
     return activate_analysis(DATA_DIR, project_id, payload.analysis_id, report)
+
+
+class ProposalUpdatePayload(BaseModel):
+    expected_revision: int = Field(ge=1)
+    proposal: ProposalInput
+
+
+def active_terrain_report(project_id: str) -> dict[str, Any] | None:
+    """Only a report explicitly linked as the project's currently active GIS context."""
+    project = get_project(DATA_DIR, project_id)
+    if not project["active_analysis_id"]:
+        return None
+    try:
+        return load_report(project["active_analysis_id"])
+    except (HTTPException, OSError, ValueError):
+        # Preserve proposals; they will be displayed as lacking GIS evidence.
+        return None
+
+
+@app.get("/api/projects/{project_id}/proposals")
+def proposals_list(project_id: str):
+    active = active_terrain_report(project_id)
+    return list_proposals(DATA_DIR, project_id, active)
+
+
+@app.post("/api/projects/{project_id}/proposals", status_code=201)
+def proposals_create(project_id: str, payload: ProposalInput):
+    active = active_terrain_report(project_id)
+    return create_proposal(DATA_DIR, project_id, payload, active)
+
+
+@app.get("/api/projects/{project_id}/proposals/{proposal_id}")
+def proposals_get(project_id: str, proposal_id: str):
+    active = active_terrain_report(project_id)
+    return get_proposal(DATA_DIR, project_id, proposal_id, active)
+
+
+@app.put("/api/projects/{project_id}/proposals/{proposal_id}")
+def proposals_update(project_id: str, proposal_id: str, payload: ProposalUpdatePayload):
+    active = active_terrain_report(project_id)
+    return update_proposal(DATA_DIR, project_id, proposal_id, payload.proposal, payload.expected_revision, active)
+
+
+@app.delete("/api/projects/{project_id}/proposals/{proposal_id}", status_code=204)
+def proposals_delete(project_id: str, proposal_id: str):
+    delete_proposal(DATA_DIR, project_id, proposal_id)
+    return Response(status_code=204)
 
 
 @app.post("/api/site/inspect")
