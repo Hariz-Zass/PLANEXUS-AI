@@ -107,25 +107,25 @@ def test_api_proposals_persist_reopen_update_concurrency_and_isolation(monkeypat
     assert saved["result"]["gross_site_density_units_per_ha"]>0
     assert len(c.get(path(a["id"])).json()["proposals"])==1
     assert c.get(path(b["id"])).json()["proposals"]==[]
-    assert c.get(path(b["id"]+"/"+saved["id"]).status_code==404
+    assert c.get(path(b["id"])+"/"+saved["id"].status_code==404
     with TestClient(main.app) as again:
         persisted=again.get(path(a["id"])).json()["proposals"][0]
         assert persisted["inputs"]==saved["inputs"]
         assert persisted["result"]["required_gross_area_ha"]==pytest.approx(6)
-    put=c.put(path(a["id"]+"/"+saved["id"]),json={
+    put=c.put(path(a["id"])+"/"+saved["id"],json={
         "expected_revision":1,
         "proposal":{**INPUT,"units":330,"name":"Optimistic test 330"}
     })
     assert put.status_code==200,put.text
     assert put.json()["result"]["required_gross_area_ha"]==pytest.approx(6.6)
     assert put.json()["revision"]==2
-    assert c.put(path(a["id"]+"/"+saved["id"]),json={
+    assert c.put(path(a["id"])+"/"+saved["id"],json={
         "expected_revision":1,"proposal":INPUT
     }).status_code==409
     assert c.post(path(a["id"]),json={**INPUT,"roads_pct":50,"open_space_pct":35}).status_code==422
     assert c.post(path(a["id"]),json={**INPUT,"development_type":"apartments"}).status_code==422
-    assert c.delete(path(b["id"]+"/"+saved["id"]).status_code==404
-    assert c.delete(path(a["id"]+"/"+saved["id"]).status_code==204
+    assert c.delete(path(b["id"])+"/"+saved["id"].status_code==404
+    assert c.delete(path(a["id"])+"/"+saved["id"].status_code==204
     assert c.get(path(a["id"])).json()["proposals"]==[]
 
 
