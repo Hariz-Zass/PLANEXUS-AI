@@ -7,6 +7,7 @@ import {
   Save, ShieldCheck, Trash2
 } from "lucide-react";
 import { api, type ProjectDetail, type ProposalInputs, type SavedProposal, type ProposalList } from "@/lib/api";
+import GppCheckPanel from "@/components/GppCheckPanel";
 
 type Props={
   project:ProjectDetail|null;
@@ -24,6 +25,13 @@ const DEFAULT_PROPOSAL:ProposalInputs={
   open_space_pct:10,
   facilities_pct:5,
   other_reserve_pct:5,
+  policy_profile:"none",
+  housing_category:null,
+  storeys:null,
+  perak_market_segment:null,
+  floor_area_m2:null,
+  bedrooms:null,
+  building_height_m:null,
 };
 const allocationFields=[
   {key:"roads_pct" as const,name:"Roads and access",short:"Roads",color:"#5bc8ac"},
@@ -168,13 +176,13 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
       <div className="proposal-layout">
         <form className="proposal-editor" onSubmit={event=>{void save(event);}}>
           <div className="proposal-section-title"><div><span className="section-overline">01 / USER-DEFINED INPUTS</span><h2>Configure development</h2></div><ClipboardList size={21}/></div>
-          <p className="proposal-editor-intro">The values below are <strong>illustrative defaults you can edit</strong>. They are not Malaysian statutory standards, recommended lot sizes, or approved development parameters.</p>
+          <p className="proposal-editor-intro">The values below are <strong>illustrative defaults you can edit</strong>. The sizes and reserves are user assumptions; use the GPP Knowledge Engine below to inspect source-backed references. They are not automatically approved development parameters.</p>
           <label className="proposal-field proposal-field-wide">Scenario name
             <input value={inputs.name} type="text" minLength={3} maxLength={100} required
               onChange={event=>setInputs(p=>({...p,name:event.target.value}))} placeholder="e.g. 300 terrace units - option A"/>
           </label>
           <label className="proposal-field proposal-field-wide">Landed development category
-            <select value={inputs.development_type} onChange={event=>setInputs(p=>({...p,development_type:event.target.value as ProposalInputs["development_type"]}))}>
+            <select value={inputs.development_type} onChange={event=>setInputs(p=>({...p,development_type:event.target.value as ProposalInputs["development_type"],housing_category:null,perak_market_segment:null}))}>
               <option value="terrace_housing">Terrace / landed housing lots</option>
               <option value="shoplots">Commercial shoplots</option>
               <option value="other_landed">Other individual landed lots</option>
@@ -195,6 +203,10 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
                 onChange={event=>inputNumber("lot_depth_m",event.target.value)}/>
             </label>
           </div>
+          <div className="proposal-section-divider"/>
+          <GppCheckPanel inputs={inputs} onPatch={patch=>setInputs(current=>({...current,...patch}))}
+            backendConnected={backendConnected} savedAssessment={selected?.result.policy_assessment}
+            isDirty={isDirty} />
           <div className="proposal-section-divider"/>
           <div className="proposal-section-title proposal-allocation-head">
             <div><span className="section-overline">02 / LAND ALLOCATION</span><h2>Reserve assumptions</h2></div>
@@ -258,7 +270,7 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
                 <div className="proposal-gis-stat"><span>Gross requirement vs cell-area margin</span><strong>{decimal(savedScreening?.lower_constraint_area_margin_ha_est)} ha</strong></div>
                 <p className={savedScreening?.screening_status==="quality_limited"?"proposal-warning":""}>{savedScreening?.conclusion}</p>
               </>}
-            <div className="proposal-gis-disclaimer"><ShieldCheck size={17}/> Lower-slope cells are NOT proven contiguous, accessible, permitted, geotechnically sound or developable. RT/GPP, drainage and engineering checks remain outstanding.</div>
+            <div className="proposal-gis-disclaimer"><ShieldCheck size={17}/> Lower-slope cells are NOT proven contiguous, accessible, permitted, geotechnically sound or developable. GPP numeric references are supplementary only; adopted PBT/RT requirements, drainage and engineering checks remain outstanding.</div>
           </div>
         </div>
       </div>
