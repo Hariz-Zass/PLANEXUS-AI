@@ -1,0 +1,43 @@
+name: Vendor compatible GIS runtime library
+on:
+  push:
+    branches:
+      - fix/live-gis-20261102
+    paths:
+      - .github/workflows/vendor-native-gis.yml
+permissions:
+  contents: write
+jobs:
+  libexpat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/live-gis-20261102
+          persist-credentials: true
+      - name: Vendor Debian 11 libexpat (glibc 2.31 compatible)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backend/app/vendor
+          docker run --rm -v "$PWD/backend/app/vendor:/vendor" debian:bullseye-slim sh -ec '
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libexpat1 >/dev/null
+            cp -L /usr/lib/x86_64-linux-gnu/libexpat.so.1 /vendor/libexpat.so.1
+          '
+          file backend/app/vendor/libexpat.so.1
+          sha256sum backend/app/vendor/libexpat.so.1
+          ldd backend/app/vendor/libexpat.so.1
+      - name: Commit only runtime library to fix branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/vendor/libexpat.so.1
+          if git diff --staged --quiet; then
+            echo "Already committed"
+            exit 0
+          fi
+          git commit -m "vendor(runtime): bundle Debian bullseye libexpat for GIS Lambda"
+          git push origin HEAD:fix/live-gis-20261102
