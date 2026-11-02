@@ -99,6 +99,15 @@ def connection(data_dir: Path) -> Iterator[sqlite3.Connection]:
             );
             CREATE INDEX IF NOT EXISTS ix_proposals_by_project
                 ON project_proposals(project_id, updated_at_utc DESC);
+            CREATE TABLE IF NOT EXISTS project_layouts (
+                project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+                input_json TEXT NOT NULL,
+                site_hash TEXT NOT NULL,
+                analysis_id_at_save TEXT,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            );
             """)
             # Backward-compatible, additive migration for existing PLANEXUS SQLite files.
             columns={r["name"] for r in db.execute("PRAGMA table_info(project_proposals)")}
