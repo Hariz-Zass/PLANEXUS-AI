@@ -30,6 +30,17 @@ PLANEXUS is an **evidence-first** geospatial decision-support project. V1 focuse
 
 **Do not use this prototype as a substitute for registered surveying, engineering/geotechnical assessment or statutory planning checks.**
 
+## One-click start on Windows (recommended)
+
+**You do not need to type terminal commands.** Install **Node.js 22+** and **Python 3.11 / 3.12** once. Download this repository from GitHub (**Code → Download ZIP**), extract it to a normal folder, and **double-click `START-PLANEXUS.bat`**. The batch launcher runs `scripts/start-planexus.ps1`, which:
+
+1. Checks Node.js and Python versions; checks ports 3000/8000.
+2. Creates `backend/.venv` and installs GIS Python packages if missing.
+3. Creates `frontend/.env.local` from the example and installs npm packages if missing.
+4. Starts two separate PowerShell terminals for the backend and frontend, waits for both endpoints to respond, then opens `http://localhost:3000` in your browser.
+
+**Important:** On first launch the downloads require internet access. Keep both server terminals open while using PLANEXUS; close both to stop. The scripts bind only to **127.0.0.1** and do not publish your data online. The startup process does **not** ask for an API key; without one, Copilot returns a clearly labelled rule-based summary. For installation errors take a screenshot of the red error in the launcher or server terminal. The one-click script has been written for Windows PowerShell but cannot be executed from the Linux development environment used to prepare this repository, so first-run Windows behavior must still be verified.
+
 ## Getting started (Windows PowerShell)
 
 Use Python 3.11 or 3.12 and Node.js 22 or later. In one terminal:

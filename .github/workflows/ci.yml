@@ -27,3 +27,20 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+  windows-launcher-syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Windows PowerShell launcher scripts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path START-PLANEXUS.bat)) { throw 'Missing batch launcher' }
+          Get-ChildItem scripts -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | Format-List | Out-String | Write-Host
+              throw "PowerShell syntax error: $($_.Name)"
+            }
+          }
