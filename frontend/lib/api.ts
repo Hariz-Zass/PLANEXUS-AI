@@ -1,0 +1,76 @@
+export type FeatureGeometry = {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: number[][][] | number[][][][];
+};
+
+export type SlopeClass = {
+  id: number;
+  name: string;
+  min_deg: number;
+  max_deg: number | null;
+  color: string;
+  area_ha_est: number;
+  percent_of_valid_slope: number;
+};
+
+export type TerrainReport = {
+  analysis_id: string;
+  created_at_utc: string;
+  geometry: FeatureGeometry;
+  source: {
+    id: string;
+    name: string;
+    publisher: string;
+    reference?: string;
+    data_type: string;
+    nominal_resolution_m?: number | null;
+    verified: string;
+    retrieved_at_utc?: string;
+  };
+  metrics: {
+    site_area_ha: number;
+    elevation_min_m: number;
+    elevation_mean_m: number;
+    elevation_max_m: number;
+    elevation_range_m: number;
+    slope_mean_deg: number;
+    slope_max_deg: number;
+    coverage_percent_est: number;
+    analysis_resolution_m_est: number;
+    valid_elevation_pixels: number;
+    valid_slope_pixels: number;
+    slope_classes: SlopeClass[];
+    horizontal_crs: string;
+    method: string;
+  };
+  slope_geojson: GeoJSON.FeatureCollection;
+  warnings: string[];
+  assessment_scope: string;
+};
+
+export type SavedSummary = {
+  analysis_id: string;
+  created_at_utc: string;
+  site_area_ha: number;
+  source_name: string;
+};
+
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+
+export async function api<T>(path: string, options?: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...options });
+  } catch {
+    throw new Error("GIS backend tidak dapat dihubungi. Pastikan FastAPI berjalan di localhost:8000.");
+  }
+  if (!response.ok) {
+    let detail = `Ralat HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail || detail);
+    } catch { /* preserve HTTP status */ }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<T>;
+}

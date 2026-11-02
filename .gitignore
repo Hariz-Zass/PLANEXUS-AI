@@ -1,0 +1,32 @@
+# Keys / environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# GIS inputs / persistent local analysis data
+backend/data/
+data/
+*.tif
+*.tiff
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.geojson.zip
+
+# OS / temp
+.DS_Store
+*.log
