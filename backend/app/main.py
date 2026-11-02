@@ -16,6 +16,7 @@ from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
 from .proposal_engine import ProposalInput
+from .policy_registry import catalog as policy_catalog, evaluate_policy, answer_gpp_question
 from .proposal_store import create_proposal, list_proposals, get_proposal, update_proposal, delete_proposal
 from .geometry import validate_site
 from .project_store import (create_project, list_projects, get_project, update_project, remove_project,
@@ -24,7 +25,7 @@ from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.5.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.6.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
 
 
@@ -61,6 +62,18 @@ def load_report(analysis_id: str) -> dict[str, Any]:
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "PLANEXUS AI Terrain", "storage": "local-persistent-folder", "production_ready": False}
+
+
+@app.get("/api/policy/catalog")
+def gpp_catalog():
+    """Machine-readable curated source list; catalog-only documents are NOT indexed."""
+    return policy_catalog()
+
+
+@app.post("/api/policy/assess")
+def gpp_assess(payload: ProposalInput):
+    """Dry-run numeric checks, no project save and NO approval determination."""
+    return evaluate_policy(payload)
 
 
 @app.get("/api/sources")
@@ -291,6 +304,8 @@ def copilot_capabilities():
 def copilot(payload: CopilotPayload):
     # Operational/workflow guidance can be used before terrain analysis.
     # Site-specific answers MUST be bound to an existing, saved GIS report.
+    if any(token in payload.question.casefold() for token in ("gpp", "garis panduan perancangan", "saiz minimum rumah", "saiz lot minimum", "piawaian perumahan")):
+        return {"analysis_id": payload.analysis_id, **answer_gpp_question(payload.question)}
     if payload.analysis_id is None:
         return {"analysis_id": None, **workflow_guidance(payload.question)}
     report = load_report(payload.analysis_id)
