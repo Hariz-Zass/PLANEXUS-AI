@@ -9,6 +9,7 @@ import {
   Plus, ScanSearch, Send, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X, Radar, Ruler, Crosshair, Orbit, ChevronRight, WandSparkles, CircleDot, MoveUpRight
 } from "lucide-react";
 import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport } from "@/lib/api";
+import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
 type SidebarTab = "workspace" | "sources" | "history";
@@ -27,7 +28,7 @@ function normalizeGeoJSON(content: unknown): FeatureGeometry {
   const geometry = target as Record<string, unknown>;
   if (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon") throw new Error("Gunakan GeoJSON Polygon atau MultiPolygon WGS84.");
   if (!Array.isArray(geometry.coordinates)) throw new Error("Koordinat GeoJSON tidak sah.");
-  return geometry as FeatureGeometry;
+  return validateSiteBoundary(geometry);
 }
 
 function shortDate(value: string) {
@@ -101,6 +102,9 @@ export default function Home() {
   const [drawPoints, setDrawPoints] = useState(0);
   const [resetCounter, setResetCounter] = useState(0);
   const [geometry, setGeometry] = useState<FeatureGeometry | null>(null);
+  const [saveState,setSaveState]=useState<"checking"|"saved"|"empty"|"error">("checking");
+  const [savedAt,setSavedAt]=useState("");
+  const [saveMessage,setSaveMessage]=useState("");
   const [report, setReport] = useState<TerrainReport | null>(null);
   const [recent, setRecent] = useState<SavedSummary[]>([]);
   const [pending, setPending] = useState<null | "auto" | "upload" | "copilot">(null);
@@ -127,29 +131,47 @@ export default function Home() {
   }, []);
   useEffect(() => { void refreshRecent(); }, [refreshRecent]);
 
-  const onSiteDrawn = useCallback((geo: FeatureGeometry) => {
-    setGeometry(geo); setReport(null); setError(""); setStatus("Sempadan tapak dilukis. Sedia untuk mendapatkan DEM."); setChat([]); setDrawing(false);
-  }, []);
 
-  function startDraw() {
-    setDrawing(true); setGeometry(null); setReport(null); setChat([]); setError(""); setStatus("Klik pada peta untuk menanda sempadan, kemudian klik dua kali untuk selesai."); setResetCounter(n => n + 1);
+  useEffect(()=>{
+    const restore=()=>{
+      const r=readSavedSite();
+      if(r.state==="found"){setGeometry(r.site.geometry);setSaveState("saved");setSavedAt(r.site.savedAt);setSaveMessage("");setReport(null);setChat([]);}
+      else if(r.state==="empty"){setGeometry(null);setSaveState("empty");setSavedAt("");setSaveMessage("");setReport(null);setChat([]);}
+      else{setSaveState("error");setSaveMessage(r.message);}
+    };
+    restore();
+    const onStorage=(e:StorageEvent)=>{if(e.key===SITE_STORAGE_KEY){restore();setDrawing(false);}};
+    window.addEventListener("storage",onStorage);
+    return()=>window.removeEventListener("storage",onStorage);
+  },[]);
+  const activateSite=useCallback((input:FeatureGeometry,origin:SiteOrigin)=>{
+    const valid=validateSiteBoundary(input);
+    const r=saveSiteBoundary(valid,origin);
+    setGeometry(valid);setReport(null);setChat([]);setDrawing(false);setError("");setResetCounter(n=>n+1);
+    if(r.saved){setSaveState("saved");setSavedAt(r.site.savedAt);setSaveMessage("");setStatus("Tapak disimpan automatik dalam browser ini.");}
+    else{setSaveState("error");setSaveMessage(r.message);setStatus("Tapak dipaparkan tetapi belum disimpan. Export GeoJSON sebagai backup.");}
+  },[]);
+  const onSiteDrawn=useCallback((geo:FeatureGeometry)=>{
+    try{activateSite(geo,"map-drawing");}catch(e){setError(e instanceof Error?e.message:"Polygon tidak sah.");setDrawing(false);}
+  },[activateSite]);
+  function startDraw(){
+    setDrawing(true);setError("");setStatus("Lukis tapak baharu. Tapak asal tidak dipadam sehingga polygon baru siap.");setResetCounter(n=>n+1);
   }
-
-  function clearSite() {
-    setDrawing(false); setGeometry(null); setReport(null); setChat([]); setError(""); setStatus(""); setResetCounter(n => n + 1);
+  function clearSite(){
+    if(!window.confirm("Padam sempadan tapak daripada browser ini? Export GeoJSON dahulu untuk backup."))return;
+    const r=removeSavedSite();
+    if(!r.removed){setSaveState("error");setSaveMessage(r.message||"Gagal memadam simpanan.");return;}
+    setGeometry(null);setDrawing(false);setReport(null);setChat([]);setResetCounter(n=>n+1);setSaveState("empty");setSavedAt("");setStatus("Sempadan tapak dipadam.");
   }
-
-  async function loadGeoJson(file?: File) {
-    if (!file) return;
+  async function loadGeoJson(file?:File){
+    if(!file)return;
     setError("");
-    try {
-      if (file.size > 3_000_000) throw new Error("Fail GeoJSON melebihi had 3 MB pada V1.");
-      const data = JSON.parse(await file.text()) as unknown;
-      const geo = normalizeGeoJSON(data);
-      const inspected = await api<{ geometry: FeatureGeometry; area_ha: number }>("/api/site/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry: geo }) });
-      setGeometry(inspected.geometry); setDrawing(false); setReport(null); setChat([]); setStatus(`Polygon diterima. Luas geodesik: ${formattedNumber(inspected.area_ha, 3)} ha.`);
-    } catch (ex) { setError(ex instanceof Error ? ex.message : "Tidak dapat membaca fail GeoJSON."); }
-    finally { if (geojsonInput.current) geojsonInput.current.value = ""; }
+    try{
+      if(file.size>3000000)throw new Error("Fail GeoJSON melebihi 3 MB.");
+      activateSite(normalizeGeoJSON(JSON.parse(await file.text()) as unknown),"geojson-import");
+      setStatus("GeoJSON diimport dan disimpan pada browser. Koordinat disemak secara asas, bukan pengesahan ukur tanah.");
+    }catch(e){setError(e instanceof Error?e.message:"Import GeoJSON gagal.");}
+    finally{if(geojsonInput.current)geojsonInput.current.value="";}
   }
 
   async function analyzeAuto() {
@@ -185,7 +207,7 @@ export default function Home() {
     setPending("auto"); setError("");
     try {
       const result = await api<TerrainReport>(`/api/analyses/${id}`);
-      setReport(result); setGeometry(result.geometry); setDrawing(false); setChat([]);
+      activateSite(result.geometry, "analysis-reopened"); setReport(result); setDrawing(false); setChat([]);
       setStatus(`Analisis ${id.slice(0, 8)} dibuka daripada storan lokal.`);
       setTab("workspace"); setMobileNav(false);
     } catch (ex) { setError(ex instanceof Error ? ex.message : "Tidak dapat memuatkan analisis."); }
@@ -251,11 +273,11 @@ export default function Home() {
               </div>
               <div className="head-actions">
                 <button className="btn btn-subtle" onClick={() => geojsonInput.current?.click()}><UploadCloud size={16}/> Import GeoJSON</button>
-                <button className="btn btn-accent" onClick={startDraw}><Crosshair size={17}/> Define site <ArrowRight size={15}/></button>
+                <button className="btn btn-accent" onClick={startDraw}><Crosshair size={17}/> {geometry ? "Redraw site" : "Define site"} <ArrowRight size={15}/></button>
               </div>
             </div>
             <section className="site-ribbon" aria-label="Snapshot geospatial tapak">
-              <div className="ribbon-context"><span className="ribbon-context-icon"><Radar size={24}/></span><div><small>PROJECT TELEMETRY</small><strong>{geometry ? "Site 01 / Active boundary" : "Awaiting site definition"}</strong><span>{geometry ? "Boundary available · WGS84" : "Start by drawing a real site polygon"}</span></div></div>
+              <div className="ribbon-context"><span className="ribbon-context-icon"><Radar size={24}/></span><div><small>PROJECT TELEMETRY</small><strong>{geometry ? "Site 01 / Active boundary" : "Awaiting site definition"}</strong><span>{geometry ? "Saved on this device · WGS84" : "Start by drawing a real site polygon"}</span></div></div>
               <div className="ribbon-data featured"><small>01 / SITE AREA</small><div className="ribbon-value">{geometry && !report ? "≈ " : ""}{footprintDisplay}<em>ha</em></div><span>{report ? "GIS-calculated" : geometry ? "Spherical estimate · not surveyed" : "No boundary selected"}</span></div>
               <div className="ribbon-data"><small>02 / PERIMETER</small><div className="ribbon-value">{geometry ? "≈ " : ""}{perimeterDisplay}<em>km</em></div><span>{geometry ? "Spherical estimate" : "Awaiting geometry"}</span></div>
               <div className="ribbon-data"><small>03 / MEAN SLOPE</small><div className="ribbon-value">{report ? formattedNumber(report.metrics.slope_mean_deg, 1) : "—"}<em>°</em></div><span>{report ? "From valid DEM pixels" : "DEM analysis required"}</span></div>
@@ -281,7 +303,13 @@ export default function Home() {
                     </div>
                     <div className="map-coordinate-hud">03° - 07° N <span>/</span> 100° - 120° E <span>·</span> EXPLORE</div>
                   </div>
-                  <div className="map-bottom"><div><span className="legend-title">TERRAIN LEGEND <span>//</span> SLOPE CLASSIFICATION {report ? "" : "· AWAITING ANALYSIS"}</span><div className="legend-row"><span><i style={{ background: "#4cc9a3" }} />0–15°</span><span><i style={{ background: "#e5c46d" }} />15–25°</span><span><i style={{ background: "#eb8c64" }} />25–35°</span><span><i style={{ background: "#cb626f" }} />≥35°</span></div></div><span className="map-credit"><ShieldCheck size={13}/> Evidence-based only · Screening, not approval</span></div>
+                  <div className="site-preservation-bar">
+<div className={"save-indicator "+(saveState==="saved"?"save-indicator-ready":saveState==="error"?"save-indicator-error":"")}>
+<span className="save-indicator-mark">{saveState==="saved"?<CheckCircle2 size={17}/>:saveState==="error"?<CircleAlert size={17}/>:<ShieldCheck size={17}/>}</span>
+<div><strong>{saveState==="saved"?"SITE AUTOSAVED":saveState==="error"?"SITE NOT SAVED":saveState==="checking"?"CHECKING STORAGE":"NO SAVED SITE"}</strong><small>{saveState==="saved"&&savedAt?"Browser ini · "+shortDate(savedAt):saveState==="error"?"Export untuk backup":"Lukis atau import polygon"}</small></div></div>
+<div className="site-preservation-actions"><button className="btn btn-outline site-action-button" disabled={!geometry} onClick={()=>geometry&&downloadSiteGeoJSON(geometry)}><ArrowDownToLine size={15}/> Export GeoJSON</button><button className="btn btn-outline site-action-button destructive" disabled={!geometry} onClick={clearSite}><Trash2 size={15}/> Clear site</button></div></div>
+{saveState==="error"&&<div className="save-warning" role="alert"><CircleAlert size={16}/>{saveMessage}</div>}
+<div className="map-bottom"><div><span className="legend-title">TERRAIN LEGEND <span>//</span> SLOPE CLASSIFICATION {report ? "" : "· AWAITING ANALYSIS"}</span><div className="legend-row"><span><i style={{ background: "#4cc9a3" }} />0–15°</span><span><i style={{ background: "#e5c46d" }} />15–25°</span><span><i style={{ background: "#eb8c64" }} />25–35°</span><span><i style={{ background: "#cb626f" }} />≥35°</span></div></div><span className="map-credit"><ShieldCheck size={13}/> Evidence-based only · Screening, not approval</span></div>
                 </div>
                 <section className="site-intel-card">
                   <div className="site-intel-main"><span className="section-overline"><ScanSearch size={13}/> SITE INTELLIGENCE / LIVE SNAPSHOT</span><h2>From site to <em>insight.</em></h2><p>Tapak sebenar dahulu, analisis kemudian. Kami tidak akan memaparkan keputusan cerun atau ketinggian sebelum GIS memproses DEM.</p></div>
@@ -369,7 +397,7 @@ export default function Home() {
             </div>
           </>}
           {tab === "sources" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> SOURCE TRANSPARENCY</div><h1>Data Source Registry <span className="h1-accent">.</span></h1><p>Setiap sumber mempunyai identiti, keupayaan dan had penggunaan. Tiada dataset geospatial yang direka oleh AI.</p><div className="info-panel"><div className="info-panel-head"><span className="info-icon"><Database size={22}/></span><div><strong>Copernicus DEM GLO-30 Public</strong><span>Primary automatic retrieval source · Public Cloud Optimized GeoTIFF</span></div><span className="registry-state">ACTIVE ADAPTER</span></div><div className="detail-table"><div><span>Publisher</span><strong>Copernicus Programme / ESA</strong></div><div><span>Approx. spatial resolution</span><strong>30 m</strong></div><div><span>Raster type</span><strong>DSM (buildings and vegetation included)</strong></div><div><span>Acquisition</span><strong>Direct public AWS COG tiles, no API key</strong></div><div><span>Primary purpose</span><strong>Preliminary terrain screening</strong></div></div><a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer" className="source-link">Official dataset documentation <ArrowRight size={16}/></a></div><div className="quality-panel"><CircleAlert size={19}/><div><strong>Important boundary</strong><p>Satellite-derived DSM is not equivalent to surveyed bare-earth DTM. Analysis outcomes do not certify zoning, flood safety, land title, slope stability or development approval. Public coverage may differ by country and tile availability.</p></div></div><div className="workflow-card"><h2>Additional data paths</h2><p>Users can upload GeoTIFF from authorized survey providers. PLANEXUS will inspect raster CRS and available cells but cannot independently authenticate the original survey or vertical datum without its documentation.</p></div></div>}
-          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><p>Hasil analisis disimpan pada direktori backend lokal. Untuk production, sambungkan persistent object storage dan authentication dahulu.</p><div className="history-list">{recent.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : recent.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
+          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / THIS BROWSER</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"?"Saved on this device":"Not backed up"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Hasil analisis disimpan pada direktori backend lokal. Untuk production, sambungkan persistent object storage dan authentication dahulu.</p><div className="history-list">{recent.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : recent.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
         </main>
       </div>
       <input ref={geojsonInput} hidden type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={event=>void loadGeoJson(event.target.files?.[0])} />
