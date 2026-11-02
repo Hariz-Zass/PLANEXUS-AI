@@ -62,6 +62,23 @@ export type SavedSummary = {
   source_name: string;
 };
 
+export type ProjectSummary = {
+  id: string;
+  name: string;
+  description: string;
+  has_site: boolean;
+  site_area_ha: number | null;
+  active_analysis_id: string | null;
+  revision: number;
+  created_at_utc: string;
+  updated_at_utc: string;
+};
+
+export type ProjectDetail = ProjectSummary & {
+  geometry: FeatureGeometry | null;
+  analyses: SavedSummary[];
+};
+
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -80,5 +97,6 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     } catch { /* preserve HTTP status */ }
     throw new Error(detail);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
