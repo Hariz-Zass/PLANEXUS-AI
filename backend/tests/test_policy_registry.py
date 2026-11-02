@@ -332,3 +332,50 @@ def test_copilot_gpp_coverage_question_discloses_catalog_only():
     assert "BELUM" in response["response"]
     assert "katalog" in response["response"]
     assert len(response["policy_sources"])==2
+
+
+@pytest.mark.parametrize("category,code,page,floor_sqft",[
+    ("semi_detached","PR2",7,1000),
+    ("cluster","PR3",9,1000),
+    ("detached","PR4",11,1000),
+    ("zero_lot","PR5",13,1000),
+    ("townhouse","PR6",15,900),
+])
+def test_perak_pr2_to_pr6_indexed_floor_limits_and_sources(category,code,page,floor_sqft):
+    p=ProposalInput.model_validate({
+        **BASE,"development_type":"other_landed",
+        "housing_category":category,"policy_profile":"perak_2023",
+        "storeys":2,"floor_area_m2":80,"bedrooms":3,"building_height_m":16,
+    })
+    result=evaluate_policy(p)
+    checks={c["key"]:c for c in result["checks"]}
+    assert checks["min_floor_area_perak"]["value"]==pytest.approx(
+        round(floor_sqft*0.09290304,4))
+    assert checks["min_floor_area_perak"]["result"]=="below_min"
+    assert checks["min_floor_area_perak"]["source_page"]==f"{code}, halaman bercetak {page}"
+    assert checks["min_floor_area_perak"]["role"]=="primary_state_reference"
+    assert checks["max_storeys_perak"]["value"]==3
+    assert checks["max_building_height_perak"]["value"]==pytest.approx(18.288)
+    assert checks["min_bedrooms_perak"]["value"]==3
+    assert not any(c["role"]=="primary_state_reference" and
+                   c["key"]=="min_lot_frontage" for c in result["checks"])
+    assert result["status"]=="outside_numeric_reference"
+    response=answer_gpp_question("GPP Perak "+{
+        "semi_detached":"rumah berkembar","cluster":"rumah kluster",
+        "detached":"rumah sesebuah","zero_lot":"zero lot",
+        "townhouse":"rumah bandar",
+    }[category])
+    assert code in response["response"]
+    assert f"{floor_sqft} kps" in response["response"]
+    assert response["policy_sources"][0]["url"]==PERAK_SOURCE["url"]
+
+
+def test_house_types_other_than_terrace_are_not_mislabeled_as_perak_pr1():
+    profile=ProposalInput.model_validate({
+        **BASE,"development_type":"other_landed","housing_category":"semi_detached",
+        "policy_profile":"perak_2023","storeys":2,"floor_area_m2":150,
+        "bedrooms":3,"building_height_m":15,
+    })
+    checks=evaluate_policy(profile)["checks"]
+    assert all("PR2" in item["source_page"] for item in checks if item["role"]=="primary_state_reference")
+    assert not any("PR1" in item["source_page"] for item in checks if item["role"]=="primary_state_reference")
