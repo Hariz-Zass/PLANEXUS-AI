@@ -104,7 +104,9 @@ async def _read(client: Any, pathname: str) -> tuple[bytes | None, str | None]:
 
 async def _write(client: Any, pathname: str, archive: bytes, etag: str | None) -> None:
     options: dict[str, Any] = {"access": "private", "content_type": "application/zip"}
-    options.update({"overwrite": True, "if_match": etag} if etag else {"overwrite": False})
+    # SDK 0.11.6 supports overwrite but has no conditional ETag API.
+    # This prototype is not safe for concurrent multi-tab/multi-user editing.
+    options["overwrite"] = bool(etag)
     await client.put(pathname, archive, **options)
 
 

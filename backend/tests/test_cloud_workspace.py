@@ -32,7 +32,7 @@ class MemoryBlob:
                   overwrite=False, if_match=None):
         assert access == "private"
         existing = self.data.get(pathname)
-        if existing and (not overwrite or if_match != existing[1]):
+        if existing and not overwrite:
             raise ValueError("stale ETag")
         self.version += 1
         self.data[pathname] = content, str(self.version)
