@@ -10,6 +10,7 @@ import math
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from .policy_registry import evaluate_policy
 
 
 class ProposalInput(BaseModel):
@@ -23,6 +24,19 @@ class ProposalInput(BaseModel):
     open_space_pct: float = Field(ge=0, le=70, allow_inf_nan=False)
     facilities_pct: float = Field(ge=0, le=70, allow_inf_nan=False)
     other_reserve_pct: float = Field(ge=0, le=70, allow_inf_nan=False)
+    # Optional for legacy scenarios; never infer PBT scope from coordinates.
+    policy_profile: Literal["none", "national_2016", "perak_2023"] = "none"
+    housing_category: Literal[
+        "terrace_low_cost", "terrace_lower_middle", "terrace_middle",
+        "cluster", "semi_detached", "detached", "zero_lot"
+    ] | None = None
+    storeys: int | None = Field(default=None, ge=1, le=20)
+    perak_market_segment: Literal[
+        "perak_low_cost", "perak_middle", "perak_affordable", "perak_open"
+    ] | None = None
+    floor_area_m2: float | None = Field(default=None, gt=0, le=100000, allow_inf_nan=False)
+    bedrooms: int | None = Field(default=None, ge=0, le=50)
+    building_height_m: float | None = Field(default=None, gt=0, le=300, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def check_total(self) -> "ProposalInput":
@@ -32,6 +46,12 @@ class ProposalInput(BaseModel):
         total = self.roads_pct + self.open_space_pct + self.facilities_pct + self.other_reserve_pct
         if not math.isfinite(total) or total >= 85:
             raise ValueError("Combined road, open space, facilities and reserve allocations must be less than 85% of gross land.")
+        if self.housing_category:
+            is_terrace = self.housing_category.startswith("terrace_")
+            if is_terrace and self.development_type != "terrace_housing":
+                raise ValueError("Terrace GPP category can only be used with terrace_housing.")
+            if not is_terrace and self.development_type != "other_landed":
+                raise ValueError("Cluster/semi/detached categories require other_landed.")
         return self
 
 
@@ -47,6 +67,7 @@ def calculate_land_budget(
         raise ValueError("A validated positive site area is required.")
 
     inputs=proposal.model_dump()
+    policy_assessment=evaluate_policy(proposal)
     lot_m2 = proposal.lot_width_m * proposal.lot_depth_m
     plot_ha = proposal.units * lot_m2 / 10000
     allocations = {
@@ -71,6 +92,7 @@ def calculate_land_budget(
     ]
     result={
         "method": "PLANEXUS input-driven gross land area worksheet v1; required gross = units*width*depth/(10000*(1-total_reserves/100)).",
+        "policy_assessment":policy_assessment,
         "inputs":inputs,
         "site_area_ha":round(site_area_ha,5),
         "lot_area_m2":round(lot_m2,5),
