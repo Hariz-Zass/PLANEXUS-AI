@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
@@ -16,16 +16,19 @@ from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
 from .geometry import validate_site
+from .project_store import (create_project, list_projects, get_project, update_project, remove_project,
+                            attach_analysis, activate_analysis)
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.2.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.3.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 
 class SitePayload(BaseModel):
     geometry: dict[str, Any]
+    project_id: str | None = None
 
 
 class CopilotPayload(BaseModel):
@@ -63,6 +66,61 @@ def sources():
     return {"sources": SOURCE_CATALOG, "note": "Sumber data tidak sama dengan ketepatan ukur tapak. Tiada kelulusan pembangunan dinilai."}
 
 
+class NewProjectPayload(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    description: str = Field(default="", max_length=500)
+    geometry: dict[str, Any] | None = None
+
+
+class UpdateProjectPayload(BaseModel):
+    expected_revision: int = Field(ge=1)
+    name: str | None = None
+    description: str | None = None
+    geometry: dict[str, Any] | None = None
+
+
+class ActivateAnalysisPayload(BaseModel):
+    analysis_id: str
+
+
+@app.get("/api/projects")
+def projects_list():
+    return {"projects": list_projects(DATA_DIR), "storage": "local-sqlite; no cloud sync; single trusted user only"}
+
+
+@app.post("/api/projects", status_code=201)
+def projects_create(payload: NewProjectPayload):
+    return create_project(DATA_DIR, payload.name, payload.description, payload.geometry)
+
+
+@app.get("/api/projects/{project_id}")
+def projects_get(project_id: str):
+    return get_project(DATA_DIR, project_id)
+
+
+@app.patch("/api/projects/{project_id}")
+def projects_update(project_id: str, payload: UpdateProjectPayload):
+    fields: dict[str, Any] = {}
+    for key in ("name", "description", "geometry"):
+        if key in payload.model_fields_set:
+            fields[key] = getattr(payload, key)
+    if not fields:
+        return get_project(DATA_DIR, project_id)
+    return update_project(DATA_DIR, project_id, payload.expected_revision, **fields)
+
+
+@app.delete("/api/projects/{project_id}", status_code=204)
+def projects_delete(project_id: str):
+    remove_project(DATA_DIR, project_id)
+    return Response(status_code=204)
+
+
+@app.post("/api/projects/{project_id}/activate-analysis")
+def projects_activate_analysis(project_id: str, payload: ActivateAnalysisPayload):
+    report = load_report(payload.analysis_id)
+    return activate_analysis(DATA_DIR, project_id, payload.analysis_id, report)
+
+
 @app.post("/api/site/inspect")
 def inspect_site(payload: SitePayload):
     geometry = validate_site(payload.geometry)
@@ -70,15 +128,27 @@ def inspect_site(payload: SitePayload):
     return {"geometry": geometry, "area_ha": round(area_km2(geometry) * 100, 3), "bounds": list(shape(geometry).bounds), "message": "Sempadan tapak sah dari segi geometri; status hak milik dan zoning belum disemak."}
 
 
+def verify_project_for_analysis(project_id: str | None, geometry: dict[str, Any]) -> None:
+    if project_id is None:
+        return
+    project = get_project(DATA_DIR, project_id)
+    if project["geometry"] is not None and not shape(project["geometry"]).equals(shape(geometry)):
+        raise HTTPException(409, "Sempadan projek tidak sama dengan tapak analisis. Buka semula projek.")
+
+
 @app.post("/api/terrain/auto")
 def terrain_auto(payload: SitePayload):
     geometry = validate_site(payload.geometry)
+    verify_project_for_analysis(payload.project_id, geometry)
     analysis_id = str(uuid.uuid4())
     directory = job_dir(analysis_id)
     try:
         raster, source = acquire_copernicus(shape(geometry).bounds, directory)
         report = analyze_terrain(geometry, raster, source, analysis_id)
-        return save_report(directory, report)
+        saved = save_report(directory, report)
+        if payload.project_id is not None:
+            attach_analysis(DATA_DIR, payload.project_id, saved)
+        return saved
     except Exception:
         shutil.rmtree(directory, ignore_errors=True)
         raise
@@ -92,6 +162,7 @@ def terrain_upload(
     vertical_unit: str = Form(...),
     height_model: str = Form(...),
     vertical_datum: str = Form("unknown"),
+    project_id: str | None = Form(None),
 ):
     if vertical_unit != "metres":
         raise HTTPException(422, "V1 menerima ketinggian dalam unit meter sahaja; sila sahkan unit fail ukur.")
@@ -106,6 +177,7 @@ def terrain_upload(
     except json.JSONDecodeError as ex:
         raise HTTPException(422, "Geometri JSON tidak sah.") from ex
     geom = validate_site(geometry_value)
+    verify_project_for_analysis(project_id, geom)
     analysis_id = str(uuid.uuid4())
     directory = job_dir(analysis_id)
     directory.mkdir(parents=True, exist_ok=True)
@@ -130,7 +202,10 @@ def terrain_upload(
             "verified": "CRS and raster contents inspected; source authenticity and survey accuracy NOT verified",
         }
         report = analyze_terrain(geom, file_path, metadata, analysis_id)
-        return save_report(directory, report)
+        saved = save_report(directory, report)
+        if project_id is not None:
+            attach_analysis(DATA_DIR, project_id, saved)
+        return saved
     except Exception:
         shutil.rmtree(directory, ignore_errors=True)
         raise
