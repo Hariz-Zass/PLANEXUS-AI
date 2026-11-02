@@ -13,6 +13,35 @@ export type SlopeClass = {
   percent_of_valid_slope: number;
 };
 
+export type TerrainSuitabilityBand = {
+  id:number;
+  key:string;
+  label:string;
+  min_deg:number|null;
+  max_deg:number|null;
+  color:string;
+  reason:string;
+  pixels:number;
+  area_ha_est:number;
+  share_of_assessed_pct:number|null;
+};
+
+export type TerrainSuitabilitySummary = {
+  version:string;
+  method:string;
+  bands:TerrainSuitabilityBand[];
+  assessed_pixels:number;
+  site_mask_pixels:number;
+  assessed_area_ha_est:number;
+  unassessed_area_ha_est:number;
+  coverage_of_site_pct_est:number;
+  area_exceeds_site_due_to_pixelization:boolean;
+  source_resolution_m?:number|null;
+  class_overlay_truncated:boolean;
+  disclaimer:string;
+  warnings:string[];
+};
+
 export type TerrainReport = {
   analysis_id: string;
   created_at_utc: string;
@@ -49,6 +78,8 @@ export type TerrainReport = {
     method: string;
   };
   slope_geojson: GeoJSON.FeatureCollection;
+  suitability?: TerrainSuitabilitySummary;
+  suitability_geojson?: GeoJSON.FeatureCollection;
   elevation_geojson?: GeoJSON.FeatureCollection;
   contours_geojson?: GeoJSON.FeatureCollection;
   warnings: string[];
