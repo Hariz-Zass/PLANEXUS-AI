@@ -98,3 +98,17 @@
 .shell-v2 .gpp-preset-context a{color:#c7f4b1;display:inline-flex;align-items:center;gap:4px;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:520px){.shell-v2 .gpp-preset-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.shell-v2 .gpp-preset-card{padding:9px 7px}.shell-v2 .gpp-preset-card>strong{font-size:15px;white-space:normal}.shell-v2 .gpp-preset-card>small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.shell-v2 .gpp-preset-card{transition:none}}
+
+.shell-v2 .gpp-reference-examples{margin:25px 0 18px}
+.shell-v2 .gpp-reference-examples-head h2{font:700 19px var(--display);color:#e6f2dc;letter-spacing:-.4px;margin:0 0 10px}
+.shell-v2 .gpp-reference-examples-head h2 span{color:#e4c59d;font:700 9px var(--display);display:inline-block;margin-left:8px}
+.shell-v2 .gpp-reference-examples-head p{font:400 11px/1.8 var(--display);color:#a0bbaf;max-width:800px}
+.shell-v2 .gpp-reference-examples-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.shell-v2 .gpp-reference-examples-grid article{border:1px solid #486753;background:#183233;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.shell-v2 .gpp-reference-examples-grid article>small{font:700 9px var(--display);color:#b0cfa0}
+.shell-v2 .gpp-reference-examples-grid article>strong{font:750 clamp(21px,2.6vw,30px) var(--display);color:#d5f6a7;letter-spacing:-.8px}
+.shell-v2 .gpp-reference-examples-grid article>strong em{font:600 12px var(--display);color:#8fb8a2;font-style:normal}
+.shell-v2 .gpp-reference-examples-grid article>span{font:650 11px var(--display);color:#ecf3e8}
+.shell-v2 .gpp-reference-examples-grid article>p{font:400 10px/1.8 var(--display);color:#9eb9a6;flex:1}
+.shell-v2 .gpp-reference-examples-grid article>a{font:600 10px var(--display);color:#c3efaf;display:flex;gap:5px;align-items:center;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:750px){.shell-v2 .gpp-reference-examples-grid{grid-template-columns:1fr}.shell-v2 .gpp-reference-examples-grid article>strong{font-size:27px}}

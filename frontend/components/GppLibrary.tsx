@@ -58,6 +58,21 @@ export default function GppLibrary({backendConnected,onOpenStudio}:{backendConne
           <div><a href={source.url} target="_blank" rel="noopener noreferrer"><FileSearch size={14}/> Open official document/source <ArrowUpRight size={14}/></a></div>
         </div>
       </article>)}
+      <section className="gpp-reference-examples" aria-label="Three common terrace proposal starting sizes">
+        <div className="gpp-reference-examples-head">
+          <h2>Teres Low / Mid / High <span>preset reka bentuk, bukan had GPP</span></h2>
+          <p>Piawaian kebangsaan membezakan kos rendah, kos sederhana rendah dan kos sederhana. Label HIGH ialah pilihan produk; GP001-A tidak menentukan satu ukuran minimum khusus untuk teres kos tinggi.</p>
+        </div>
+        <div className="gpp-reference-examples-grid">
+          {catalog.terrace_design_presets.map(preset=><article key={preset.id}>
+            <small>{preset.id.toUpperCase()} · USER DESIGN EXAMPLE</small>
+            <strong>{preset.width_ft} × {preset.depth_ft} <em>ft</em></strong>
+            <span>{preset.label}</span>
+            <p>{preset.note}</p>
+            <a href={preset.source_url} target="_blank" rel="noopener noreferrer">Sumber contoh <ArrowUpRight size={12}/></a>
+          </article>)}
+        </div>
+      </section>
       <div className="gpp-library-caveat"><CircleAlert size={18}/>
         <span>{catalog.disclaimer} Every numeric check is a reference comparison only; where no valid maximum has been indexed, the system MUST leave it unknown.</span>
       </div>
