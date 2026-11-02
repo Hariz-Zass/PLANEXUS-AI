@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-REGISTRY_VERSION = "2026-11-02-gpp-housing-v2"
+REGISTRY_VERSION = "2026-11-02-gpp-housing-v3"
 
 NATIONAL_SOURCE = {
     "id": "gp001a_2016",
@@ -101,11 +101,17 @@ NATIONAL_LOT_RULES: tuple[dict[str, Any], ...] = (
      "min_width_m":12.2, "min_depth_m":15.2, "min_floor_area_m2":83.6, "page":45},
     {"category":"cluster", "storeys":[2,3], "label":"Rumah kluster, 2-3 tingkat",
      "min_width_m":9.1, "min_depth_m":16.8, "min_floor_area_m2":None, "page":45},
-    {"category":"semi_detached", "storeys":[1,2,3], "label":"Rumah berkembar",
+    {"category":"semi_detached", "storeys":[1], "label":"Rumah berkembar, 1 tingkat",
+     "min_width_m":12.2, "min_depth_m":19.8, "min_floor_area_m2":97.5, "page":45},
+    {"category":"semi_detached", "storeys":[2,3], "label":"Rumah berkembar, 2–3 tingkat",
      "min_width_m":12.2, "min_depth_m":19.8, "min_floor_area_m2":None, "page":45},
-    {"category":"detached", "storeys":[1,2,3], "label":"Rumah sesebuah biasa",
+    {"category":"detached", "storeys":[1], "label":"Rumah sesebuah biasa, 1 tingkat",
+     "min_width_m":15.2, "min_depth_m":22.9, "min_floor_area_m2":125.4, "page":45},
+    {"category":"detached", "storeys":[2,3], "label":"Rumah sesebuah biasa, 2–3 tingkat",
      "min_width_m":15.2, "min_depth_m":22.9, "min_floor_area_m2":None, "page":45},
-    {"category":"zero_lot", "storeys":[1,2,3], "label":"Rumah sesebuah zero lot boundary",
+    {"category":"zero_lot", "storeys":[1], "label":"Rumah sesebuah zero lot boundary, 1 tingkat",
+     "min_width_m":13.7, "min_depth_m":21.3, "min_floor_area_m2":92.9, "page":45},
+    {"category":"zero_lot", "storeys":[2,3], "label":"Rumah sesebuah zero lot boundary, 2–3 tingkat",
      "min_width_m":13.7, "min_depth_m":21.3, "min_floor_area_m2":None, "page":45},
 )
 
