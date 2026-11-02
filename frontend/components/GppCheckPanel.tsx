@@ -77,12 +77,44 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
       </select>
     </label>
     {profile==="none"&&<p className="gpp-notice"><CircleAlert size={15}/> Select a jurisdiction to see guidelines. The site map coordinates do not prove which current PBT rules apply.</p>}
+    {inputs.development_type==="terrace_housing"&&Boolean(catalog?.terrace_design_presets?.length)&&
+      <div className="gpp-preset-section" aria-label="Terrace size examples">
+        <div className="gpp-preset-heading">
+          <strong>Preset rumah teres — Low / Mid / High</strong>
+          <span>BUKAN HAD WAJIB GPP</span>
+        </div>
+        <p>Saiz permulaan untuk simulasi. Mid 20 × 70 kaki ialah contoh projek rumah kos sederhana, bukannya minimum GP001-A. High tiada satu saiz minimum khusus dalam Jadual 2 GP001-A.</p>
+        <div className="gpp-preset-grid">
+          {catalog?.terrace_design_presets.map(preset=><button key={preset.id} type="button"
+            aria-pressed={category===preset.category}
+            className={"gpp-preset-card"+(category===preset.category?" is-active":"")}
+            onClick={()=>onPatch({
+              housing_category:preset.category as ProposalInputs["housing_category"],
+              lot_width_m:preset.width_m,lot_depth_m:preset.depth_m,
+              storeys:preset.storeys,perak_market_segment:null,
+            })}>
+            <span>{preset.id==="low"?"LOW":preset.id==="mid"?"MID":"HIGH / PREMIUM"}</span>
+            <strong>{preset.width_ft} × {preset.depth_ft} <small>ft</small></strong>
+            <small>{preset.id==="low"?"National low-cost example":preset.id==="mid"?"Typical mid-cost project size":"Editable premium-sized example"}</small>
+          </button>)}
+        </div>
+        <div className="gpp-preset-context">
+          {catalog?.terrace_design_presets.find(item=>item.category===category)
+            ? <><span>{catalog.terrace_design_presets.find(item=>item.category===category)?.note}</span>
+              <a href={catalog.terrace_design_presets.find(item=>item.category===category)?.source_url}
+                target="_blank" rel="noopener noreferrer">Lihat sumber contoh <ArrowUpRight size={12}/></a></>
+            : <span>Pilih Low, Mid atau High untuk guna preset. Syarat GP001-A kos sederhana rendah kekal di pilihan lanjutan.</span>}
+        </div>
+      </div>}
     {isHousing&&<>
       <div className="gpp-field-grid">
-        <label className="proposal-field">Housing type in GP001-A
+        <label className="proposal-field">House type / GPP reference category
           <select aria-label="GPP house category" value={category} onChange={event=>onPatch({housing_category:event.target.value as ProposalInputs["housing_category"]||null})}>
             <option value="">Choose housing category</option>
-            {matches.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+            {matches.filter(item=>item.id!=="terrace_lower_middle").map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+            {matches.some(item=>item.id==="terrace_lower_middle")&&<optgroup label="Tambahan GP001-A: kategori kos sederhana rendah">
+              <option value="terrace_lower_middle">Rumah teres kos sederhana rendah (bukan MID biasa)</option>
+            </optgroup>}
           </select>
         </label>
         <label className="proposal-field">Number of storeys
@@ -117,13 +149,21 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
             onChange={event=>onPatch({building_height_m:event.target.value?Number(event.target.value):null})}/>
         </label>}
       </div>
+      {inputs.development_type==="terrace_housing"&&category==="terrace_high"&&
+        <div className="gpp-notice" role="note"><CircleAlert size={15}/>
+          GP001-A Jadual 2 tidak mengandungi minimum lot khusus bagi teres HIGH / premium. Saiz 22 × 75 kaki hanyalah contoh reka bentuk; pilih negeri/PBT untuk syarat tempatan. PLANEXUS tidak akan mengira preset ini sebagai lulus GPP nasional.
+        </div>}
+      {inputs.development_type==="terrace_housing"&&category==="terrace_middle"&&
+        <p className="gpp-notice"><Ruler size={15}/>
+          Mid 20 × 70 ft ialah saiz cadangan yang dipilih. GP001-A 2016 Jadual 2 menetapkan minimum 20 × 65 ft (1–1½ tingkat) atau 18 × 65 ft (2–3 tingkat). Perak PR1 pula menetapkan minimum ruang lantai mengikut kategori, bukan lebar/panjang lot.
+        </p>}
       {lotRule&&<div className="gpp-suggestion">
         <div><Ruler size={17}/><span><strong>Jadual 2 GP001-A: minimum lot reference</strong>
-          <small>{lotRule.label} — {fmt(lotRule.min_width_m)} × {fmt(lotRule.min_depth_m)} m. No maximum lot size specified in indexed table.</small></span>
+          <small>{lotRule.label} — {fmt(lotRule.min_width_m)} × {fmt(lotRule.min_depth_m)} m{lotRule.min_width_ft&&lotRule.min_depth_ft?` (${lotRule.min_width_ft} × ${lotRule.min_depth_ft} ft)`:""}. Ini MINIMUM, bukan saiz rumah biasa atau maksimum. Syarat negeri/PBT berasingan.</small></span>
         </div>
         <button type="button" disabled={checking} onClick={()=>onPatch({
           lot_width_m:lotRule.min_width_m,lot_depth_m:lotRule.min_depth_m,
-        })}>Use reference dimensions</button>
+        })}>Use GPP minimum (replaces proposal size)</button>
       </div>}
       {profile==="perak_2023"&&inputs.development_type==="terrace_housing"&&<p className="gpp-notice"><CircleAlert size={15}/>
         Perak PR1 sets terrace floor-space/height rules; GP001-A lot dimensions are <strong>supplementary national references</strong>. Verify adopted PBT and gazetted local-plan provisions before any compliance claim.
@@ -180,7 +220,7 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
       {assessment.checks.map((item,i)=><div key={item.key+"-"+i} className="gpp-check-line">
         <div><strong>{item.title}</strong><small>{item.role==="supplementary_national_reference"?"NATIONAL REFERENCE ONLY":"MANUALLY CURATED SOURCE RULE"} · {item.source_page}</small></div>
         <div className="gpp-check-value">
-          <span>{item.type==="min"?"Min ":"Max "}{fmt(item.value)} {item.unit}</span>
+          <span>{item.type==="min"?"Min ":"Max "}{fmt(item.value)} {item.unit}{item.published_equivalent_ft?` (≈${item.published_equivalent_ft} ft)`:""}</span>
           <strong className={item.result==="below_min"||item.result==="above_max"?"gpp-check-failed":""}>
             {item.observed===null?"Input required":item.result==="meets_number"?"Numeric match":"Outside range"}
           </strong>
