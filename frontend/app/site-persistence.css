@@ -1,0 +1,35 @@
+
+/* PLANEXUS - saved site controls and subdued premium animations */
+.shell-v2 .site-preservation-bar{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 19px;background:linear-gradient(110deg,#16302d,#14242f);border-top:1px solid #355445}
+.shell-v2 .save-indicator{display:flex;align-items:center;gap:10px;color:#b6c8c4;min-width:0}
+.shell-v2 .save-indicator-mark{display:grid;place-items:center;color:#8caa9d;width:33px;height:33px;border-radius:9px;background:#213a36;border:1px solid #40594d}
+.shell-v2 .save-indicator-ready .save-indicator-mark{color:#b4f77d;border-color:#66875b;background:#294b36}
+.shell-v2 .save-indicator-error .save-indicator-mark{color:#ffbf85;border-color:#a57b5d}
+.shell-v2 .save-indicator strong{display:block;font-size:10px;letter-spacing:.8px;color:#d6e9dd}
+.shell-v2 .save-indicator small{display:block;margin-top:4px;font-size:10px;color:#91ada5;line-height:1.45}
+.shell-v2 .site-preservation-actions{display:flex;gap:8px;align-items:center}
+.shell-v2 .site-action-button{min-height:35px;font-size:10px;padding:7px 12px;white-space:nowrap}
+.shell-v2 .site-action-button.destructive{border-color:#6d5053;color:#dda7a5}
+.shell-v2 .site-action-button.destructive:hover:not(:disabled){background:#462a2d}
+.shell-v2 .save-warning{display:flex;align-items:center;gap:9px;padding:12px 17px;background:#4d3425;color:#ffd9b4;border-top:1px solid #95694d;font-size:11px}
+.saved-site-history{display:flex;align-items:center;flex-wrap:wrap;gap:13px;padding:19px;background:linear-gradient(110deg,#1c3b34,#142732);border:1px solid #486959;border-radius:13px;margin:21px 0}
+.saved-site-history-icon{width:47px;height:47px;display:grid;place-items:center;background:#315644;color:#b4f77d;border:1px solid #537c59;border-radius:12px}
+.saved-site-history>div:nth-child(2){flex:1;min-width:190px;display:flex;flex-direction:column;gap:6px}
+.saved-site-history strong{font-size:14px}
+.saved-site-history small{color:#9db6ac;font-size:11px}
+@media (prefers-reduced-motion: no-preference) {
+  .shell-v2 .eyebrow-dot{animation:planexus-status-pulse 3s ease-in-out infinite}
+  .shell-v2 .sidebar-rule-graphic i:first-of-type{animation:planexus-orbit 34s linear infinite}
+  .shell-v2 .sidebar-rule-graphic i:nth-of-type(2){animation:planexus-orbit 25s linear reverse infinite}
+  .shell-v2 .ribbon-context-icon svg{animation:planexus-radar-breathe 5s ease-in-out infinite}
+  .shell-v2 .save-indicator-ready .save-indicator-mark{animation:planexus-autosave-glow 4.5s ease-in-out infinite}
+  .shell-v2 .site-preservation-actions button{transition:transform .22s ease,background-color .22s ease,border-color .22s ease}
+  .shell-v2 .site-preservation-actions button:hover:not(:disabled){transform:translateY(-2px)}
+}
+@keyframes planexus-status-pulse{0%,100%{opacity:.65;box-shadow:0 0 0 0 #b4f77d4d}50%{opacity:1;box-shadow:0 0 0 7px #b4f77d00}}
+@keyframes planexus-orbit{to{transform:rotate(360deg)}}
+@keyframes planexus-radar-breathe{0%,100%{opacity:.65;transform:scale(.96)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes planexus-autosave-glow{0%,100%{box-shadow:0 0 0 0 #b4f77d00}50%{box-shadow:0 0 14px 2px #b4f77d26}}
+@media(max-width:920px){.shell-v2 .site-preservation-bar{flex-direction:column;align-items:flex-start}.shell-v2 .site-preservation-actions{width:100%}.shell-v2 .site-preservation-actions button{flex:1;justify-content:center}}
+@media(max-width:520px){.shell-v2 .site-preservation-actions{flex-wrap:wrap}.saved-site-history{align-items:flex-start}.saved-site-history>button{flex:1}}
+@media(prefers-reduced-motion:reduce){.shell-v2 .site-preservation-actions button{transition:none}}

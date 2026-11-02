@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import "./v2.css";
+import "./site-persistence.css";
 
 export const metadata: Metadata = {
   title: "PLANEXUS AI | Geospatial Planning Copilot",
