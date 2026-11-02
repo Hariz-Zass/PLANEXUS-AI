@@ -86,6 +86,18 @@ def connection(data_dir: Path) -> Iterator[sqlite3.Connection]:
             );
             CREATE INDEX IF NOT EXISTS ix_project_analyses_project
                 ON project_analyses(project_id, created_at_utc DESC);
+            CREATE TABLE IF NOT EXISTS project_proposals (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                input_json TEXT NOT NULL,
+                site_hash TEXT NOT NULL,
+                analysis_id_at_save TEXT,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_proposals_by_project
+                ON project_proposals(project_id, updated_at_utc DESC);
             """)
         yield db
     finally:
