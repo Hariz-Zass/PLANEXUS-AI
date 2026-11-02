@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from rasterio.errors import RasterioError
 from shapely.geometry import shape
 
-from .copilot import assess
+from .copilot import assess, capabilities, workflow_guidance
 from .geometry import validate_site
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .sources import SOURCE_CATALOG, acquire_copernicus
@@ -29,7 +29,7 @@ class SitePayload(BaseModel):
 
 
 class CopilotPayload(BaseModel):
-    analysis_id: str
+    analysis_id: str | None = None
     question: str = Field(min_length=3, max_length=800)
 
 
@@ -158,8 +158,17 @@ def get_analysis(analysis_id: str):
     return load_report(analysis_id)
 
 
+@app.get("/api/copilot/capabilities")
+def copilot_capabilities():
+    return capabilities()
+
+
 @app.post("/api/copilot/assess")
 def copilot(payload: CopilotPayload):
+    # Operational/workflow guidance can be used before terrain analysis.
+    # Site-specific answers MUST be bound to an existing, saved GIS report.
+    if payload.analysis_id is None:
+        return {"analysis_id": None, **workflow_guidance(payload.question)}
     report = load_report(payload.analysis_id)
     return {"analysis_id": payload.analysis_id, **assess(report, payload.question)}
 
