@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-REGISTRY_VERSION = "2026-11-02-gpp-housing-v3"
+REGISTRY_VERSION = "2026-11-02-gpp-housing-v4"
 
 NATIONAL_SOURCE = {
     "id": "gp001a_2016",
@@ -31,8 +31,8 @@ PERAK_SOURCE = {
     "jurisdiction": "Negeri Perak; review applicable PBT and gazetted Rancangan Tempatan",
     "url": "https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file",
     "alternate_official_url": "https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023",
-    "evidence": "PR1, printed page 5, and approval notice; MMKN 5 September 2023, confirmed 13 September 2023",
-    "scope": "State guidance; source table provides minimum floor areas and storey/height constraints, but not numerical lot frontage/depth minima.",
+    "evidence": "PR1 p5 terrace, PR2 p7 semi-detached, PR3 p9 cluster, PR4 p11 detached, PR5 p13 zero lot, PR6 p15 townhouse; MMKN 5 September 2023",
+    "scope": "State guidance; PR1-PR6 provide floor/height constraints; most do not list numerical lot frontage/depth minima. Road and setback dimensions are separate geometry references.",
     "status": "curated_rules",
 }
 CATALOG_ONLY = (
@@ -148,6 +148,23 @@ PERAK_LAYOUT_REFERENCES: tuple[dict[str, Any], ...] = (
      "value_type":"stated_square", "applicability":"PR1 50 ft x 50 ft turning end, not a width/depth of a house"},
 )
 
+# Verified PR2-PR6 printed tables, sourced to the original state PDF.
+# Perak states minimum FLOOR SPACE, NOT minimum plot frontage/depth.
+PERAK_OTHER_HOUSING = {
+    "semi_detached":{"code":"PR2","page":7,"min_floor_sqft":1000.0,
+                     "max_storeys":3,"min_bedrooms":3,"max_height_ft":60.0},
+    "cluster":{"code":"PR3","page":9,"min_floor_sqft":1000.0,
+               "max_storeys":3,"min_bedrooms":3,"max_height_ft":60.0,
+               "notes":"4 units per cluster (configuration not automatically checked)."},
+    "detached":{"code":"PR4","page":11,"min_floor_sqft":1000.0,
+                "max_storeys":3,"min_bedrooms":3,"max_height_ft":60.0},
+    "zero_lot":{"code":"PR5","page":13,"min_floor_sqft":1000.0,
+                "max_storeys":3,"min_bedrooms":3,"max_height_ft":60.0},
+    "townhouse":{"code":"PR6","page":15,"min_floor_sqft":900.0,
+                 "max_storeys":3,"min_bedrooms":3,"max_height_ft":60.0,
+                 "notes":"2 owners per single lot, arrangement and strata conditions require separate review."},
+}
+
 PERAK_SEGMENT_LABELS = {
     "perak_low_cost":"Kos rendah / Rumah Perakku I",
     "perak_middle":"Kos sederhana / Rumah Perakku II",
@@ -175,6 +192,7 @@ def catalog() -> dict[str, Any]:
             {"id":"semi_detached","label":"Rumah berkembar","development_type":"other_landed"},
             {"id":"detached","label":"Rumah sesebuah","development_type":"other_landed"},
             {"id":"zero_lot","label":"Rumah sesebuah (zero lot boundary)","development_type":"other_landed"},
+            {"id":"townhouse","label":"Rumah bandar (Perak PR6; GP001 lot size not indexed)","development_type":"other_landed"},
         ],
         "national_lot_rules": [
             {**r,"source_id":NATIONAL_SOURCE["id"],
@@ -182,6 +200,9 @@ def catalog() -> dict[str, Any]:
             for r in NATIONAL_LOT_RULES
         ],
         "perak_floor_min_sqft": PERAK_FLOOR_MIN_SQFT,
+        "perak_other_housing_rules": {key:{**rule,"source_id":PERAK_SOURCE["id"],
+            "source_url":PERAK_SOURCE["url"],"source_page":"PR"+rule["code"][2:]+" halaman "+str(rule["page"])}
+            for key,rule in PERAK_OTHER_HOUSING.items()},
         "perak_layout_references": [{**r,"value_m":round(r["value_ft"]*0.3048,4),
             "source_id":PERAK_SOURCE["id"],"source_url":PERAK_SOURCE["url"],
             "source_page":"PR1, halaman bercetak 5","automated_geometry_check":False}
@@ -286,8 +307,29 @@ def evaluate_policy(proposal: Any) -> dict[str, Any]:
             else:
                 warnings.append("Pilih segmen kos Perak (kos rendah/sederhana/mampu milik/terbuka) untuk mengetahui luas lantai minimum yang betul.")
             warnings.append("PR1 Perak menyebut rizab jalan 50 kaki, lorong belakang 15 kaki, lorong tepi 20 kaki, dan anjakan hadapan 15/20 kaki; geometri jalan/anjakan BELUM diuji dalam modul ini.")
+        elif category in PERAK_OTHER_HOUSING:
+            state=PERAK_OTHER_HOUSING[category]
+            page=f"{state['code']}, halaman bercetak {state['page']}"
+            add_check(key="max_storeys_perak",title="Bilangan tingkat maksimum (Perak)",
+                      limit=state["max_storeys"],observed=storeys,measure="tingkat",
+                      direction="max",source=PERAK_SOURCE,page=page,role="primary_state_reference")
+            add_check(key="max_building_height_perak",title="Ketinggian tanah ke bumbung maksimum (Perak)",
+                      limit=round(state["max_height_ft"]*.3048,4),observed=building_height_m,
+                      measure="m",direction="max",source=PERAK_SOURCE,page=page,role="primary_state_reference")
+            add_check(key="min_bedrooms_perak",title="Bilangan bilik tidur minimum (Perak)",
+                      limit=state["min_bedrooms"],observed=bedrooms,measure="bilik",
+                      direction="min",source=PERAK_SOURCE,page=page,role="primary_state_reference")
+            add_check(key="min_floor_area_perak",title="Luas ruang lantai minimum (Perak)",
+                      limit=round(state["min_floor_sqft"]*.09290304,4),observed=floor_m2,
+                      measure="m²",direction="min",source=PERAK_SOURCE,page=page,role="primary_state_reference")
+            if state.get("notes"):
+                warnings.append(state["notes"])
+            warnings.append(
+                "PR2-PR6 has road/lot setback requirements which are not measured in the current map. "
+                "National lot frontage/depth minima remain supplementary and require verified PBT adoption."
+            )
         else:
-            warnings.append("PR1 Perak digunakan hanya untuk teres. Jenis perumahan bertanah lain ada PR2-PR6, belum diindeks sebagai pemeriksaan numerik.")
+            warnings.append("Tidak ada kategori perumahan terperinci yang dipilih/diindeks untuk GPP Perak PR1-PR6.")
     if profile=="national_2016":
         applicable=[item for item in checks if item["role"]=="primary_reference"]
     else:
