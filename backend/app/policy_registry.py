@@ -418,6 +418,8 @@ def answer_gpp_question(question:str)->dict[str,Any]:
         selected_category="semi_detached"
     elif any(x in q for x in ("kluster","cluster")):
         selected_category="cluster"
+    elif any(x in q for x in ("rumah bandar","townhouse","town house")):
+        selected_category="townhouse"
     elif any(x in q for x in ("sesebuah","detached")):
         selected_category="detached"
     elif any(x in q for x in ("sederhana rendah","lower middle")):
@@ -455,16 +457,28 @@ def answer_gpp_question(question:str)->dict[str,Any]:
         else:
             rows="Tiada baris Jadual 2 yang disahkan bagi jenis rumah dan bilangan tingkat ini."
         if perak:
-            category_note=(
-                "**Perak 2023 PR1 (teres):** lantai minimum 900 kps kos rendah, "
-                "950 kps kos sederhana, 1,000 kps mampu milik, 1,001 kps bebas; "
-                "maksimum 3 tingkat dan 60 kaki tinggi bangunan. "
-                "PR1 mengandungi syarat jalan/anjakan yang perlu diukur dalam pelan. "
-                if selected_category.startswith("terrace_") else
-                "**Perak 2023:** Syarat numerik PR2–PR5 bagi rumah kluster/berkembar/"
-                "sesebuah belum diindeks oleh PLANEXUS. "
-            )
-            body=category_note+"\n**Rujukan tambahan lot kebangsaan GP001-A:**\n"+rows
+            if selected_category.startswith("terrace_"):
+                category_note=(
+                    "**Perak 2023 PR1 (teres):** lantai minimum 900 kps kos rendah, "
+                    "950 kps kos sederhana, 1,000 kps mampu milik, 1,001 kps bebas; "
+                    "maksimum 3 tingkat dan 60 kaki tinggi bangunan. "
+                    "PR1 mengandungi syarat jalan/anjakan yang perlu diukur dalam pelan."
+                )
+            else:
+                state=PERAK_OTHER_HOUSING.get(selected_category)
+                if state:
+                    category_note=(
+                        "**Perak 2023 "+state["code"]+" (hlm. "+str(state["page"])+"):** "
+                        "Luas lantai minimum "+str(int(state["min_floor_sqft"]))+" kps, "
+                        "bilangan bilik minimum "+str(state["min_bedrooms"])+", "
+                        "maksimum "+str(state["max_storeys"])+" tingkat, "
+                        "tinggi tanah ke bumbung maksimum "+str(int(state["max_height_ft"]))+" kaki. "
+                        +(" "+state["notes"] if state.get("notes") else "")
+                        +" Jalan dan anjakan perlu diukur berasingan pada pelan."
+                    )
+                else:
+                    category_note="Tiada aturan Perak khusus yang telah diindeks bagi jenis rumah ini."
+            body=category_note+"\n**Rujukan tambahan lot kebangsaan GP001-A (bukan syarat Perak/PBT yang disahkan):**\n"+rows
             refs=[PERAK_SOURCE,NATIONAL_SOURCE]
         else:
             body="**GP001-A 2016 Jadual 2 (hlm.44–45), jenis rumah diminta:**\n"+rows
