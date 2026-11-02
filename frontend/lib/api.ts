@@ -122,7 +122,7 @@ export type ProposalInputs = {
   other_reserve_pct: number;
   policy_profile?: "none" | "national_2016" | "perak_2023";
   housing_category?: "terrace_low_cost" | "terrace_lower_middle" | "terrace_middle" |
-    "cluster" | "semi_detached" | "detached" | "zero_lot" | null;
+    "cluster" | "semi_detached" | "detached" | "zero_lot" | "townhouse" | null;
   storeys?: number | null;
   perak_market_segment?: "perak_low_cost" | "perak_middle" | "perak_affordable" | "perak_open" | null;
   floor_area_m2?: number | null;
@@ -164,6 +164,7 @@ export type PolicyCatalog = {
     max_width_m:null;max_depth_m:null
   }[];
   perak_floor_min_sqft:Record<string,number>;
+  perak_other_housing_rules?:Record<string,{code:string;page:number;min_floor_sqft:number;max_storeys:number;min_bedrooms:number;max_height_ft:number;notes?:string;source_url:string;source_page:string}>;
   perak_layout_references?:{
     id:string;label:string;value_ft:number;value_type:string;
     value_m:number;applicability:string;source_id:string;source_url:string;

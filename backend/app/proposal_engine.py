@@ -28,7 +28,7 @@ class ProposalInput(BaseModel):
     policy_profile: Literal["none", "national_2016", "perak_2023"] = "none"
     housing_category: Literal[
         "terrace_low_cost", "terrace_lower_middle", "terrace_middle",
-        "cluster", "semi_detached", "detached", "zero_lot"
+        "cluster", "semi_detached", "detached", "zero_lot", "townhouse"
     ] | None = None
     storeys: int | None = Field(default=None, ge=1, le=20)
     perak_market_segment: Literal[
