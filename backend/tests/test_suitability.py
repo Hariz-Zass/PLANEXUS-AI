@@ -52,7 +52,7 @@ def test_exact_thresholds_and_unknown_cells_never_count_as_gentle():
     features=report["geojson"]["features"]
     assert {f["properties"]["class_id"] for f in features}=={1,2,3,4}
     assert all(f["properties"]["screening_only"] for f in features)
-    assert "not a planning approval" in summary["warnings"][0].lower()
+    assert "not a land use" in summary["warnings"][0].lower()
     assert "not RT" in summary["disclaimer"]
     assert any("DSM" in msg for msg in summary["warnings"])
 

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
+import SuitabilityPanel from "@/components/SuitabilityPanel";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
@@ -116,7 +117,7 @@ export default function Home() {
   const [report, setReport] = useState<TerrainReport | null>(null);
   const [gisStatus, setGisStatus] = useState<"checking" | "online" | "offline">("checking");
   const [llmConfigured, setLlmConfigured] = useState(false);
-  const [terrainLayer,setTerrainLayer] = useState<"slope"|"elevation">("slope");
+  const [terrainLayer,setTerrainLayer] = useState<"slope"|"elevation"|"suitability">("slope");
   const [showContours,setShowContours] = useState(true);
   const [recent, setRecent] = useState<SavedSummary[]>([]);
   const [pending, setPending] = useState<null | "auto" | "upload" | "copilot">(null);
@@ -146,6 +147,7 @@ export default function Home() {
   const applyProject = useCallback((details:ProjectDetail, analysis:TerrainReport|null) => {
     projectRef.current=details;setActiveProject(details);
     setGeometry(details.geometry);setReport(analysis);setChat([]);
+    setTerrainLayer(analysis?.suitability?"suitability":"slope");
     setDrawing(false);setResetCounter(n=>n+1);
     setSaveState(details.geometry?"saved":"empty");
     setSavedAt(details.updated_at_utc);
@@ -385,7 +387,7 @@ export default function Home() {
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({geometry,project_id:current?.id??null})
       });
-      setReport(result);setChat([]);
+      setReport(result);setChat([]);setTerrainLayer(result.suitability?"suitability":"slope");
       setStatus(current?"Analisis selesai dan dipautkan kepada projek aktif.":"Analisis disimpan sebagai laporan lama tanpa pautan projek.");
       if(current){
         try{
@@ -446,6 +448,7 @@ export default function Home() {
       }else{
         await activateSite(report.geometry,"analysis-reopened");
         setReport(report);
+        setTerrainLayer(report.suitability?"suitability":"slope");
       }
       setStatus("Laporan dan layer GIS dipulihkan daripada analisis tersimpan.");
       setTab("workspace");setMobileNav(false);
@@ -542,7 +545,7 @@ export default function Home() {
                     <div className="card-title-row"><span className="card-icon"><Layers3 size={18}/></span><div className="map-heading"><strong>Geospatial Canvas <span> / 01</span></strong><small>EXPLORE & DEFINE YOUR SITE</small></div></div>
                     <div className="map-topline-right"><span className="card-meta">EPSG:4326 · WGS 84</span><span className="map-status"><i className={report ? "active" : ""}/>{report ? "TERRAIN ANALYSED" : drawing ? "DEFINING BOUNDARY" : geometry ? "SITE SELECTED" : "NO ACTIVE SITE"}</span></div>
                   </div>
-                  <div className="map-layer-controls" aria-label="Terrain data layers"><button className={terrainLayer==="slope"?"active":""} type="button" onClick={()=>setTerrainLayer("slope")}>Slope</button><button className={terrainLayer==="elevation"?"active":""} type="button" onClick={()=>setTerrainLayer("elevation")}>Elevation</button><label><input type="checkbox" checked={showContours} onChange={event=>setShowContours(event.target.checked)} /> Contours</label></div><div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} terrainLayer={terrainLayer} showContours={showContours} />
+                  <div className="map-layer-controls" aria-label="Terrain data layers"><button className={terrainLayer==="slope"?"active":""} type="button" onClick={()=>setTerrainLayer("slope")} aria-pressed={terrainLayer==="slope"}>Slope</button><button className={terrainLayer==="elevation"?"active":""} type="button" onClick={()=>setTerrainLayer("elevation")} aria-pressed={terrainLayer==="elevation"}>Elevation</button><button className={terrainLayer==="suitability"?"active":""} type="button" disabled={!report?.suitability} aria-pressed={terrainLayer==="suitability"} onClick={()=>setTerrainLayer("suitability")}>Suitability</button><label><input type="checkbox" checked={showContours} onChange={event=>setShowContours(event.target.checked)} /> Contours</label></div><div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} terrainLayer={terrainLayer} showContours={showContours} />
                     {!geometry && !drawing && <div className="map-empty"><div className="map-empty-icon"><ScanSearch size={26}/></div><strong>Start with your site boundary</strong><span>Draw a polygon on the map or import a GeoJSON file. No sample data is invented.</span><button className="btn btn-accent" onClick={startDraw}><Plus size={15} /> Draw site polygon</button></div>}
                     {drawing && <div className="drawing-notice"><MapPin size={16} /><span>Click vertices · Double-click to finish · <strong>{drawPoints} points</strong></span><button onClick={() => { setDrawing(false); setResetCounter(n=>n+1); setStatus(""); }}>Cancel</button></div>}
                     <div className="map-corner-badge"><CircleDot size={14}/><span>{report ? "TERRAIN LAYERS" : "VECTOR BASEMAP"}</span><i/></div>
@@ -561,8 +564,9 @@ export default function Home() {
 <div><strong>{saveState==="saved"?(activeProject?"PROJECT SAVED":"SITE AUTOSAVED"):saveState==="error"?"SITE NOT SAVED":saveState==="checking"?"SAVING / CHECKING":"NO SAVED SITE"}</strong><small>{saveState==="saved"&&savedAt?(activeProject?"SQLite backend · ":"Browser ini · ")+shortDate(savedAt):saveState==="error"?"Export GeoJSON for backup":"Draw/import a site boundary"}</small></div></div>
 <div className="site-preservation-actions"><button className="btn btn-outline site-action-button" disabled={!geometry} onClick={()=>geometry&&downloadSiteGeoJSON(geometry)}><ArrowDownToLine size={15}/> Export GeoJSON</button><button className="btn btn-outline site-action-button destructive" disabled={!geometry} onClick={clearSite}><Trash2 size={15}/> Clear site</button></div></div>
 {saveState==="error"&&<div className="save-warning" role="alert"><CircleAlert size={16}/>{saveMessage}</div>}
-<div className="map-bottom"><div><span className="legend-title">TERRAIN LEGEND <span>//</span> {terrainLayer === "slope" ? "INDICATIVE SLOPE CLASSES" : "ELEVATION BANDS"} {report ? "" : "· AWAITING ANALYSIS"}</span>{terrainLayer === "slope" ? <div className="legend-row"><span><i style={{ background: "#4cc9a3" }} />0–15°</span><span><i style={{ background: "#e5c46d" }} />15–25°</span><span><i style={{ background: "#eb8c64" }} />25–35°</span><span><i style={{ background: "#cb626f" }} />≥35°</span></div> : <div className="legend-row">{report?.metrics.elevation_legend?.length ? report.metrics.elevation_legend.map(band=><span key={band.class_id}><i style={{background:band.color}}/>{formattedNumber(band.min_m,0)}–{formattedNumber(band.max_m,0)} m</span>) : <span>No verified elevation classes yet</span>}</div>}{showContours && report?.metrics.contour_interval_m && <span className="terrain-legend-note">Contour preview at {report.metrics.contour_interval_m} m intervals · not surveyed</span>}</div><span className="map-credit"><ShieldCheck size={13}/> GIS screening only · Not planning approval</span></div>
+<div className="map-bottom"><div><span className="legend-title">TERRAIN LEGEND <span>//</span> {terrainLayer === "suitability" ? "PRELIMINARY TERRAIN CONSTRAINTS" : terrainLayer === "slope" ? "INDICATIVE SLOPE CLASSES" : "ELEVATION BANDS"} {report ? "" : "· AWAITING ANALYSIS"}</span>{terrainLayer === "suitability" ? <div className="legend-row">{report?.suitability?.bands.map(band=><span key={band.id}><i style={{background:band.color}}/>{band.id===4?"No slope data":band.min_deg+"°"+(band.max_deg===null?"+":"–<"+band.max_deg+"°")}</span>)}</div> : terrainLayer === "slope" ? <div className="legend-row"><span><i style={{ background: "#4cc9a3" }} />0–15°</span><span><i style={{ background: "#e5c46d" }} />15–25°</span><span><i style={{ background: "#eb8c64" }} />25–35°</span><span><i style={{ background: "#cb626f" }} />≥35°</span></div> : <div className="legend-row">{report?.metrics.elevation_legend?.length ? report.metrics.elevation_legend.map(band=><span key={band.class_id}><i style={{background:band.color}}/>{formattedNumber(band.min_m,0)}–{formattedNumber(band.max_m,0)} m</span>) : <span>No verified elevation classes yet</span>}</div>}{showContours && report?.metrics.contour_interval_m && <span className="terrain-legend-note">Contour preview at {report.metrics.contour_interval_m} m intervals · not surveyed</span>}</div><span className="map-credit"><ShieldCheck size={13}/> GIS screening only · Not planning approval</span></div>
                 </div>
+                <SuitabilityPanel report={report} activeOnMap={terrainLayer==="suitability"} onShowMap={()=>setTerrainLayer("suitability")}/>
                 <section className="site-intel-card">
                   <div className="site-intel-main"><span className="section-overline"><ScanSearch size={13}/> SITE INTELLIGENCE / LIVE SNAPSHOT</span><h2>From site to <em>insight.</em></h2><p>Tapak sebenar dahulu, analisis kemudian. Kami tidak akan memaparkan keputusan cerun atau ketinggian sebelum GIS memproses DEM.</p></div>
                   <div className="intel-points">
