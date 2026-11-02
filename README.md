@@ -187,14 +187,14 @@ Deployment is intentionally unchanged. The older Vercel site is a frontend previ
 
 ### What is actually persisted
 
-- **SQLite project registry** inside \`PLANEXUS_DATA_DIR/planexus-workspace.sqlite3\`: names, descriptions, active site polygons, revision counters, linked terrain analysis IDs and created/updated timestamps.
-- **GIS raster artifacts & evidence reports** in \`PLANEXUS_DATA_DIR/jobs/<analysis UUID>/\`: compressed GeoTIFF source and \`result.json\`, including derived slope, elevation and contour layers plus source metadata. Historical analyses are retained even after a project boundary is edited.
-- **Browser localStorage** contains only the ID of the most recently opened project (\`planexus:active-project:v1\`) and the legacy polygon backup. On refresh, the current project and latest analysis are reloaded from SQLite/report JSON; localStorage is not the canonical project database.
+- **SQLite project registry** inside `PLANEXUS_DATA_DIR/planexus-workspace.sqlite3`: names, descriptions, active site polygons, revision counters, linked terrain analysis IDs and created/updated timestamps.
+- **GIS raster artifacts & evidence reports** in `PLANEXUS_DATA_DIR/jobs/<analysis UUID>/`: compressed GeoTIFF source and `result.json`, including derived slope, elevation and contour layers plus source metadata. Historical analyses are retained even after a project boundary is edited.
+- **Browser localStorage** contains only the ID of the most recently opened project (`planexus:active-project:v1`) and the legacy polygon backup. On refresh, the current project and latest analysis are reloaded from SQLite/report JSON; localStorage is not the canonical project database.
 - Projects are **separate**. Switching projects replaces the map geometry, slope/elevation/contour overlays and available analysis history with those belonging to the selected project.
 
 ### How to use (Windows local, not the old Vercel site)
 
-1. Download the latest GitHub repository, extract the entire ZIP, and run \`START-PLANEXUS.bat\` (Node.js 22+; Python 3.11 or 3.12).
+1. Download the latest GitHub repository, extract the entire ZIP, and run `START-PLANEXUS.bat` (Node.js 22+; Python 3.11 or 3.12).
 2. Open the new **Project Workspace** sidebar module. Choose **New project**, enter a name, and optionally attach your current browser-drawn polygon to migrate a browser-only site.
 3. Open the project, draw or import your site polygon, and wait for **PROJECT SAVED**. Database writes use a revision counter: if another browser tab updated the same project, a stale write returns HTTP 409 instead of silently losing data.
 4. Run **Get DEM & Run Analysis**, or upload a trusted local GeoTIFF. The analysis ID, source details, raster data, results and links are associated with the project in local persistent storage.
@@ -203,20 +203,26 @@ Deployment is intentionally unchanged. The older Vercel site is a frontend previ
 
 ### Data preservation, migration and security
 
-**Back up the whole backend data directory regularly.** Stop both server terminals first, then copy \`backend/data\` (or the custom \`PLANEXUS_DATA_DIR\`) including the SQLite database and the entire \`jobs\` folder. The SQLite journal/WAL files may contain committed changes while the server is running; copying a live folder without a consistent snapshot can lose data. Do not commit this directory, rasters or API credentials to GitHub.
+**Back up the whole backend data directory regularly.** Stop both server terminals first, then copy `backend/data` (or the custom `PLANEXUS_DATA_DIR`) including the SQLite database and the entire `jobs` folder. The SQLite journal/WAL files may contain committed changes while the server is running; copying a live folder without a consistent snapshot can lose data. Do not commit this directory, rasters or API credentials to GitHub.
 
 Deleting a project only removes its project index and associations; the archived analysis reports/raster files remain on disk by design. This prevents accidental destruction of evidence but requires deliberate disk management.
 
-There is **no account login, user isolation, public API authentication, remote synchronization or cloud database yet**. The backend is for a single trusted local user and should run on \`127.0.0.1\` only. Do not expose ports 8000/3000 directly to the public internet. A real hosted deployment requires a protected API, tenant-aware permissions, a managed database, persistent object storage for DEMs/exports, resource quotas, backup/restore, and an authorization/ownership model. Vercel has **not** been redeployed.
+There is **no account login, user isolation, public API authentication, remote synchronization or cloud database yet**. The backend is for a single trusted local user and should run on `127.0.0.1` only. Do not expose ports 8000/3000 directly to the public internet. A real hosted deployment requires a protected API, tenant-aware permissions, a managed database, persistent object storage for DEMs/exports, resource quotas, backup/restore, and an authorization/ownership model. Vercel has **not** been redeployed.
 
 ### Project API
 
-- \`GET /api/projects\` — list locally stored projects.
-- \`POST /api/projects\` — create a project with optional WGS84 geometry.
-- \`GET /api/projects/{id}\` — project boundary, revision and linked analysis history.
-- \`PATCH /api/projects/{id}\` — rename / update site; requires \`expected_revision\` to prevent conflicting edits.
-- \`DELETE /api/projects/{id}\` — delete project index only; raster reports remain.
-- \`POST /api/projects/{id}/activate-analysis\` — reopen a historical project-linked analysis and its original site geometry.
-- \`POST /api/terrain/auto\` and \`POST /api/terrain/upload\` optionally accept \`project_id\` so new reports are persisted and associated with the correct project.
+- `GET /api/projects` — list locally stored projects.
+- `POST /api/projects` — create a project with optional WGS84 geometry.
+- `GET /api/projects/{id}` — project boundary, revision and linked analysis history.
+- `PATCH /api/projects/{id}` — rename / update site; requires `expected_revision` to prevent conflicting edits.
+- `DELETE /api/projects/{id}` — delete project index only; raster reports remain.
+- `POST /api/projects/{id}/activate-analysis` — reopen a historical project-linked analysis and its original site geometry.
+- `POST /api/terrain/auto` and `POST /api/terrain/upload` optionally accept `project_id` so new reports are persisted and associated with the correct project.
 
-For independent validation, run backend tests using \`python -m pytest -q\` in \`backend\` and browser tests using \`npm run test:e2e\` in \`frontend\`. The dedicated project test suite exercises SQLite durability across TestClient restarts, two-project isolation, stale revision rejection, correct analysis assignment, historical layer recovery and deletion behavior. Browser tests use a **synthetic mocked backend** for end-to-end UI behavior; no simulated raster should be presented as real site measurements.
+For independent validation, run backend tests using `python -m pytest -q` in `backend` and browser tests using `npm run test:e2e` in `frontend`. The dedicated project test suite exercises SQLite durability across TestClient restarts, two-project isolation, stale revision rejection, correct analysis assignment, historical layer recovery and deletion behavior. Browser tests use a **synthetic mocked backend** for end-to-end UI behavior; no simulated raster should be presented as real site measurements.
+
+### One-click local backup
+
+After at least one project has been saved, stop the frontend/backend server terminals and double-click **BACKUP-PLANEXUS.bat**. This runs the Python SQLite backup API and creates a dated ZIP archive under the repository's `backups/` folder. The archive includes the project database, saved report JSONs, source GeoTIFFs and a `BACKUP-MANIFEST.json` file. It excludes unrelated secrets such as `.env` files. Store a private copy of the ZIP on another drive. The archive is not encrypted.
+
+To restore onto another local machine: stop both PLANEXUS servers, first preserve any existing backend data directory, then extract the contents of the ZIP into the configured `PLANEXUS_DATA_DIR`. Remove stale SQLite `-wal`/`-shm` sidecar files left from the **old** database only while both servers are stopped. Restart the backend and confirm all projects/reports in the UI. Do not overwrite an existing workspace without a separate backup.

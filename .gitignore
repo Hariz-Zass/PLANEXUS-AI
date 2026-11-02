@@ -30,3 +30,9 @@ data/
 # OS / temp
 .DS_Store
 *.log
+
+# Local project database and portable backups (private data)
+backups/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
