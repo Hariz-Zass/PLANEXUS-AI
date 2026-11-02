@@ -1,15 +1,1 @@
-fastapi>=0.115,<1
-uvicorn[standard]>=0.30,<1
-pydantic>=2.8,<3
-python-multipart>=0.0.9,<1
-rasterio>=1.4,<2
-numpy>=2.0,<3
-shapely>=2.0,<3
-pyproj>=3.6,<4
-httpx>=0.27,<1
-openai>=1.70,<3
-pytest>=8,<10
-
-python-dotenv>=1.0,<2
-contourpy>=1.3,<2
-vercel==0.11.6
+git+https://github.com/Hariz-Zass/PLANEXUS-AI.git@2acf307743098ba4ce219c3b54d18164f63a47f7#subdirectory=backend
