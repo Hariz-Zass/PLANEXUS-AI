@@ -143,3 +143,13 @@ Source code license not yet selected. Third-party datasets retain **their own pr
 3. Test `POST /api/site/inspect` with a WGS84 polygon. Run DEM auto on a small real site with public source coverage. Compare slope class areas to QGIS, inspect data provenance and warnings; test deliberate missing coverage/error.
 4. Upload a trusted local DEM/DTM with declared metadata. Check elevation range, slope mean, saved analysis, evidence report and Copilot question. Without API key, response must say `deterministic_evidence_summary`; with a valid configured key, check `llm_grounded`. No unsupported approval claims should appear.
 
+
+
+## Terrain upgrade V2.3 (GitHub only, not deployed)
+
+- Automatic source selection: attempts real public Copernicus GLO-30 DSM COG raster windows; if unavailable, transparently tries GLO-90 Public DSM with a warning about coarser (~90 m) source resolution. No fake data and no concealed fallback. A missing tile, insufficient DEM pixels, connectivity failure or invalid CRS must produce an explicit error.
+- Derived from actual raster pixels in projected metric coordinates: elevation min/mean/max, slope mean/max, four slope classes, coverage percentage; coloured elevation class overlay and bounded contour-line preview. The map now offers **Slope / Elevation / Contours** controls once the backend returns results. The contour interval is resolution-aware; this is not a surveyed contour plan.
+- Evidence provenance always identifies source data type (DSM vs DTM), nominal resolution, fallback use, valid coverage and warnings. View the report source metadata and quality caveats before any planning interpretation.
+- Tests include offline miniature public-COG stand-in GeoTIFFs and synthetic slope/elevation fixtures. A green test certifies local algorithm/integration behavior under fixtures, **not** live public AWS availability or survey-level validation.
+- On a laptop, start both servers using START-PLANEXUS.bat (Python 3.11/3.12, Node 22+) and define a WGS84 polygon. Click Get DEM & Run Analysis; wait for publicly available DEM cells. The site must contain at least 9 valid slope pixels, so tiny sites may require a higher-resolution uploaded DEM. If public GLO-30 cannot be retrieved, the 90 m fallback may also be too coarse.
+- Cloud Vercel remains on the earlier frontend-only deployment until requested. The GitHub repository is the authoritative next test version. The Python GIS API requires a separate deployment/persistent storage architecture for actual hosted analysis. Never expose a GIS upload endpoint anonymously on the public internet.
