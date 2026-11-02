@@ -12,7 +12,7 @@ The user can select a GPP jurisdiction in Development Studio. The interface disp
 | ID | Source, responsible agency, year | Indexed numerical clauses | Status |
 |---|---|---|---|
 | gp001a_2016 | PLANMalaysia, GP001-A GPP Perumahan, 2016 | Jadual 2 lot minima by house/storey, selected one-storey floor minima, pp.44–45 | CURATED |
-| perak_housing_2023 | PLANMalaysia Perak / Kerajaan Negeri Perak, Garis Panduan Piawaian Perumahan Negeri Perak 2023 | PR1 min floor, 3-storey max, 60-ft max height, min 3 bedrooms; 10 unchecked road/lane/setback design references | CURATED |
+| perak_housing_2023 | PLANMalaysia Perak / Kerajaan Negeri Perak, Garis Panduan Piawaian Perumahan Negeri Perak 2023 | PR1-PR6 minimum floor area, maximum 3 storeys and 60-ft roof height, minimum 3 bedrooms; 10 PR1 road/lane/setback references remain unchecked | CURATED |
 | gpp_commercial_gp003a | PLANMalaysia, GP003-A Kawasan Perdagangan (Addendum 2017) | None: commercial/shoplot lot-size rules NOT entered | CATALOG ONLY |
 | gpp_parking_gp011a | PLANMalaysia, GP011-A Tempat Letak Kenderaan | None: parking ratios NOT entered | CATALOG ONLY |
 | gpp_hills_gp007a11 | PLANMalaysia, GP007-A(11) Pembangunan Kawasan Bukit dan Tanah Tinggi | None: no numerical slope statutory thresholds entered | CATALOG ONLY |
@@ -22,7 +22,7 @@ This is **not all Malaysian GPP**. The wider official catalog covers many other 
 
 Official references:
 - National housing PDF: https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf — **GP001-A (2016), Jadual 2, printed pp.44–45**.
-- Perak 2023 PDF (LPHP official mirror): https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file — **PR1, printed p.5**. Alternate PLANMalaysia Perak copy: https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023 .
+- Perak 2023 PDF (LPHP official mirror, PR1 p5, PR2 p7, PR3 p9, PR4 p11, PR5 p13, PR6 p15): https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file — **PR1, printed p.5**. Alternate PLANMalaysia Perak copy: https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023 .
 - PLANMalaysia full GPP portal: https://www.planmalaysia.gov.my/main/garis-panduan-perancangan .
 - PLANMalaysia facilities guideline publication: https://www.planmalaysia.gov.my/main/latest-news-details?id=999087c8-ffc9-11ef-bf69-fa163eda1aa9 .
 
@@ -45,6 +45,20 @@ Official references:
 These are **lot measurements** only, not the floor area of the house, an allowance for roads or a permitted site density. Selected 1-storey floor-area minima (low-cost terrace 65 m²; lower-middle terrace 69.7 m²; middle terrace 79 m²; cluster 83.6 m²; semi-detached 97.5 m²; detached 125.4 m²; zero-lot 92.9 m²) are stored where Jadual 2 explicitly provides them. These values must **not** be propagated to 2–3-storey classifications where a numeric floor minimum is not printed.
 
 **Maximum lot size:** No maximum lot width or depth is recorded in Jadual 2. Fields \`max_lot_width_m\` and \`max_lot_depth_m\` must remain \`null\`. Developer-only numeric input guardrails such as width \`<=150 m\` are technical validation ranges, **not a GPP maximum**.
+
+### Perak PR2–PR6 minimum floor area (confirmed published tables)
+
+| Perak category | Printed page | Minimum floor area | Additional indexed numerical bounds |
+|---|---:|---:|---|
+| PR2 Rumah Berkembar (semi-detached) | 7 | 1,000 sq ft | 3 storeys max; 60-ft ground-to-roof height max; 3 bedrooms min |
+| PR3 Rumah Kluster (cluster) | 9 | 1,000 sq ft | Same floors/height/bedrooms; 4 units per cluster is a stated configuration requirement, not yet layout-checked |
+| PR4 Rumah Sesebuah (detached) | 11 | 1,000 sq ft | 3 storeys max; 60-ft ground-to-roof height max; 3 bedrooms min |
+| PR5 Rumah Sesebuah Zero Lot Boundary | 13 | 1,000 sq ft | 3 storeys max; 60-ft ground-to-roof height max; 3 bedrooms min |
+| PR6 Rumah Bandar (townhouse) | 15 | 900 sq ft | 3 storeys max; 60-ft ground-to-roof height max; 3 bedrooms min; two owners per lot is NOT yet checked |
+
+**Lot size != floor space.** PR2–PR6 do not supply new national-style lot width/depth minima for the product to assert. GP001-A dimensions (if a matching national category exists) remain supplementary references until state/PBT adoption is verified.
+
+These PR2–PR6 source rows are now automatically compared to the user's entered floor area (m²), bedroom count, storeys and building height after a Perak jurisdiction + housing type is selected. Road widths, cul-de-sac limits, building setbacks, block length and lot layout are **not** compared yet.
 
 ### Perak PR1 minimum floor area
 

@@ -39,7 +39,7 @@ export default function GppLibrary({backendConnected,onOpenStudio}:{backendConne
       <div className="project-storage-status" style={{marginBottom:20}}>
         <div className="project-storage-icon"><ShieldCheck size={20}/></div>
         <div><strong>Planning evidence layers are jurisdiction-aware</strong>
-          <span>National GP001-A (2016) gives housing lot-size minima. Perak Housing 2023 adds state-specific terraced-housing floor-space and storey limits. PBT adoption, RT zoning and all uncatalogued amendments still require verification.</span>
+          <span>National GP001-A (2016) gives housing lot-size minima. Perak Housing 2023 adds PR1–PR6 floor-space and storey limits for terrace, semi-detached, cluster, detached, zero-lot and townhouse categories. PBT adoption, RT zoning and all uncatalogued amendments still require verification.</span>
         </div>
         <span className="project-storage-local">VERSIONED</span>
       </div>
