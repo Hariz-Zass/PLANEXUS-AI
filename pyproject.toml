@@ -25,3 +25,6 @@ dependencies = [
 [tool.setuptools]
 packages = ["app"]
 package-dir = {"" = "backend"}
+
+[tool.setuptools.package-data]
+app = ["vendor/libexpat.so.1"]
