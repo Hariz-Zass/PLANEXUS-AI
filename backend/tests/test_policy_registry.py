@@ -288,3 +288,25 @@ def test_perak_layout_references_are_source_attributed_but_not_automatically_com
     assert "15 kaki" in question["response"]
     assert "belum dinilai" in question["response"]
     assert question["policy_sources"][0]["url"]==PERAK_SOURCE["url"]
+
+
+@pytest.mark.parametrize("category,floor_min",[
+    ("semi_detached",97.5),
+    ("detached",125.4),
+    ("zero_lot",92.9),
+    ("cluster",83.6),
+])
+def test_national_one_storey_floor_minima_do_not_bleed_into_higher_storeys(category,floor_min):
+    base={**BASE,"development_type":"other_landed","policy_profile":"national_2016",
+          "housing_category":category,"floor_area_m2":floor_min-1.0}
+    ground=ProposalInput.model_validate({**base,"storeys":1})
+    checks=evaluate_policy(ground)["checks"]
+    floors=[item for item in checks if item["key"]=="min_floor_area_national"]
+    assert len(floors)==1
+    assert floors[0]["value"]==pytest.approx(floor_min)
+    assert floors[0]["result"]=="below_min"
+    assert "muka surat bercetak 45" in floors[0]["source_page"]
+
+    upper=ProposalInput.model_validate({**base,"storeys":2})
+    upper_checks=evaluate_policy(upper)["checks"]
+    assert not any(item["key"]=="min_floor_area_national" for item in upper_checks)
