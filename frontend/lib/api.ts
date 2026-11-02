@@ -225,6 +225,66 @@ export type ProposalList = {
   storage: string;
 };
 
+export type LayoutLine = {
+  type:"LineString";
+  coordinates:[number,number][];
+};
+
+export type LayoutInputs = {
+  name:string;
+  road_centerlines:LayoutLine[];
+  assumed_road_width_m:number;
+  front_road_buffer_m:number;
+  perimeter_offset_m:number;
+  policy_profile:"none"|"perak_2023";
+  perak_market_segment:"perak_low_cost"|"perak_middle"|"perak_affordable"|"perak_open"|null;
+};
+
+export type LayoutPreviewLayer = GeoJSON.FeatureCollection & { map_truncated?:boolean };
+
+export type LayoutPolicyCheck = {
+  key:string;
+  label:string;document:string;source_url:string;source_page:string;
+  minimum_m:number;entered_m:number;
+  result:"not_drawn"|"entered_value_meets_minimum"|"entered_value_below_minimum"|
+    "entered_value_meets_reference"|"entered_value_below_reference";
+  verified_geometry:false;binding:false;
+};
+
+export type LayoutPreview = {
+  version:string;method:string;projected_crs:string;site_area_ha:number;
+  road_centerline_length_m:number;road_corridor_ha:number;
+  road_front_margin_ha:number;perimeter_exclusion_ha:number;
+  combined_exclusions_ha:number;gross_unencumbered_ha:number;
+  road_count:number;
+  terrain_status:"no_active_suitability"|"no_suitability_in_report"|"report_site_mismatch"|
+    "incomplete_vector_overlay"|"large_or_invalid_overlay"|"invalid_suitability_overlay"|
+    "low_slope_vector_approximation"|"analysis_changed_review_required";
+  terrain_source:{analysis_id:string|null;name:string|null;resolution_m:number|null;
+    coverage_pct_est:number|null}|null;
+  lower_slope_overlap_ha:number|null;lower_slope_remaining_ha:number|null;
+  largest_contiguous_lower_patch_ha:number|null;lower_patch_count:number|null;
+  quality_status:"geometry_only"|"quality_limited"|"preliminary_raster";
+  policy_checks:LayoutPolicyCheck[];warnings:string[];
+  layers:{
+    road_centerlines:LayoutPreviewLayer;
+    road_corridor:LayoutPreviewLayer;
+    road_front_margin:LayoutPreviewLayer;
+    perimeter_exclusion:LayoutPreviewLayer;
+    gross_remaining:LayoutPreviewLayer;
+    lower_slope_remaining:LayoutPreviewLayer;
+  };
+};
+
+export type SavedLayout = {
+  project_id:string;exists:boolean;revision:number;
+  inputs:LayoutInputs;
+  site_changed:boolean;analysis_changed:boolean;
+  analysis_id_at_save:string|null;
+  created_at_utc:string|null;updated_at_utc:string|null;
+  preview:LayoutPreview|null;
+};
+
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
