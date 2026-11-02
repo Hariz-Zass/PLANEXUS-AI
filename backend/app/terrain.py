@@ -17,6 +17,7 @@ from shapely.ops import transform as geometry_transform
 from pyproj import Transformer
 
 from .geometry import area_km2, local_utm_crs
+from .overlays import build_terrain_overlays
 from .settings import MAX_RASTER_PIXELS
 
 SLOPE_CLASSES = [
@@ -100,6 +101,8 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         wgs84_geom = transform_geom(dst_crs, "EPSG:4326", geometry, precision=6)
         geojson_features.append({"type": "Feature", "properties": {"class_id": int(value)}, "geometry": wgs84_geom})
 
+    overlays = build_terrain_overlays(elevation, valid, target_transform, dst_crs, source_metadata)
+
     warnings = [
         "Penilaian ini ialah saringan topografi, BUKAN keputusan keseluruhan kesesuaian pembangunan atau kelulusan PBT.",
         "Kecerunan diperoleh daripada DEM/DSM menggunakan finite differences selepas unjuran UTM. Batasan resolusi mempengaruhi hasil.",
@@ -107,6 +110,12 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
     ]
     if "DSM" in str(source_metadata.get("data_type", "")):
         warnings.append("DSM mungkin mengandungi bangunan/vegetasi; tidak setara dengan DTM ukur tanah untuk reka bentuk kerja tanah.")
+    if source_metadata.get("fallback_used"):
+        warnings.append("GLO-30 Public tidak tersedia; sistem menggunakan GLO-90 DSM sekitar 90 m. Hasil kurang terperinci.")
+    if overlays["contours_truncated"] or overlays["elevation_overlay_truncated"]:
+        warnings.append("Overlay kontur/elevasi disederhanakan untuk prestasi; statistik GIS menggunakan pixel sah sepenuhnya.")
+    if not overlays["contours_geojson"]["features"]:
+        warnings.append("Tiada garis kontur pada sela yang munasabah untuk julat ketinggian dan resolusi sumber ini.")
     if source_metadata.get("id") == "user-upload":
         warnings.append("Dataset pengguna belum disahkan sumber, datum menegak, unit ketinggian atau ketepatan ukur. Semak metadata asal sebelum keputusan teknikal.")
     if coverage_pct < 95:
@@ -133,12 +142,17 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
             "slope_mean_deg": round(float(np.mean(slopes)), 2),
             "slope_max_deg": round(float(np.max(slopes)), 2),
             "slope_classes": cls_stats,
+            "contour_interval_m": overlays["contour_interval_m"],
+            "contour_features": len(overlays["contours_geojson"]["features"]),
+            "elevation_legend": overlays["elevation_legend"],
             "analysis_resolution_m_est": round(float((resolution_x + resolution_y) / 2), 2),
             "method": "Rasterio bilinear reprojection to local UTM; numpy.gradient z-per-metre; atan(sqrt(dz/dx² + dz/dy²)), degrees; cell-area count. Edge/NoData gradients excluded.",
             "horizontal_crs": dst_crs.to_string(),
             "vertical_units_assumption": "metres (MUST be checked against original source metadata)",
         },
         "slope_geojson": {"type": "FeatureCollection", "features": geojson_features},
+        "elevation_geojson": overlays["elevation_geojson"],
+        "contours_geojson": overlays["contours_geojson"],
         "warnings": warnings,
         "assessment_scope": "Terrain screening only; no planning-law compliance, hydrology, geotechnical, or development approval conclusion.",
     }
