@@ -285,13 +285,13 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
               className={"proposal-scenario "+(item.id===selectedId?"is-active":"")}
               onClick={()=>select(item)} aria-pressed={item.id===selectedId}>
               <div className="proposal-scenario-top"><span>{DEVELOPMENT_LABELS[item.inputs.development_type]}</span>
-                {item.context_changed?<span className="proposal-scenario-stale"><RotateCcw size={12}/> REVIEW GIS</span>:
+                {item.context_changed?<span className="proposal-scenario-stale"><RotateCcw size={12}/> REVIEW GIS</span>:item.policy_review_needed?<span className="proposal-scenario-stale"><RotateCcw size={12}/> REVIEW GPP</span>:
                   <span className="proposal-scenario-saved"><CheckCircle2 size={12}/> SAVED</span>}</div>
               <strong>{item.inputs.name}</strong>
               <div className="proposal-scenario-metrics"><span><b>{item.inputs.units.toLocaleString("en-MY")}</b> plots</span>
                 <span><b>{decimal(item.result.required_gross_area_ha,3)}</b> ha gross</span>
                 <span><b>{decimal(item.result.gross_site_density_units_per_ha,3)}</b> units/ha</span></div>
-              <small>{item.context_changed?"Tapak atau analisis telah berubah; semak semula cadangan.":item.result.screening_status==="indicative_cell_area_only"?"Comparison based on preliminary slope cells.":item.result.screening_status==="quality_limited"?"GIS quality limited; further checks required.":"Land budget only; GIS conclusions unavailable."}</small>
+              <small>{item.context_changed?"Tapak atau analisis telah berubah; semak semula cadangan.":item.policy_review_needed?"GPP registry changed; review the official source pages before re-saving.":item.result.screening_status==="indicative_cell_area_only"?"Comparison based on preliminary slope cells.":item.result.screening_status==="quality_limited"?"GIS quality limited; further checks required.":"Land budget only; GIS conclusions unavailable."}</small>
             </button>)}
           </div>}
       </section>

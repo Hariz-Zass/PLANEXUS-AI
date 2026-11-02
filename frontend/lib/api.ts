@@ -142,7 +142,7 @@ export type PolicyCheck = {
 export type PolicyAssessment = {
   registry_version:string; profile_id:string;profile_label:string;
   status:"not_selected"|"not_indexed"|"outside_numeric_reference"|"more_inputs_needed"|
-    "insufficient_rule_coverage"|"numeric_reference_only";
+    "insufficient_rule_coverage"|"numeric_reference_only"|"registry_version_changed_review";
   checks:PolicyCheck[];reference_only:true;warnings:string[];
   max_lot_width_m:null;max_lot_depth_m:null;message:string;
 };
@@ -200,6 +200,8 @@ export type SavedProposal = {
   revision: number;
   analysis_id_at_save: string | null;
   context_changed: boolean;
+  policy_review_needed?: boolean;
+  policy_registry_version_at_save?: string | null;
   inputs: ProposalInputs;
   result: ProposalCalculation;
 };
