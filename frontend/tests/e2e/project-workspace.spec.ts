@@ -146,12 +146,14 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await page.locator(".map-layer-controls").getByRole("button",{name:"Elevation",exact:true}).click();
   await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Elevation",exact:true})).toHaveAttribute("aria-pressed","true");
   await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".suitability-panel")).toContainText("Lower terrain constraint");
   await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");
   await page.reload();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Saved Analyses/}).click();
   await expect(page.getByText("E2E test DEM (mock, not real terrain)")).toBeVisible();
@@ -174,5 +176,6 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
 });
