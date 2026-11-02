@@ -151,7 +151,7 @@ export default function Home() {
     setSavedAt(details.updated_at_utc);
     setSaveMessage("");
     window.localStorage.setItem(ACTIVE_PROJECT_KEY,details.id);
-    setStatus("Projek ""+details.name+"" dibuka. "+
+    setStatus("Projek "+details.name+" dibuka. "+
       (analysis?"Layer dan laporan analisis berjaya dipulihkan.":details.geometry?"Sempadan tapak dipulihkan daripada SQLite.":"Cipta atau import sempadan baharu."));
   }, []);
 
