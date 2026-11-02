@@ -16,18 +16,18 @@ type Props={
 };
 
 const DEFAULT_PROPOSAL:ProposalInputs={
-  name:"Option A - 300 terrace lots",
+  name:"Option A - 300 mid terrace lots (20 x 70 ft)",
   development_type:"terrace_housing",
   units:300,
-  lot_width_m:6,
-  lot_depth_m:20,
+  lot_width_m:6.096,
+  lot_depth_m:21.336,
   roads_pct:20,
   open_space_pct:10,
   facilities_pct:5,
   other_reserve_pct:5,
   policy_profile:"none",
-  housing_category:null,
-  storeys:null,
+  housing_category:"terrace_middle",
+  storeys:1,
   perak_market_segment:null,
   floor_area_m2:null,
   bedrooms:null,
@@ -110,7 +110,7 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
 
   function resetNew(){
     setSelectedId(null);
-    setInputs({...DEFAULT_PROPOSAL,name:"Option "+String.fromCharCode(65+Math.min(proposals.length,25))+" - 300 terrace lots"});
+    setInputs({...DEFAULT_PROPOSAL,name:"Option "+String.fromCharCode(65+Math.min(proposals.length,25))+" - 300 mid terrace lots (20 x 70 ft)"});
     setError("");setNotice("New draft. Edit assumptions and save it as a project scenario.");
   }
   function select(item:SavedProposal){
@@ -176,7 +176,7 @@ export default function ProposalStudio({project,backendConnected,onOpenProjects}
       <div className="proposal-layout">
         <form className="proposal-editor" onSubmit={event=>{void save(event);}}>
           <div className="proposal-section-title"><div><span className="section-overline">01 / USER-DEFINED INPUTS</span><h2>Configure development</h2></div><ClipboardList size={21}/></div>
-          <p className="proposal-editor-intro">The values below are <strong>illustrative defaults you can edit</strong>. The sizes and reserves are user assumptions; use the GPP Knowledge Engine below to inspect source-backed references. They are not automatically approved development parameters.</p>
+          <p className="proposal-editor-intro">The values below are <strong>illustrative defaults you can edit</strong>. Default: Mid terrace 20 × 70 ft (a real-world design example, NOT the national GPP minimum). Select Low, Mid or High in the GPP panel. All dimensions and land reserves are editable user assumptions, never planning approval.</p>
           <label className="proposal-field proposal-field-wide">Scenario name
             <input value={inputs.name} type="text" minLength={3} maxLength={100} required
               onChange={event=>setInputs(p=>({...p,name:event.target.value}))} placeholder="e.g. 300 terrace units - option A"/>
