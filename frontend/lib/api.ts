@@ -120,11 +120,58 @@ export type ProposalInputs = {
   open_space_pct: number;
   facilities_pct: number;
   other_reserve_pct: number;
+  policy_profile?: "none" | "national_2016" | "perak_2023";
+  housing_category?: "terrace_low_cost" | "terrace_lower_middle" | "terrace_middle" |
+    "cluster" | "semi_detached" | "detached" | "zero_lot" | null;
+  storeys?: number | null;
+  perak_market_segment?: "perak_low_cost" | "perak_middle" | "perak_affordable" | "perak_open" | null;
+  floor_area_m2?: number | null;
+  bedrooms?: number | null;
+  building_height_m?: number | null;
+};
+
+export type PolicyCheck = {
+  key:string; title:string; type:"min"|"max";
+  value:number; observed:number|null; unit:string;
+  result:"meets_number"|"below_min"|"above_max"|"not_supplied";
+  source_id:string;source_title:string;source_url:string;source_page:string;
+  role:"primary_reference"|"primary_state_reference"|"supplementary_national_reference";
+  binding:false;
+};
+
+export type PolicyAssessment = {
+  registry_version:string; profile_id:string;profile_label:string;
+  status:"not_selected"|"not_indexed"|"outside_numeric_reference"|"more_inputs_needed"|
+    "insufficient_rule_coverage"|"numeric_reference_only";
+  checks:PolicyCheck[];reference_only:true;warnings:string[];
+  max_lot_width_m:null;max_lot_depth_m:null;message:string;
+};
+
+export type PolicySource = {
+  id:string;title:string;year:number|null;issuer:string;
+  jurisdiction:string;url:string;evidence:string;scope:string;
+  status:"curated_rules"|"catalog_only";
+};
+
+export type PolicyCatalog = {
+  registry_version:string;
+  sources:PolicySource[];
+  profiles:{id:string;label:string;details:string}[];
+  housing_categories:{id:string;label:string;development_type:ProposalInputs["development_type"]}[];
+  national_lot_rules:{
+    category:string;storeys:number[];label:string;min_width_m:number;min_depth_m:number;
+    min_floor_area_m2:number|null;page:number;source_id:string;url:string;
+    max_width_m:null;max_depth_m:null
+  }[];
+  perak_floor_min_sqft:Record<string,number>;
+  perak_market_segments:{id:string;label:string}[];
+  not_indexed:string[];disclaimer:string;
 };
 
 export type ProposalCalculation = {
   method: string;
   inputs: ProposalInputs;
+  policy_assessment?: PolicyAssessment;
   site_area_ha: number;
   lot_area_m2: number;
   required_plot_area_ha: number;
