@@ -41,10 +41,10 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     };
   }
   const policyCatalog:PolicyCatalog={
-    registry_version:"2026-11-02-gpp-housing-v3",
+    registry_version:"2026-11-02-gpp-housing-v5",
     sources:[
       {id:"gp001a_2016",title:"GP001-A National Housing 2016",year:2016,issuer:"PLANMalaysia",
-        jurisdiction:"Malaysia reference",url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
+        jurisdiction:"Malaysia reference",url:"https://mytownnet.planmalaysia.gov.my/ver2/gp/GPP_PERUMAHAN.pdf",
         evidence:"Jadual 2 p44-45",scope:"Reference only",status:"curated_rules"},
       {id:"perak_housing_2023",title:"Perak Housing Guidelines 2023",year:2023,issuer:"PLANMalaysia Perak",
         jurisdiction:"Perak",url:"https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023",
@@ -56,9 +56,30 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     profiles:[{id:"none",label:"Choose",details:"Unselected"},
       {id:"national_2016",label:"National",details:"Reference"},
       {id:"perak_2023",label:"Perak",details:"State"}],
-    housing_categories:[{id:"terrace_middle",label:"Rumah teres kos sederhana",development_type:"terrace_housing"}],
+    housing_categories:[
+      {id:"terrace_low_cost",label:"Rumah teres kos rendah",development_type:"terrace_housing"},
+      {id:"terrace_middle",label:"Rumah teres kos sederhana",development_type:"terrace_housing"},
+      {id:"terrace_high",label:"Rumah teres High (no national min)",development_type:"terrace_housing"}
+    ],
+    terrace_design_presets:[
+      {id:"low",category:"terrace_low_cost",label:"Low 20×55",
+        width_ft:20,depth_ft:55,width_m:6.096,depth_m:16.764,storeys:1,
+        status:"design_starting_point_not_approval",basis:"gpp001a_low_cost",
+        source_url:"https://mytownnet.planmalaysia.gov.my/ver2/gp/GPP_PERUMAHAN.pdf",
+        source_page:"Jadual 2 ms44",note:"Low: national one-storey reference."},
+      {id:"mid",category:"terrace_middle",label:"Mid 20×70",
+        width_ft:20,depth_ft:70,width_m:6.096,depth_m:21.336,storeys:1,
+        status:"design_starting_point_not_approval",basis:"real_project_example",
+        source_url:"https://hims.kpkt.gov.my/files/8502/8502-4/IKLAN_BROSUR_01.pdf",
+        source_page:"KPKT project brochure",note:"Mid 20×70 is a project size, not the GP001-A minimum."},
+      {id:"high",category:"terrace_high",label:"High example 22×75",
+        width_ft:22,depth_ft:75,width_m:6.7056,depth_m:22.86,storeys:2,
+        status:"design_starting_point_not_approval",basis:"project_example",
+        source_url:"https://www.kejora.gov.my/perkhidmatan/hartanah/projek-penswastaan-dan-pembangunan-bercampur-3/",
+        source_page:"KEJORA example",note:"High 22×75 is an example, no high national minimum."},
+    ],
     national_lot_rules:[{category:"terrace_middle",storeys:[2,3],label:"Rumah teres kos sederhana, 2-3 tingkat",
-      min_width_m:5.5,min_depth_m:19.8,min_floor_area_m2:null,page:44,source_id:"gp001a_2016",
+      min_width_m:5.5,min_depth_m:19.8,min_width_ft:18,min_depth_ft:65,min_floor_area_m2:null,page:44,source_id:"gp001a_2016",
       url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
       max_width_m:null,max_depth_m:null}],
     perak_floor_min_sqft:{perak_affordable:1000},
@@ -83,12 +104,13 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     const source=policyCatalog.sources[perak?1:0];
     const checks:PolicyAssessment["checks"]=[];
     if(profile!=="none"){
-      checks.push({
+      if(inputs.housing_category!=="terrace_high") checks.push({
         key:"min_lot_frontage",title:"Lebar hadapan lot minimum",type:"min",value:5.5,observed:width,
         unit:"m",result:width<5.5?"below_min":"meets_number",
         source_id:"gp001a_2016",source_title:policyCatalog.sources[0].title,
         source_url:policyCatalog.sources[0].url,source_page:"Jadual 2, muka surat bercetak 44",
-        role:perak?"supplementary_national_reference":"primary_reference",binding:false
+        role:perak?"supplementary_national_reference":"primary_reference",binding:false,
+        published_equivalent_ft:18
       });
     }
     if(perak){
@@ -104,7 +126,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
       registry_version:policyCatalog.registry_version,profile_id:profile,
       profile_label:perak?"Perak 2023":"National GP001-A",
       status:perak&&inputs.floor_area_m2!=null&&inputs.floor_area_m2<92.903?"outside_numeric_reference":
-        !perak&&width<5.5?"outside_numeric_reference":"more_inputs_needed",
+        !perak&&width<5.5&&inputs.housing_category!=="terrace_high"?"outside_numeric_reference":"more_inputs_needed",
       checks,reference_only:true,warnings:["Test fixtures; no approval"],
       max_lot_width_m:null,max_lot_depth_m:null,
       message:"Minimum reference sizes only; no statutory maximum lot dimensions entered."
@@ -165,11 +187,15 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await page.goto("/");
   await page.getByRole("button",{name:/Development Studio/}).click();
   await expect(page.getByRole("heading",{name:/Development Studio/})).toBeVisible();
-  await expect(page.locator(".proposal-hero-number")).toContainText("6.000");
+  await expect(page.locator(".proposal-hero-number")).toContainText("6.503");
   await expect(page.locator(".proposal-hero-number")).toContainText("ha");
-  await expect(page.locator(".proposal-result-grid")).toContainText("3.600");
+  await expect(page.locator(".proposal-result-grid")).toContainText("3.902");
   await expect(page.locator(".proposal-gis-evidence")).toContainText("Save this proposal");
   const form=page.locator(".proposal-editor");
+  await expect(form.getByRole("spinbutton",{name:/Lot frontage/})).toHaveValue("6.096");
+  await expect(form.getByRole("spinbutton",{name:/Lot depth/})).toHaveValue("21.336");
+  await expect(page.locator(".gpp-preset-card.is-active")).toContainText("20 × 70");
+  await expect(page.locator(".gpp-preset-section")).toContainText("BUKAN HAD WAJIB GPP");
   await form.getByRole("button",{name:/Save scenario/}).click();
   await expect(page.locator(".proposal-scenario")).toHaveCount(1);
   await expect(page.locator(".proposal-scenario")).toContainText("300");
@@ -178,7 +204,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await page.getByRole("button",{name:/Development Studio/}).click();
   await expect(page.locator(".proposal-scenario")).toHaveCount(1,{timeout:15000});
   await page.locator(".proposal-scenario").click();
-  await expect(page.locator(".proposal-hero-number")).toContainText("6.000");
+  await expect(page.locator(".proposal-hero-number")).toContainText("6.503");
   await expect(form.getByRole("button",{name:/Update scenario/})).toBeEnabled();
   await form.getByRole("spinbutton",{name:/Proposed units/}).fill("1");
   await expect(page.locator(".proposal-result-grid")).toContainText("0.083");
@@ -186,7 +212,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await form.getByRole("spinbutton",{name:/Proposed units/}).fill("330");
   await form.getByRole("button",{name:/Update scenario/}).click();
   await expect(page.locator(".proposal-scenario")).toContainText("330");
-  await expect(page.locator(".proposal-hero-number")).toContainText("6.600");
+  await expect(page.locator(".proposal-hero-number")).toContainText("7.154");
   changed=true;
   await page.reload();
   await page.getByRole("button",{name:/Development Studio/}).click();
@@ -207,7 +233,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await form.getByRole("combobox",{name:"GPP house category"}).selectOption("terrace_middle");
   await form.getByRole("combobox",{name:"GPP number of storeys"}).selectOption("2");
   await expect(page.locator(".gpp-suggestion")).toContainText("5.5 × 19.8");
-  await page.locator(".gpp-suggestion").getByRole("button",{name:"Use reference dimensions"}).click();
+  await page.locator(".gpp-suggestion").getByRole("button",{name:/Use GPP minimum/}).click();
   await expect(form.getByRole("spinbutton",{name:/Lot frontage/})).toHaveValue("5.5");
   await form.getByRole("spinbutton",{name:/Lot frontage/}).fill("5.2");
   await page.locator(".gpp-action").getByRole("button",{name:/Semak GPP/}).click();
@@ -226,6 +252,15 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await expect(page.locator(".gpp-manual-layout")).toContainText("Lebar jalan perkhidmatan");
   await expect(page.locator(".gpp-manual-layout")).toContainText("50′");
   await expect(page.locator(".gpp-manual-layout")).toContainText("NOT AUTOMATICALLY CHECKED");
+  // The high cost choice is explicitly an assumption, not a fake national GPP limit.
+  await page.locator(".gpp-preset-card").filter({hasText:"HIGH / PREMIUM"}).click();
+  await expect(form.getByRole("spinbutton",{name:/Lot frontage/})).toHaveValue("6.7056");
+  await expect(form.getByRole("spinbutton",{name:/Lot depth/})).toHaveValue("22.86");
+  await expect(page.locator(".gpp-notice")).toContainText(["Saiz 22 × 75 kaki hanyalah contoh reka bentuk"]);
+  await expect(page.locator(".gpp-suggestion")).toHaveCount(0);
+  await page.locator(".gpp-preset-card").filter({hasText:"MID"}).click();
+  await expect(form.getByRole("spinbutton",{name:/Lot frontage/})).toHaveValue("6.096");
+  await expect(form.getByRole("spinbutton",{name:/Lot depth/})).toHaveValue("21.336");
 
   await page.getByRole("button",{name:/GPP Knowledge Registry/}).click();
   await expect(page.getByRole("heading",{name:/GPP Knowledge Registry/})).toBeVisible();
