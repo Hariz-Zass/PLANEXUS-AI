@@ -25,7 +25,7 @@ from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
 app = FastAPI(title="PLANEXUS AI Terrain API", version="0.5.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
 
 
 class SitePayload(BaseModel):
