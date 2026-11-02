@@ -383,7 +383,7 @@ export default function Home() {
               <aside className="copilot-card">
                 <div className="copilot-header">
                   <div className="ai-avatar"><NexusMark size={27}/></div>
-                  <div><small>THE INTELLIGENCE LAYER</small><h2>PLANEXUS <em>Copilot</em></h2><p>{gisStatus === "online" ? llmConfigured ? "AI enabled · grounded in measured terrain" : "Rule-based guidance · AI key not configured" : "Connect GIS backend to enable Copilot"}</p></div>
+                  <div><small>THE INTELLIGENCE LAYER</small><h2>PLANEXUS <em>Copilot</em></h2><p>{gisStatus === "online" ? llmConfigured ? "LLM configured · GIS evidence required" : "Rule-based guidance · AI key not configured" : "Connect GIS backend to enable Copilot"}</p></div>
                   <span className="sparkle-dot"><WandSparkles size={19}/></span>
                 </div>
                 <div className="copilot-stream" aria-live="polite">
@@ -397,7 +397,7 @@ export default function Home() {
                     <div className="copilot-checklist">
                       <div><span className={geometry ? "is-ready" : ""}>{geometry ? <Check size={12}/> : "01"}</span> Site boundary <strong>{geometry ? "READY" : "PENDING"}</strong></div>
                       <div><span className={report ? "is-ready" : ""}>{report ? <Check size={12}/> : "02"}</span> GIS evidence <strong>{report ? "READY" : "PENDING"}</strong></div>
-                      <div><span className={gisStatus === "online" ? "is-ready" : ""}>03</span> Copilot <strong>{gisStatus !== "online" ? "OFFLINE" : report ? llmConfigured ? "AI ENABLED" : "GIS GUIDANCE" : "GUIDANCE ONLY"}</strong></div>
+                      <div><span className={gisStatus === "online" ? "is-ready" : ""}>03</span> Copilot <strong>{gisStatus !== "online" ? "OFFLINE" : report ? llmConfigured ? "LLM CONFIGURED" : "GIS GUIDANCE" : "GUIDANCE ONLY"}</strong></div>
                     </div>
                     <div className="prompt-library">
                       <div className="prompt-label"><Sparkles size={13}/> EXPLORE QUESTIONS</div>
@@ -409,7 +409,7 @@ export default function Home() {
                   {pending === "copilot" && <div className="thinking"><LoaderCircle className="spin" size={15}/> Analysing GIS evidence…</div>}
                 </div>
                 <div className="copilot-compose">
-                  <div className="copilot-preset"><span><span className={"compose-led "+(gisStatus === "online" ? "lit" : "")}/> COPILOT STATUS</span><span className={gisStatus === "online" ? "ready" : "unavailable"}>{gisStatus !== "online" ? "GIS server not connected" : report ? llmConfigured ? "Measured GIS + AI" : "Measured GIS · rule-based" : "Workflow guidance only"}</span></div>
+                  <div className="copilot-preset"><span><span className={"compose-led "+(gisStatus === "online" ? "lit" : "")}/> COPILOT STATUS</span><span className={gisStatus === "online" ? "ready" : "unavailable"}>{gisStatus !== "online" ? "GIS server not connected" : report ? llmConfigured ? "Measured GIS · LLM configured" : "Measured GIS · rule-based" : "Workflow guidance only"}</span></div>
                   <div className="copilot-input-wrap"><textarea value={question} onChange={e=>setQuestion(e.target.value)} maxLength={800} placeholder={gisStatus !== "online" ? "Connect GIS backend to ask questions…" : report ? "Ask about measured slope, elevation or limitations…" : "Ask how to define site or retrieve DEM…"} rows={3} disabled={gisStatus !== "online"} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askCopilot(); } }} /><button className="send-button" disabled={gisStatus !== "online" || pending !== null || question.trim().length < 3} onClick={() => void askCopilot()} aria-label="Hantar soalan"><ArrowRight size={19}/></button></div>
                   <div className="compose-bottom"><span><ShieldCheck size={13}/> NO DATA, NO CLAIMS</span><span>POWERED BY GIS EVIDENCE</span></div>
                 </div>

@@ -211,6 +211,15 @@ def capabilities() -> dict[str, Any]:
 
 def assess(report: dict[str, Any], question: str) -> dict[str, Any]:
     evidence = evidence_snapshot(report)
+    # Current architecture has no verified RT, drainage/hydrology or statutory
+    # housing-yield inputs. Do not invite a model to improvise those answers.
+    if _topic(question) in ("policy", "hydrology", "yield"):
+        return {
+            "mode": "scope_guard_no_data",
+            "response": grounded_summary(report, question),
+            "notice": "Topik ini memerlukan data bukan-GIS yang belum disambungkan. Tiada tafsiran AI tentang fakta yang tidak tersedia.",
+            "evidence": evidence,
+        }
     if not os.getenv("OPENAI_API_KEY"):
         return {
             "mode": "deterministic_evidence_summary",
@@ -243,6 +252,15 @@ def assess(report: dict[str, Any], question: str) -> dict[str, Any]:
         text = (result.output_text or "").strip()
         if len(text) < 20:
             raise ValueError("Empty/short model response")
+        # Conservative second-line check, not a complete hallucination detector:
+        # disallow unconditional official approval/safety claims.
+        forbidden = (
+            r"\b(?:telah\s+diluluskan|sudah\s+diluluskan|pasti\s+sesuai|"
+            r"dijamin\s+selamat|100%\s+selamat|semua\s+syarat\s+dipenuhi|"
+            r"pbt\s+(?:sudah|telah)\s+meluluskan)\b"
+        )
+        if re.search(forbidden, text.casefold()):
+            raise ValueError("Unverified planning approval/safety assertion")
         return {
             "mode": "llm_grounded",
             "response": text,

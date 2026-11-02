@@ -127,3 +127,29 @@ def test_model_error_never_leaks_key_and_returns_grounded_fallback(monkeypatch):
     assert "fake-secret-key" not in json.dumps(r)
     assert "TimeoutError" in r["notice"]
     assert "purata cerun" in r["response"]
+
+
+def test_scope_guard_blocks_llm_on_policy_without_official_data(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-test-key")
+    def fail_if_constructed(**kwargs):
+        raise AssertionError("LLM must not be called for missing policy context")
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=fail_if_constructed))
+    r=assistant.assess(REPORT, "Bolehkah bina 300 unit ikut RT dan zoning?")
+    assert r["mode"]=="scope_guard_no_data"
+    assert r["evidence"]["source_name"] == REPORT["source"]["name"]
+    assert "tidak dapat mengesahkan" in r["response"]
+
+
+def test_obvious_unverified_approval_claim_triggers_evidence_fallback(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-test-key")
+    class BadResponses:
+        def create(self, **kwargs):
+            return SimpleNamespace(output_text="**Penemuan:** Tapak ini telah diluluskan oleh PBT, tiada semakan lagi diperlukan.")
+    class BadOpenAI:
+        def __init__(self, **kwargs):
+            self.responses = BadResponses()
+    monkeypatch.setitem(sys.modules,"openai",SimpleNamespace(OpenAI=BadOpenAI))
+    r=assistant.assess(REPORT,"Apakah kecerunan tapak?")
+    assert r["mode"]=="fallback_after_ai_error"
+    assert "telah diluluskan oleh PBT" not in r["response"]
+    assert "GIS" in r["response"]
