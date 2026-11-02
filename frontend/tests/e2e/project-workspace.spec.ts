@@ -141,7 +141,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:15000});
   await expect(page.getByText("4.20°")).toBeVisible();
   await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
-  await expect(page.getByRole("button",{name:"Suitability"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".suitability-panel")).toContainText("Lower terrain constraint");
   await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");
@@ -161,7 +161,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo");
   await expect(page.locator(".terrain-map[data-site-polygon='absent']")).toBeVisible({timeout:30000});
   await expect(page.locator(".suitability-panel")).toContainText("Awaiting verified DEM analysis");
-  await expect(page.getByRole("button",{name:"Suitability"})).toBeDisabled();
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toBeDisabled();
   await page.reload();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo",{timeout:15000});
   await page.getByRole("button",{name:/Project Workspace/}).click();
