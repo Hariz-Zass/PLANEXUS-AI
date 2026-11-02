@@ -125,9 +125,22 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
           lot_width_m:lotRule.min_width_m,lot_depth_m:lotRule.min_depth_m,
         })}>Use reference dimensions</button>
       </div>}
-      {profile==="perak_2023"&&<p className="gpp-notice"><CircleAlert size={15}/>
+      {profile==="perak_2023"&&inputs.development_type==="terrace_housing"&&<p className="gpp-notice"><CircleAlert size={15}/>
         Perak PR1 sets terrace floor-space/height rules; GP001-A lot dimensions are <strong>supplementary national references</strong>. Verify adopted PBT and gazetted local-plan provisions before any compliance claim.
       </p>}
+      {profile==="perak_2023"&&inputs.development_type==="other_landed"&&category&&
+        <div className="gpp-suggestion">
+          <div><BookOpen size={17}/><span>
+            <strong>{catalog?.perak_other_housing_rules?.[category]?.code??"Perak"} — rujukan khusus negeri</strong>
+            <small>{catalog?.perak_other_housing_rules?.[category]
+              ? "Minimum luas lantai "+catalog.perak_other_housing_rules[category].min_floor_sqft+
+                " kps; maksimum "+catalog.perak_other_housing_rules[category].max_storeys+
+                " tingkat; tinggi maksimum "+catalog.perak_other_housing_rules[category].max_height_ft+
+                " kaki. "+catalog.perak_other_housing_rules[category].source_page+
+                ". Lot GP001-A hanyalah rujukan tambahan."
+              : "Syarat khusus perumahan jenis ini belum diindeks. Rujuk dokumen rasmi."}</small>
+          </span></div>
+        </div>}
       {profile==="perak_2023"&&inputs.development_type==="terrace_housing"&&Boolean(catalog?.perak_layout_references?.length)&&<div className="gpp-manual-layout">
         <div className="gpp-manual-layout-head">
           <strong>Perak PR1 — rujukan geometri jalan / anjakan</strong>
