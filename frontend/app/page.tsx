@@ -12,13 +12,14 @@ import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainRep
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import SuitabilityPanel from "@/components/SuitabilityPanel";
 import ProposalStudio from "@/components/ProposalStudio";
+import GppLibrary from "@/components/GppLibrary";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
-type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals";
+type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy";
 const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
 type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
-type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null };
+type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null; policy_sources?: {title:string;url:string;evidence:string}[] };
 
 function normalizeGeoJSON(content: unknown): FeatureGeometry {
   if (!content || typeof content !== "object") throw new Error("Fail tidak mengandungi GeoJSON yang sah.");
@@ -462,8 +463,8 @@ export default function Home() {
     const prompt = question.trim();
     setChat(messages => [...messages, { role: "user", text: prompt }]); setQuestion(""); setPending("copilot"); setError("");
     try {
-      const answer = await api<{ response: string; mode: string; notice: string; evidence?: CopilotEvidence | null }>("/api/copilot/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysis_id: report?.analysis_id ?? null, question: prompt }) });
-      setChat(messages => [...messages, { role: "assistant", text: answer.response, mode: answer.mode, notice: answer.notice, evidence: answer.evidence }]);
+      const answer = await api<{ response: string; mode: string; notice: string; evidence?: CopilotEvidence | null; policy_sources?: {title:string;url:string;evidence:string}[] }>("/api/copilot/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysis_id: report?.analysis_id ?? null, question: prompt }) });
+      setChat(messages => [...messages, { role: "assistant", text: answer.response, mode: answer.mode, notice: answer.notice, evidence: answer.evidence, policy_sources: answer.policy_sources }]);
     } catch (ex) { setError(ex instanceof Error ? ex.message : "Copilot tidak dapat menjawab."); setQuestion(prompt); }
     finally { setPending(null); }
   }
@@ -487,13 +488,14 @@ export default function Home() {
       <div className="layout">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="sidebar-inner-title"><span className="sidebar-studio-icon"><NexusMark size={18}/></span><div><strong>Planner Studio</strong><small>GEOSPATIAL WORKSPACE</small></div></div>
-          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 05</span></div>
+          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 06</span></div>
           <nav className="nav-list" aria-label="Modul PLANEXUS">
             <button className={"nav-item "+(tab === "workspace" ? "selected" : "")} onClick={() => { setTab("workspace"); setMobileNav(false); }}><span className="nav-index">01</span><Mountain size={18}/><span>Terrain Intelligence</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "sources" ? "selected" : "")} onClick={() => { setTab("sources"); setMobileNav(false); }}><span className="nav-index">02</span><Database size={18}/><span>Data Registry</span></button>
             <button className={"nav-item "+(tab === "history" ? "selected" : "")} onClick={() => { setTab("history"); setMobileNav(false); }}><span className="nav-index">03</span><FolderOpen size={18}/><span>Saved Analyses</span>{displayedAnalyses.length > 0 && <span className="nav-count">{displayedAnalyses.length}</span>}</button>
             <button className={"nav-item "+(tab === "projects" ? "selected" : "")} onClick={() => { setTab("projects"); setMobileNav(false); }}><span className="nav-index">04</span><Database size={18}/><span>Project Workspace</span>{projects.length > 0 && <span className="nav-count">{projects.length}</span>}</button>
             <button className={"nav-item "+(tab === "proposals" ? "selected" : "")} onClick={() => { setTab("proposals"); setMobileNav(false); }}><span className="nav-index">05</span><BarChart3 size={18}/><span>Development Studio</span><span className="nav-on-dot"/></button>
+            <button className={"nav-item "+(tab === "policy" ? "selected" : "")} onClick={() => { setTab("policy"); setMobileNav(false); }}><span className="nav-index">06</span><FileText size={18}/><span>GPP Knowledge Registry</span><span className="nav-on-dot"/></button>
           </nav>
           <div className="sidebar-section-title secondary-title">FUTURE INTELLIGENCE <span>ROADMAP</span></div>
           <div className="nav-list locked-modules">
@@ -504,7 +506,7 @@ export default function Home() {
           <div className="sidebar-rule-graphic" aria-hidden="true"><span>PX</span><i/><i/><i/></div>
           <div className="sidebar-bottom">
             <div className="sidebar-principle"><ShieldCheck size={18} /><div><strong>Evidence-first analysis</strong><span>No verified data, no unsupported conclusion.</span></div></div>
-            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.5.0 LOCAL</span></div>
+            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.6.0 LOCAL</span></div>
           </div>
         </aside>
 
@@ -641,9 +643,10 @@ export default function Home() {
                       <div className="prompt-label"><Sparkles size={13}/> EXPLORE QUESTIONS</div>
                       <button type="button" disabled={gisStatus !== "online"} onClick={()=>setQuestion(report ? "Adakah tapak ini sesuai untuk rumah teres berdasarkan cerun dan elevasi?" : "Apakah data diperlukan untuk menilai kesesuaian rumah teres?")}><span>Housing suitability</span><MoveUpRight size={15}/></button>
                       <button type="button" disabled={gisStatus !== "online"} onClick={()=>setQuestion(report ? "Apakah taburan kelas cerun di tapak dan implikasinya?" : "Bagaimana cara mendapatkan DEM dan mengira slope?")}><span>Identify terrain constraints</span><MoveUpRight size={15}/></button>
+                      <button type="button" disabled={gisStatus !== "online"} onClick={()=>setQuestion("Apakah saiz minimum lot rumah teres mengikut GPP PLANMalaysia dan GPP Perak?")}><span>Semak GPP perumahan</span><MoveUpRight size={15}/></button>
                     </div>
                   </div>}
-                  {chat.map((message,i) => <div key={i} className={"message "+(message.role === "user" ? "message-user" : "message-assistant")}><div className="message-author">{message.role === "assistant" ? <><BrainCircuit size={14}/> PLANEXUS {message.mode === "llm_grounded" ? "AI" : message.mode === "workflow_guidance" ? "GUIDE" : "GIS SUMMARY"}</> : <>PLANNER</>}</div>{message.role === "assistant" ? <MarkdownParagraph text={message.text}/> : <p>{message.text}</p>}{message.evidence && <div className="copilot-evidence-line"><ShieldCheck size={13}/><span>{message.evidence.source_name} · {formattedNumber(message.evidence.coverage_percent_est,1)}% coverage · {message.evidence.nominal_resolution_m ? `~${message.evidence.nominal_resolution_m}m DSM` : message.evidence.data_type}</span></div>}{message.notice && <div className="response-note"><Info size={13}/>{message.notice}</div>}</div>)}
+                  {chat.map((message,i) => <div key={i} className={"message "+(message.role === "user" ? "message-user" : "message-assistant")}><div className="message-author">{message.role === "assistant" ? <><BrainCircuit size={14}/> PLANEXUS {message.mode === "llm_grounded" ? "AI" : message.mode === "workflow_guidance" ? "GUIDE" : message.mode === "verified_policy_registry_summary" ? "GPP SOURCE" : "GIS SUMMARY"}</> : <>PLANNER</>}</div>{message.role === "assistant" ? <MarkdownParagraph text={message.text}/> : <p>{message.text}</p>}{message.policy_sources?.length ? <div className="gpp-chat-citations">{message.policy_sources.map((source,i)=><a key={i} target="_blank" rel="noopener noreferrer" href={source.url}><FileText size={13}/>{source.title} · {source.evidence}</a>)}</div> : null}{message.evidence && <div className="copilot-evidence-line"><ShieldCheck size={13}/><span>{message.evidence.source_name} · {formattedNumber(message.evidence.coverage_percent_est,1)}% coverage · {message.evidence.nominal_resolution_m ? `~${message.evidence.nominal_resolution_m}m DSM` : message.evidence.data_type}</span></div>}{message.notice && <div className="response-note"><Info size={13}/>{message.notice}</div>}</div>)}
                   {pending === "copilot" && <div className="thinking"><LoaderCircle className="spin" size={15}/> Analysing GIS evidence…</div>}
                 </div>
                 <div className="copilot-compose">
@@ -654,6 +657,7 @@ export default function Home() {
               </aside>
             </div>
           </>}
+          {tab === "policy" && <GppLibrary backendConnected={gisStatus==="online"} onOpenStudio={()=>setTab("proposals")}/>}
           {tab === "proposals" && <ProposalStudio key={activeProject?.id??"no-project"} project={activeProject} backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}/>}
           {tab === "projects" && <ProjectWorkspace projects={projects} activeId={activeProject?.id??null}
             geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
