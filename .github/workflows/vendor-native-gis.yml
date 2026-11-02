@@ -21,7 +21,9 @@ jobs:
           set -euo pipefail
           mkdir -p backend/app/vendor
           docker run --rm -v "$PWD/backend/app/vendor:/vendor" debian:bullseye-slim sh -ec '
-            apt-get update -qq
+            printf "deb [trusted=yes] http://archive.debian.org/debian bullseye main\n" > /etc/apt/sources.list
+            printf "deb [trusted=yes] http://archive.debian.org/debian-security bullseye-security main\n" >> /etc/apt/sources.list
+            apt-get -o Acquire::Check-Valid-Until=false update -qq
             DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libexpat1 >/dev/null
             cp -L /usr/lib/x86_64-linux-gnu/libexpat.so.1 /vendor/libexpat.so.1
           '
