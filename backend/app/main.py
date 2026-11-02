@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import json
 import shutil
 import uuid
@@ -24,11 +26,22 @@ from .geometry import validate_site
 from .project_store import (create_project, list_projects, get_project, update_project, remove_project,
                             attach_analysis, activate_analysis)
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
+from .cloud_storage import cloud_enabled, workspace_dir, private_workspace
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.7.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.8.0", description="Evidence-first GIS. Browser-keyed private workspaces are not full user authentication.")
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Planexus-Workspace"])
+
+
+@app.middleware("http")
+async def use_private_cloud_workspace(request, call_next):
+    return await private_workspace(request, call_next)
+
+
+def active_data_dir() -> Path:
+    # Local FastAPI and tests still respect the original, monkeypatchable active_data_dir().
+    return workspace_dir(DATA_DIR)
 
 
 class SitePayload(BaseModel):
@@ -46,7 +59,7 @@ def job_dir(analysis_id: str) -> Path:
         value = str(uuid.UUID(analysis_id))
     except ValueError as ex:
         raise HTTPException(422, "ID analisis tidak sah.") from ex
-    return DATA_DIR / "jobs" / value
+    return active_data_dir() / "jobs" / value
 
 
 def save_report(path: Path, report: dict[str, Any]) -> dict[str, Any]:
@@ -63,7 +76,12 @@ def load_report(analysis_id: str) -> dict[str, Any]:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "PLANEXUS AI Terrain", "storage": "local-persistent-folder", "production_ready": False}
+    cloud = cloud_enabled()
+    ready = (not cloud or bool(os.getenv("BLOB_READ_WRITE_TOKEN") or os.getenv("VERCEL_OIDC_TOKEN")))
+    return {"status": "ok" if ready else "degraded", "service": "PLANEXUS AI Terrain",
+            "storage": "private-blob-per-browser-key" if cloud else "local-persistent-folder",
+            "production_ready": ready if cloud else False,
+            "authentication": "browser access key, not a team account" if cloud else "localhost trusted user"}
 
 
 @app.get("/api/policy/catalog")
@@ -102,17 +120,17 @@ class ActivateAnalysisPayload(BaseModel):
 
 @app.get("/api/projects")
 def projects_list():
-    return {"projects": list_projects(DATA_DIR), "storage": "local-sqlite; no cloud sync; single trusted user only"}
+    return {"projects": list_projects(active_data_dir()), "storage": "private-blob-personal-key" if cloud_enabled() else "local-sqlite; no cloud sync; single trusted user only"}
 
 
 @app.post("/api/projects", status_code=201)
 def projects_create(payload: NewProjectPayload):
-    return create_project(DATA_DIR, payload.name, payload.description, payload.geometry)
+    return create_project(active_data_dir(), payload.name, payload.description, payload.geometry)
 
 
 @app.get("/api/projects/{project_id}")
 def projects_get(project_id: str):
-    return get_project(DATA_DIR, project_id)
+    return get_project(active_data_dir(), project_id)
 
 
 @app.patch("/api/projects/{project_id}")
@@ -122,20 +140,20 @@ def projects_update(project_id: str, payload: UpdateProjectPayload):
         if key in payload.model_fields_set:
             fields[key] = getattr(payload, key)
     if not fields:
-        return get_project(DATA_DIR, project_id)
-    return update_project(DATA_DIR, project_id, payload.expected_revision, **fields)
+        return get_project(active_data_dir(), project_id)
+    return update_project(active_data_dir(), project_id, payload.expected_revision, **fields)
 
 
 @app.delete("/api/projects/{project_id}", status_code=204)
 def projects_delete(project_id: str):
-    remove_project(DATA_DIR, project_id)
+    remove_project(active_data_dir(), project_id)
     return Response(status_code=204)
 
 
 @app.post("/api/projects/{project_id}/activate-analysis")
 def projects_activate_analysis(project_id: str, payload: ActivateAnalysisPayload):
     report = load_report(payload.analysis_id)
-    return activate_analysis(DATA_DIR, project_id, payload.analysis_id, report)
+    return activate_analysis(active_data_dir(), project_id, payload.analysis_id, report)
 
 
 class ProposalUpdatePayload(BaseModel):
@@ -145,7 +163,7 @@ class ProposalUpdatePayload(BaseModel):
 
 def active_terrain_report(project_id: str) -> dict[str, Any] | None:
     """Only a report explicitly linked as the project's currently active GIS context."""
-    project = get_project(DATA_DIR, project_id)
+    project = get_project(active_data_dir(), project_id)
     if not project["active_analysis_id"]:
         return None
     try:
@@ -162,12 +180,12 @@ class LayoutSavePayload(BaseModel):
 
 @app.get("/api/projects/{project_id}/layout")
 def layout_get(project_id: str):
-    return get_layout(DATA_DIR, project_id, active_terrain_report(project_id))
+    return get_layout(active_data_dir(), project_id, active_terrain_report(project_id))
 
 
 @app.post("/api/projects/{project_id}/layout/preview")
 def layout_preview(project_id: str, payload: LayoutInput):
-    project = get_project(DATA_DIR, project_id)
+    project = get_project(active_data_dir(), project_id)
     if not project["geometry"]:
         raise HTTPException(422, "Save a site boundary before layout screening.")
     return {
@@ -180,37 +198,37 @@ def layout_preview(project_id: str, payload: LayoutInput):
 
 @app.put("/api/projects/{project_id}/layout")
 def layout_save(project_id: str, payload: LayoutSavePayload):
-    return save_layout(DATA_DIR, project_id, payload.inputs,
+    return save_layout(active_data_dir(), project_id, payload.inputs,
                        payload.expected_revision, active_terrain_report(project_id))
 
 
 @app.get("/api/projects/{project_id}/proposals")
 def proposals_list(project_id: str):
     active = active_terrain_report(project_id)
-    return list_proposals(DATA_DIR, project_id, active)
+    return list_proposals(active_data_dir(), project_id, active)
 
 
 @app.post("/api/projects/{project_id}/proposals", status_code=201)
 def proposals_create(project_id: str, payload: ProposalInput):
     active = active_terrain_report(project_id)
-    return create_proposal(DATA_DIR, project_id, payload, active)
+    return create_proposal(active_data_dir(), project_id, payload, active)
 
 
 @app.get("/api/projects/{project_id}/proposals/{proposal_id}")
 def proposals_get(project_id: str, proposal_id: str):
     active = active_terrain_report(project_id)
-    return get_proposal(DATA_DIR, project_id, proposal_id, active)
+    return get_proposal(active_data_dir(), project_id, proposal_id, active)
 
 
 @app.put("/api/projects/{project_id}/proposals/{proposal_id}")
 def proposals_update(project_id: str, proposal_id: str, payload: ProposalUpdatePayload):
     active = active_terrain_report(project_id)
-    return update_proposal(DATA_DIR, project_id, proposal_id, payload.proposal, payload.expected_revision, active)
+    return update_proposal(active_data_dir(), project_id, proposal_id, payload.proposal, payload.expected_revision, active)
 
 
 @app.delete("/api/projects/{project_id}/proposals/{proposal_id}", status_code=204)
 def proposals_delete(project_id: str, proposal_id: str):
-    delete_proposal(DATA_DIR, project_id, proposal_id)
+    delete_proposal(active_data_dir(), project_id, proposal_id)
     return Response(status_code=204)
 
 
@@ -224,7 +242,7 @@ def inspect_site(payload: SitePayload):
 def verify_project_for_analysis(project_id: str | None, geometry: dict[str, Any]) -> None:
     if project_id is None:
         return
-    project = get_project(DATA_DIR, project_id)
+    project = get_project(active_data_dir(), project_id)
     if project["geometry"] is not None and not shape(project["geometry"]).equals(shape(geometry)):
         raise HTTPException(409, "Sempadan projek tidak sama dengan tapak analisis. Buka semula projek.")
 
@@ -240,7 +258,7 @@ def terrain_auto(payload: SitePayload):
         report = analyze_terrain(geometry, raster, source, analysis_id)
         saved = save_report(directory, report)
         if payload.project_id is not None:
-            attach_analysis(DATA_DIR, payload.project_id, saved)
+            attach_analysis(active_data_dir(), payload.project_id, saved)
         return saved
     except Exception:
         shutil.rmtree(directory, ignore_errors=True)
@@ -297,7 +315,7 @@ def terrain_upload(
         report = analyze_terrain(geom, file_path, metadata, analysis_id)
         saved = save_report(directory, report)
         if project_id is not None:
-            attach_analysis(DATA_DIR, project_id, saved)
+            attach_analysis(active_data_dir(), project_id, saved)
         return saved
     except Exception:
         shutil.rmtree(directory, ignore_errors=True)
@@ -306,7 +324,7 @@ def terrain_upload(
 
 @app.get("/api/analyses")
 def list_analyses():
-    directory = DATA_DIR / "jobs"
+    directory = active_data_dir() / "jobs"
     if not directory.exists():
         return {"analyses": []}
     results = []
