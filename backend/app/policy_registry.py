@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-REGISTRY_VERSION = "2026-11-02-gpp-housing-v4"
+REGISTRY_VERSION = "2026-11-02-gpp-housing-v5"
 
 NATIONAL_SOURCE = {
     "id": "gp001a_2016",
@@ -18,7 +18,8 @@ NATIONAL_SOURCE = {
     "year": 2016,
     "issuer": "PLANMalaysia / Jabatan Perancangan Bandar dan Desa Semenanjung Malaysia",
     "jurisdiction": "Semenanjung Malaysia - national reference, subject to adoption and local plans",
-    "url": "https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
+    "url": "https://mytownnet.planmalaysia.gov.my/ver2/gp/GPP_PERUMAHAN.pdf",
+    "alternate_official_url": "https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
     "evidence": "Bahagian C, 8.2.1, Jadual 2, printed pages 44-45",
     "scope": "Planning reference; do not infer that current PBT conditions are identical.",
     "status": "curated_rules",
@@ -82,21 +83,47 @@ CATALOG_ONLY = (
     },
 )
 
+# DESIGN STARTING POINTS - NOT A NEW GPP MINIMUM TABLE.
+# Source categories do not align exactly with user-friendly Low/Mid/High labels:
+# GP001-A lists low, lower-middle and middle terraces, NOT high-cost terrace.
+# Perak PR1 specifies floor area, not frontage/depth. Product examples below
+# must never be reported as legally required limits.
+PRACTICAL_TERRACE_PRESETS: tuple[dict[str, Any], ...] = (
+    {"id":"low","category":"terrace_low_cost","label":"Low cost — 20 × 55 kaki",
+     "width_ft":20,"depth_ft":55,"storeys":1,"basis":"gpp001a_low_cost_1_storey",
+     "status":"design_starting_point_not_approval",
+     "source_url":NATIONAL_SOURCE["url"],"source_page":"GP001-A 2016 Jadual 2, ms. 44",
+     "note":"20 × 55 ft ialah minimum rujukan kebangsaan untuk kos rendah 1 tingkat; Perak/PBT dan kategori rumah perlu disahkan."},
+    {"id":"mid","category":"terrace_middle","label":"Mid cost — 20 × 70 kaki",
+     "width_ft":20,"depth_ft":70,"storeys":1,"basis":"observed_mid_cost_project_example_not_national_gpp_min",
+     "status":"design_starting_point_not_approval",
+     "source_url":"https://hims.kpkt.gov.my/files/8502/8502-4/IKLAN_BROSUR_01.pdf",
+     "source_page":"Brosur rumah teres kos sederhana 1 tingkat, 20 × 70 ft (contoh projek)",
+     "note":"20 × 70 ft digunakan dalam contoh projek kos sederhana; GP001-A menyatakan MINIMUM 20 × 65 ft bagi 1 tingkat atau 18 × 65 ft bagi 2–3 tingkat. Ini pilihan reka bentuk, bukan wajib."},
+    {"id":"high","category":"terrace_high","label":"High / Premium — 22 × 75 kaki (contoh)",
+     "width_ft":22,"depth_ft":75,"storeys":2,"basis":"example_built_project_size_not_high_cost_gpp_class",
+     "status":"design_starting_point_not_approval",
+     "source_url":"https://www.kejora.gov.my/perkhidmatan/hartanah/projek-penswastaan-dan-pembangunan-bercampur-3/",
+     "source_page":"Senarai komponen pembangunan Taman Desaru Utama: teres dua tingkat 22 × 75 ft",
+     "note":"22 × 75 ft ialah contoh projek; GP001-A tidak memberikan satu baris minimum khusus rumah teres kos TINGGI. PBT/RT perlu disahkan."},
+)
+
+
 # Width/depth are explicit METRES as printed in Table 2, not approximate
 # conversions of rounded imperial equivalents. None is NEVER zero or unlimited.
 # Storey 1.5 is not represented in the product's integer floor input.
 NATIONAL_LOT_RULES: tuple[dict[str, Any], ...] = (
-    {"category":"terrace_low_cost", "storeys":[1], "label":"Rumah teres kos rendah, 1 tingkat",
+    {"category":"terrace_low_cost", "storeys":[1], "min_width_ft":20, "min_depth_ft":55, "label":"Rumah teres kos rendah, 1 tingkat",
      "min_width_m":6.1, "min_depth_m":16.8, "min_floor_area_m2":65.0, "page":44},
-    {"category":"terrace_low_cost", "storeys":[2], "label":"Rumah teres kos rendah, 2 tingkat",
+    {"category":"terrace_low_cost", "storeys":[2], "min_width_ft":14, "min_depth_ft":55, "label":"Rumah teres kos rendah, 2 tingkat",
      "min_width_m":4.3, "min_depth_m":16.8, "min_floor_area_m2":None, "page":44},
-    {"category":"terrace_lower_middle", "storeys":[1], "label":"Rumah teres kos sederhana rendah, 1 tingkat",
+    {"category":"terrace_lower_middle", "storeys":[1], "min_width_ft":20, "min_depth_ft":60, "label":"Rumah teres kos sederhana rendah, 1 tingkat",
      "min_width_m":6.1, "min_depth_m":18.3, "min_floor_area_m2":69.7, "page":44},
-    {"category":"terrace_lower_middle", "storeys":[2], "label":"Rumah teres kos sederhana rendah, 2 tingkat",
+    {"category":"terrace_lower_middle", "storeys":[2], "min_width_ft":18, "min_depth_ft":55, "label":"Rumah teres kos sederhana rendah, 2 tingkat",
      "min_width_m":5.5, "min_depth_m":16.8, "min_floor_area_m2":None, "page":44},
-    {"category":"terrace_middle", "storeys":[1], "label":"Rumah teres kos sederhana, 1 tingkat",
+    {"category":"terrace_middle", "storeys":[1], "min_width_ft":20, "min_depth_ft":65, "label":"Rumah teres kos sederhana, 1 tingkat",
      "min_width_m":6.1, "min_depth_m":19.8, "min_floor_area_m2":79.0, "page":44},
-    {"category":"terrace_middle", "storeys":[2,3], "label":"Rumah teres kos sederhana, 2-3 tingkat",
+    {"category":"terrace_middle", "storeys":[2,3], "min_width_ft":18, "min_depth_ft":65, "label":"Rumah teres kos sederhana, 2-3 tingkat",
      "min_width_m":5.5, "min_depth_m":19.8, "min_floor_area_m2":None, "page":44},
     {"category":"cluster", "storeys":[1], "label":"Rumah kluster, 1 tingkat",
      "min_width_m":12.2, "min_depth_m":15.2, "min_floor_area_m2":83.6, "page":45},
@@ -187,13 +214,16 @@ def catalog() -> dict[str, Any]:
         "housing_categories":[
             {"id":"terrace_low_cost","label":"Rumah teres kos rendah","development_type":"terrace_housing"},
             {"id":"terrace_lower_middle","label":"Rumah teres kos sederhana rendah","development_type":"terrace_housing"},
-            {"id":"terrace_middle","label":"Rumah teres kos sederhana","development_type":"terrace_housing"},
+            {"id":"terrace_middle","label":"Rumah teres kos sederhana (Mid)","development_type":"terrace_housing"},
+            {"id":"terrace_high","label":"Rumah teres kos tinggi (High; minimum nasional tiada)","development_type":"terrace_housing"},
             {"id":"cluster","label":"Rumah kluster","development_type":"other_landed"},
             {"id":"semi_detached","label":"Rumah berkembar","development_type":"other_landed"},
             {"id":"detached","label":"Rumah sesebuah","development_type":"other_landed"},
             {"id":"zero_lot","label":"Rumah sesebuah (zero lot boundary)","development_type":"other_landed"},
             {"id":"townhouse","label":"Rumah bandar (Perak PR6; GP001 lot size not indexed)","development_type":"other_landed"},
         ],
+        "terrace_design_presets": [{**preset, "width_m":round(preset["width_ft"]*0.3048,4),
+             "depth_m":round(preset["depth_ft"]*0.3048,4)} for preset in PRACTICAL_TERRACE_PRESETS],
         "national_lot_rules": [
             {**r,"source_id":NATIONAL_SOURCE["id"],
              "url":NATIONAL_SOURCE["url"],"max_width_m":None,"max_depth_m":None}
@@ -231,17 +261,25 @@ def evaluate_policy(proposal: Any) -> dict[str, Any]:
     ]
     label=next((p["label"] for p in catalog()["profiles"] if p["id"]==profile),"Unknown")
     def add_check(*,key:str,title:str,limit:float|int,observed:float|int|None,
-                  measure:str,direction:str,source:dict[str,Any],page:str,role:str)->None:
+                  measure:str,direction:str,source:dict[str,Any],page:str,role:str,
+                  printed_equivalent_ft:float|None=None)->None:
         if observed is None:
             state="not_supplied"
         elif direction=="min":
-            state="meets_number" if observed+1e-8>=limit else "below_min"
+            # National table prints e.g. 6.1 m (20 ft) and 5.5 m (18 ft),
+            # where metric is rounded. Exact feet converted to metres must
+            # NOT falsely fail against the rounded metric threshold.
+            effective_limit=min(limit,printed_equivalent_ft*.3048) if (
+                printed_equivalent_ft is not None and measure=="m"
+            ) else limit
+            state="meets_number" if observed+1e-8>=effective_limit else "below_min"
         else:
             state="meets_number" if observed<=limit+1e-8 else "above_max"
         checks.append({
             "key":key,"title":title,"type":direction,"value":float(limit),
             "observed":float(observed) if observed is not None else None,
             "unit":measure,"result":state,
+            "published_equivalent_ft":printed_equivalent_ft,
             "source_id":source["id"],"source_title":source["title"],
             "source_url":source["url"],"source_page":page,
             "role":role,
@@ -274,11 +312,13 @@ def evaluate_policy(proposal: Any) -> dict[str, Any]:
             add_check(key="min_lot_frontage",title="Lebar hadapan lot minimum",
                       limit=rule["min_width_m"],observed=proposal.lot_width_m,
                       measure="m",direction="min",source=NATIONAL_SOURCE,
-                      page=f"Jadual 2, muka surat bercetak {rule['page']}",role=role)
+                      page=f"Jadual 2, muka surat bercetak {rule['page']}",role=role,
+                      printed_equivalent_ft=rule.get("min_width_ft"))
             add_check(key="min_lot_depth",title="Panjang / dalam lot minimum",
                       limit=rule["min_depth_m"],observed=proposal.lot_depth_m,
                       measure="m",direction="min",source=NATIONAL_SOURCE,
-                      page=f"Jadual 2, muka surat bercetak {rule['page']}",role=role)
+                      page=f"Jadual 2, muka surat bercetak {rule['page']}",role=role,
+                      printed_equivalent_ft=rule.get("min_depth_ft"))
             if rule["min_floor_area_m2"] is not None:
                 add_check(key="min_floor_area_national",title="Luas lantai minimum (rujukan kebangsaan)",
                           limit=rule["min_floor_area_m2"],observed=floor_m2,
@@ -287,7 +327,10 @@ def evaluate_policy(proposal: Any) -> dict[str, Any]:
             if profile=="perak_2023":
                 warnings.append("GP001-A national lot minima are displayed as supplementary references, NOT confirmed as binding Perak/PBT lot minima. PR1 Perak 2023 lists floor area, not frontage/depth.")
         else:
-            warnings.append("No matching national Jadual 2 row for this housing category/storey combination; do not infer a standard.")
+            if category=="terrace_high":
+                warnings.append("GP001-A 2016 Jadual 2 has NO high-cost terrace minimum row. The High/Premium 22 x 75 ft preset is only a development design example, not a statutory minimum.")
+            else:
+                warnings.append("No matching national Jadual 2 row for this housing category/storey combination; do not infer a standard.")
     if profile=="perak_2023":
         if is_terrace:
             add_check(key="max_storeys_perak",title="Bilangan tingkat maksimum (teres Perak)",
