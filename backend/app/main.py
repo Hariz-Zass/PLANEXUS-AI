@@ -16,6 +16,8 @@ from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
 from .proposal_engine import ProposalInput
+from .layout_engine import LayoutInput, screen_layout
+from .layout_store import get_layout, save_layout
 from .policy_registry import catalog as policy_catalog, evaluate_policy, answer_gpp_question
 from .proposal_store import create_proposal, list_proposals, get_proposal, update_proposal, delete_proposal
 from .geometry import validate_site
@@ -25,7 +27,7 @@ from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.6.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.7.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
 
 
@@ -151,6 +153,35 @@ def active_terrain_report(project_id: str) -> dict[str, Any] | None:
     except (HTTPException, OSError, ValueError):
         # Preserve proposals; they will be displayed as lacking GIS evidence.
         return None
+
+
+class LayoutSavePayload(BaseModel):
+    expected_revision: int = Field(ge=0)
+    inputs: LayoutInput
+
+
+@app.get("/api/projects/{project_id}/layout")
+def layout_get(project_id: str):
+    return get_layout(DATA_DIR, project_id, active_terrain_report(project_id))
+
+
+@app.post("/api/projects/{project_id}/layout/preview")
+def layout_preview(project_id: str, payload: LayoutInput):
+    project = get_project(DATA_DIR, project_id)
+    if not project["geometry"]:
+        raise HTTPException(422, "Save a site boundary before layout screening.")
+    return {
+        "project_id":project["id"],
+        "preview":screen_layout(project["geometry"], payload, active_terrain_report(project_id)),
+        "saved":False,
+        "notice":"Unsaved geometry-only layout preview: user-entered road width, not physically measured or statutory approval.",
+    }
+
+
+@app.put("/api/projects/{project_id}/layout")
+def layout_save(project_id: str, payload: LayoutSavePayload):
+    return save_layout(DATA_DIR, project_id, payload.inputs,
+                       payload.expected_revision, active_terrain_report(project_id))
 
 
 @app.get("/api/projects/{project_id}/proposals")
