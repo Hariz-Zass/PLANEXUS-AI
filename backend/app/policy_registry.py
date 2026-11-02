@@ -7,6 +7,7 @@ national reference with state/PBT regulations as a certified composite.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 REGISTRY_VERSION = "2026-11-02-gpp-housing-v3"
@@ -349,6 +350,92 @@ def answer_gpp_question(question:str)->dict[str,Any]:
                 "policy_sources":[{"title":matched["title"],"url":matched["url"],"evidence":matched["evidence"]}],
                 "evidence":None,
             }
+    # A direct question about a known home type must NOT get a generic
+    # terrace answer. Derive dimensions from the same validated Jadual 2 rules.
+    if any(term in q for term in ("semua gpp","keseluruhan gpp","senarai gpp")):
+        return {
+            "mode":"verified_policy_registry_summary",
+            "response":(
+                "**Liputan GPP PLANEXUS:** Dua sumber perumahan mempunyai aturan angka disahkan: "
+                +NATIONAL_SOURCE["title"]+"; "+PERAK_SOURCE["title"]+". "
+                "Empat sumber lain hanya tersenarai dalam katalog dan belum diekstrak "
+                "(perdagangan, parkir, kawasan bukit dan kemudahan masyarakat). "
+                "PLANEXUS BELUM mengindeks semua GPP negeri, PBT dan peraturan RT. "
+                "Buka GPP Knowledge Registry untuk lihat status setiap dokumen."
+            ),
+            "notice":"Liputan dokumen terhad dan dinyatakan; tiada tuntutan semakan menyeluruh.",
+            "policy_sources":[{"title":r["title"],"url":r["url"],"evidence":r["evidence"]}
+                              for r in (NATIONAL_SOURCE,PERAK_SOURCE)],
+            "evidence":None,
+        }
+
+    selected_category = None
+    if any(x in q for x in ("zero lot","zero-lot","zlb")):
+        selected_category="zero_lot"
+    elif any(x in q for x in ("berkembar","semi-detached","semi detached")):
+        selected_category="semi_detached"
+    elif any(x in q for x in ("kluster","cluster")):
+        selected_category="cluster"
+    elif any(x in q for x in ("sesebuah","detached")):
+        selected_category="detached"
+    elif any(x in q for x in ("sederhana rendah","lower middle")):
+        selected_category="terrace_lower_middle"
+    elif any(x in q for x in ("kos rendah","low-cost","low cost")):
+        selected_category="terrace_low_cost"
+    elif any(x in q for x in ("kos sederhana","middle cost")):
+        selected_category="terrace_middle"
+
+    if selected_category:
+        requested_floors = None
+        if "setingkat" in q or "satu tingkat" in q or "one storey" in q:
+            requested_floors=1
+        elif "dua tingkat" in q or "two storey" in q:
+            requested_floors=2
+        elif "tiga tingkat" in q or "three storey" in q:
+            requested_floors=3
+        else:
+            match=re.search(r"(?<!\d)([123])\s*(?:tingkat|storey|storeys)\b",q)
+            if match:
+                requested_floors=int(match.group(1))
+        rules=[
+            rule for rule in NATIONAL_LOT_RULES
+            if rule["category"]==selected_category
+            and (requested_floors is None or requested_floors in rule["storeys"])
+        ]
+        if rules:
+            rows="\n".join(
+                "- "+rule["label"]+": lot MINIMUM "
+                +str(rule["min_width_m"])+" x "+str(rule["min_depth_m"])+" m"
+                +("; luas lantai minimum "+str(rule["min_floor_area_m2"])+" m² untuk 1 tingkat"
+                   if rule["min_floor_area_m2"] is not None else "")
+                for rule in rules
+            )
+        else:
+            rows="Tiada baris Jadual 2 yang disahkan bagi jenis rumah dan bilangan tingkat ini."
+        if perak:
+            category_note=(
+                "**Perak 2023 PR1 (teres):** lantai minimum 900 kps kos rendah, "
+                "950 kps kos sederhana, 1,000 kps mampu milik, 1,001 kps bebas; "
+                "maksimum 3 tingkat dan 60 kaki tinggi bangunan. "
+                "PR1 mengandungi syarat jalan/anjakan yang perlu diukur dalam pelan. "
+                if selected_category.startswith("terrace_") else
+                "**Perak 2023:** Syarat numerik PR2–PR5 bagi rumah kluster/berkembar/"
+                "sesebuah belum diindeks oleh PLANEXUS. "
+            )
+            body=category_note+"\n**Rujukan tambahan lot kebangsaan GP001-A:**\n"+rows
+            refs=[PERAK_SOURCE,NATIONAL_SOURCE]
+        else:
+            body="**GP001-A 2016 Jadual 2 (hlm.44–45), jenis rumah diminta:**\n"+rows
+            refs=[NATIONAL_SOURCE]
+        return {
+            "mode":"verified_policy_registry_summary",
+            "response":body+"\n\nSaiz lot di atas ialah minimum, bukan maksimum. "
+                       "Maksimum lot tidak dinyatakan dalam jadual ini. "
+                       "PBT/RT, pindaan negeri dan syarat lain mesti disahkan sebelum perancangan.",
+            "notice":"Peraturan bersumber GP001-A/Perak, bukan tafsiran AI generatif. Tiada kelulusan diberikan.",
+            "policy_sources":[{"title":r["title"],"url":r["url"],"evidence":r["evidence"]} for r in refs],
+            "evidence":None,
+        }
     if perak:
         response=(
             "**GPP Negeri Perak 2023 (PR1, halaman 5):** "
