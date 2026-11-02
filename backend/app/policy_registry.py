@@ -276,6 +276,42 @@ def answer_gpp_question(question:str)->dict[str,Any]:
     """Deterministic policy Q&A with evidence links; does not use LLM guesses."""
     q=question.casefold()
     perak="perak" in q or "ipoh" in q or "meru" in q or "tanjung malim" in q
+    if any(term in q for term in ("rumah kedai", "shoplot", "shop lot", "lot kedai", "perdagangan", "komersial")):
+        commerce=next(source for source in CATALOG_ONLY if source["id"]=="gpp_commercial_gp003a")
+        return {
+            "mode":"verified_policy_registry_summary",
+            "response":(
+                "**GPP Kawasan Perdagangan:** PLANEXUS menyenaraikan dokumen GP003-A "
+                "sebagai rujukan rasmi tetapi belum mengesahkan jadual ukuran lot "
+                "rumah kedai untuk kategori, ketinggian dan bidang kuasa ini. "
+                "Jangan guna piawaian rumah teres sebagai minimum rumah kedai. "
+                "Rujuk GPP Perdagangan, RT dan PBT semasa. "
+                f"Sumber indeks rasmi: {commerce['url']}.\n\n"
+                "**Status:** Belum diindeks; tiada saiz lot minimum atau maksimum yang boleh disahkan."
+            ),
+            "notice":"Sumber GPP perdagangan hanya di katalog; tiada aturan angka untuk kegunaan ini.",
+            "policy_sources":[{"title":commerce["title"],"url":commerce["url"],"evidence":commerce["evidence"]}],
+            "evidence":None,
+        }
+    if any(term in q for term in ("parking", "parkir", "tempat letak kereta", "tempat letak kenderaan",
+                                     "kemudahan masyarakat", "tanah tinggi", "kawasan bukit", "cerun gpp")):
+        matched=next((doc for doc in CATALOG_ONLY
+                      if ("parkir" in q or "parking" in q or "letak" in q) and doc["id"]=="gpp_parking_gp011a"
+                      or ("kemudahan masyarakat" in q and doc["id"]=="gpp_facilities_2022")
+                      or (("bukit" in q or "tanah tinggi" in q or "cerun gpp" in q) and doc["id"]=="gpp_hills_gp007a11")),None)
+        if matched:
+            return {
+                "mode":"verified_policy_registry_summary",
+                "response":(
+                    "**Dokumen GPP belum diindeks secara numerik:** "+matched["title"]+". "
+                    "PLANEXUS belum mengesahkan jadual nisbah/ukuran dalam dokumen ini. "
+                    "Tiada kadar, syarat atau ambang angka boleh disimpulkan secara automatik. "
+                    f"Sumber rasmi: {matched['url']}. Semak RT/PBT dan dokumen terkini."
+                ),
+                "notice":"Sumber rujukan sah dalam katalog; angka piawaian belum dimasukkan.",
+                "policy_sources":[{"title":matched["title"],"url":matched["url"],"evidence":matched["evidence"]}],
+                "evidence":None,
+            }
     if perak:
         response=(
             "**GPP Negeri Perak 2023 (PR1, halaman 5):** "
