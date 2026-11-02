@@ -13,7 +13,8 @@ import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,valid
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
 type SidebarTab = "workspace" | "sources" | "history";
-type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string };
+type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
+type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null };
 
 function normalizeGeoJSON(content: unknown): FeatureGeometry {
   if (!content || typeof content !== "object") throw new Error("Fail tidak mengandungi GeoJSON yang sah.");
@@ -106,6 +107,8 @@ export default function Home() {
   const [savedAt,setSavedAt]=useState("");
   const [saveMessage,setSaveMessage]=useState("");
   const [report, setReport] = useState<TerrainReport | null>(null);
+  const [gisStatus, setGisStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [llmConfigured, setLlmConfigured] = useState(false);
   const [terrainLayer,setTerrainLayer] = useState<"slope"|"elevation">("slope");
   const [showContours,setShowContours] = useState(true);
   const [recent, setRecent] = useState<SavedSummary[]>([]);
@@ -118,12 +121,11 @@ export default function Home() {
   const [datum, setDatum] = useState("");
   const [confirmedUnits, setConfirmedUnits] = useState(false);
   const [uploadExpanded, setUploadExpanded] = useState(false);
-  const [question, setQuestion] = useState("Adakah tapak ini berpotensi untuk pembangunan rumah teres kos rendah berdasarkan topografi?");
+  const [question, setQuestion] = useState("Bagaimana cara analisis topografi tapak saya?");
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const geojsonInput = useRef<HTMLInputElement>(null);
   const tiffInput = useRef<HTMLInputElement>(null);
   const footprint = useMemo(() => geometry ? getFootprint(geometry) : null, [geometry]);
-  const isHostedWithoutGIS = process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_API_BASE_URL;
   const footprintDisplay = geometry ? formattedNumber(report?.metrics.site_area_ha ?? footprint?.areaHa, 3) : "—";
   const perimeterDisplay = geometry ? formattedNumber(footprint?.perimeterKm, 2) : "—";
 
@@ -132,6 +134,22 @@ export default function Home() {
     catch { /* backend may be offline; shown when the user requests analysis */ }
   }, []);
   useEffect(() => { void refreshRecent(); }, [refreshRecent]);
+  useEffect(() => {
+    if (!API_BASE) { setGisStatus("offline"); return; }
+    let active = true;
+    const probe = async () => {
+      try {
+        const health = await api<{ status: string }>("/api/health");
+        if (active) setGisStatus(health.status === "ok" ? "online" : "offline");
+      } catch { if (active) setGisStatus("offline"); }
+      try {
+        const capabilities = await api<{ generative_ai_configured: boolean }>("/api/copilot/capabilities");
+        if (active) setLlmConfigured(Boolean(capabilities.generative_ai_configured));
+      } catch { if (active) setLlmConfigured(false); }
+    };
+    void probe();
+    return () => { active = false; };
+  }, []);
 
 
   useEffect(()=>{
@@ -217,12 +235,12 @@ export default function Home() {
   }
 
   async function askCopilot() {
-    if (!report || question.trim().length < 3 || pending) return;
+    if (gisStatus !== "online" || question.trim().length < 3 || pending) return;
     const prompt = question.trim();
     setChat(messages => [...messages, { role: "user", text: prompt }]); setQuestion(""); setPending("copilot"); setError("");
     try {
-      const answer = await api<{ response: string; mode: string; notice: string }>("/api/copilot/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysis_id: report.analysis_id, question: prompt }) });
-      setChat(messages => [...messages, { role: "assistant", text: answer.response, mode: answer.mode, notice: answer.notice }]);
+      const answer = await api<{ response: string; mode: string; notice: string; evidence?: CopilotEvidence | null }>("/api/copilot/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysis_id: report?.analysis_id ?? null, question: prompt }) });
+      setChat(messages => [...messages, { role: "assistant", text: answer.response, mode: answer.mode, notice: answer.notice, evidence: answer.evidence }]);
     } catch (ex) { setError(ex instanceof Error ? ex.message : "Copilot tidak dapat menjawab."); setQuestion(prompt); }
     finally { setPending(null); }
   }
@@ -237,7 +255,7 @@ export default function Home() {
         </div>
         <div className="topbar-middle"><span className="topbar-separator" /><span className="crumb"><Crosshair size={13}/> COMMAND CENTER</span><ChevronRight size={13} className="crumb-chevron"/><span className="crumb-active">Terrain / Workspace</span></div>
         <div className="topbar-right">
-          <span className={"system-indicator "+(isHostedWithoutGIS ? "system-offline" : "system-online")}><i /> {isHostedWithoutGIS ? "GIS ENGINE NOT CONNECTED" : "LOCAL GIS CONFIGURED"}</span>
+          <span className={"system-indicator "+(gisStatus === "online" ? "system-online" : "system-offline")}><i /> {gisStatus === "online" ? "GIS ENGINE CONNECTED" : gisStatus === "checking" ? "CHECKING GIS ENGINE" : "GIS ENGINE OFFLINE"}</span>
           <span className="version-pill">DESIGN 02 <span>/</span> TERRAIN V1</span>
           <div className="user-avatar" aria-label="PLANEXUS workspace">PX</div>
         </div>
@@ -365,7 +383,7 @@ export default function Home() {
               <aside className="copilot-card">
                 <div className="copilot-header">
                   <div className="ai-avatar"><NexusMark size={27}/></div>
-                  <div><small>THE INTELLIGENCE LAYER</small><h2>PLANEXUS <em>Copilot</em></h2><p>Spatial reasoning, grounded in GIS evidence.</p></div>
+                  <div><small>THE INTELLIGENCE LAYER</small><h2>PLANEXUS <em>Copilot</em></h2><p>{gisStatus === "online" ? llmConfigured ? "AI enabled · grounded in measured terrain" : "Rule-based guidance · AI key not configured" : "Connect GIS backend to enable Copilot"}</p></div>
                   <span className="sparkle-dot"><WandSparkles size={19}/></span>
                 </div>
                 <div className="copilot-stream" aria-live="polite">
@@ -375,24 +393,24 @@ export default function Home() {
                       <div className="orb-center"><BrainCircuit size={37} strokeWidth={1.3}/></div>
                       <span className="orb-satellite sat-a"/><span className="orb-satellite sat-b"/>
                     </div>
-                    <div className="copilot-welcome-copy"><span className="section-overline">A SECOND MIND FOR PLANNERS</span><h3>Think beyond<br/><em>the map.</em></h3><p>Mulakan dengan data tapak yang disahkan. Copilot akan membaca hasil GIS dan membantu mentafsir implikasi topografi untuk cadangan pembangunan.</p></div>
+                    <div className="copilot-welcome-copy"><span className="section-overline">A SECOND MIND FOR PLANNERS</span><h3>Think beyond<br/><em>the map.</em></h3><p>{report ? "Copilot akan mentafsir cerun dan elevasi menggunakan hasil GIS yang disahkan." : "Tanya tentang aliran kerja sekarang. Penilaian khusus tapak memerlukan DEM dan analisis GIS."}</p></div>
                     <div className="copilot-checklist">
                       <div><span className={geometry ? "is-ready" : ""}>{geometry ? <Check size={12}/> : "01"}</span> Site boundary <strong>{geometry ? "READY" : "PENDING"}</strong></div>
                       <div><span className={report ? "is-ready" : ""}>{report ? <Check size={12}/> : "02"}</span> GIS evidence <strong>{report ? "READY" : "PENDING"}</strong></div>
-                      <div><span className={report && !isHostedWithoutGIS ? "is-ready" : ""}>03</span> Planning response <strong>{report ? "AVAILABLE" : "LOCKED"}</strong></div>
+                      <div><span className={gisStatus === "online" ? "is-ready" : ""}>03</span> Copilot <strong>{gisStatus !== "online" ? "OFFLINE" : report ? llmConfigured ? "AI ENABLED" : "GIS GUIDANCE" : "GUIDANCE ONLY"}</strong></div>
                     </div>
                     <div className="prompt-library">
                       <div className="prompt-label"><Sparkles size={13}/> EXPLORE QUESTIONS</div>
-                      <button type="button" disabled={!report} onClick={()=>setQuestion("Adakah tapak ini sesuai untuk pembangunan rumah teres berdasarkan kecerunan dan ketinggian?")}><span>Housing suitability</span><MoveUpRight size={15}/></button>
-                      <button type="button" disabled={!report} onClick={()=>setQuestion("Di bahagian mana tapak ini mempunyai kekangan topografi paling ketara?")}><span>Identify terrain constraints</span><MoveUpRight size={15}/></button>
+                      <button type="button" disabled={gisStatus !== "online"} onClick={()=>setQuestion(report ? "Adakah tapak ini sesuai untuk rumah teres berdasarkan cerun dan elevasi?" : "Apakah data diperlukan untuk menilai kesesuaian rumah teres?")}><span>Housing suitability</span><MoveUpRight size={15}/></button>
+                      <button type="button" disabled={gisStatus !== "online"} onClick={()=>setQuestion(report ? "Apakah taburan kelas cerun di tapak dan implikasinya?" : "Bagaimana cara mendapatkan DEM dan mengira slope?")}><span>Identify terrain constraints</span><MoveUpRight size={15}/></button>
                     </div>
                   </div>}
-                  {chat.map((message,i) => <div key={i} className={"message "+(message.role === "user" ? "message-user" : "message-assistant")}><div className="message-author">{message.role === "assistant" ? <><BrainCircuit size={14}/> PLANEXUS {message.mode === "llm_grounded" ? "AI" : "EVIDENCE SUMMARY"}</> : <>PLANNER</>}</div>{message.role === "assistant" ? <MarkdownParagraph text={message.text}/> : <p>{message.text}</p>}{message.notice && <div className="response-note"><Info size={13}/>{message.notice}</div>}</div>)}
+                  {chat.map((message,i) => <div key={i} className={"message "+(message.role === "user" ? "message-user" : "message-assistant")}><div className="message-author">{message.role === "assistant" ? <><BrainCircuit size={14}/> PLANEXUS {message.mode === "llm_grounded" ? "AI" : message.mode === "workflow_guidance" ? "GUIDE" : "GIS SUMMARY"}</> : <>PLANNER</>}</div>{message.role === "assistant" ? <MarkdownParagraph text={message.text}/> : <p>{message.text}</p>}{message.evidence && <div className="copilot-evidence-line"><ShieldCheck size={13}/><span>{message.evidence.source_name} · {formattedNumber(message.evidence.coverage_percent_est,1)}% coverage · {message.evidence.nominal_resolution_m ? `~${message.evidence.nominal_resolution_m}m DSM` : message.evidence.data_type}</span></div>}{message.notice && <div className="response-note"><Info size={13}/>{message.notice}</div>}</div>)}
                   {pending === "copilot" && <div className="thinking"><LoaderCircle className="spin" size={15}/> Analysing GIS evidence…</div>}
                 </div>
                 <div className="copilot-compose">
-                  <div className="copilot-preset"><span><span className={"compose-led "+(report ? "lit" : "")}/> EVIDENCE STATUS</span><span className={report ? "ready" : "unavailable"}>{report ? "GIS context ready" : "Awaiting terrain analysis"}</span></div>
-                  <div className="copilot-input-wrap"><textarea value={question} onChange={e=>setQuestion(e.target.value)} maxLength={800} placeholder={report ? "Ask PLANEXUS about this site…" : "Run terrain analysis to unlock Copilot…"} rows={3} disabled={!report} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askCopilot(); } }} /><button className="send-button" disabled={!report || pending !== null || question.trim().length < 3} onClick={() => void askCopilot()} aria-label="Hantar soalan"><ArrowRight size={19}/></button></div>
+                  <div className="copilot-preset"><span><span className={"compose-led "+(gisStatus === "online" ? "lit" : "")}/> COPILOT STATUS</span><span className={gisStatus === "online" ? "ready" : "unavailable"}>{gisStatus !== "online" ? "GIS server not connected" : report ? llmConfigured ? "Measured GIS + AI" : "Measured GIS · rule-based" : "Workflow guidance only"}</span></div>
+                  <div className="copilot-input-wrap"><textarea value={question} onChange={e=>setQuestion(e.target.value)} maxLength={800} placeholder={gisStatus !== "online" ? "Connect GIS backend to ask questions…" : report ? "Ask about measured slope, elevation or limitations…" : "Ask how to define site or retrieve DEM…"} rows={3} disabled={gisStatus !== "online"} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askCopilot(); } }} /><button className="send-button" disabled={gisStatus !== "online" || pending !== null || question.trim().length < 3} onClick={() => void askCopilot()} aria-label="Hantar soalan"><ArrowRight size={19}/></button></div>
                   <div className="compose-bottom"><span><ShieldCheck size={13}/> NO DATA, NO CLAIMS</span><span>POWERED BY GIS EVIDENCE</span></div>
                 </div>
               </aside>
