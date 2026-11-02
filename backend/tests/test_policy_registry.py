@@ -310,3 +310,25 @@ def test_national_one_storey_floor_minima_do_not_bleed_into_higher_storeys(categ
     upper=ProposalInput.model_validate({**base,"storeys":2})
     upper_checks=evaluate_policy(upper)["checks"]
     assert not any(item["key"]=="min_floor_area_national" for item in upper_checks)
+
+
+@pytest.mark.parametrize("question,expected",[
+    ("GPP saiz rumah berkembar satu tingkat","12.2 x 19.8 m"),
+    ("GPP berapa saiz rumah sesebuah 2 tingkat","15.2 x 22.9 m"),
+    ("GPP rumah kluster 1 tingkat","12.2 x 15.2 m"),
+    ("GPP rumah zero lot 3 tingkat","13.7 x 21.3 m"),
+    ("GPP rumah teres kos sederhana rendah 2 tingkat","5.5 x 16.8 m"),
+])
+def test_copilot_targeted_housing_type_and_storeys_return_matching_rule_only(question,expected):
+    answer=answer_gpp_question(question)
+    assert expected in answer["response"]
+    assert "minimum" in answer["response"].lower()
+    assert "maksimum lot tidak dinyatakan" in answer["response"].lower()
+    assert answer["policy_sources"][0]["url"].startswith("https://")
+
+
+def test_copilot_gpp_coverage_question_discloses_catalog_only():
+    response=answer_gpp_question("Dah masukkan semua GPP dalam sistem PLANEXUS?")
+    assert "BELUM" in response["response"]
+    assert "katalog" in response["response"]
+    assert len(response["policy_sources"])==2
