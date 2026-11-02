@@ -103,6 +103,29 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       });
       instance.addSource("contours", { type: "geojson", data: EMPTY });
       instance.addLayer({id:"contours-line",type:"line",source:"contours",paint:{"line-color":"#fff1be","line-width":1.4,"line-opacity":0.85},layout:{"visibility":"none"}});
+      // Interactive explanation of the category, without asserting buildability.
+      instance.on("click", "suitability-fill", event => {
+        if (drawingRef.current || latestTerrainLayer.current !== "suitability") return;
+        const id = Number(event.features?.[0]?.properties?.class_id);
+        const meaning: Record<number, string> = {
+          1: "Lower terrain constraint (<15°)",
+          2: "Moderate terrain constraint (15°–<25°)",
+          3: "Higher terrain constraint (≥25°)",
+          4: "Not assessed — missing valid slope",
+        };
+        const label = meaning[id];
+        if (!label) return;
+        new maplibregl.Popup({ closeButton: true, offset: 10 })
+          .setLngLat(event.lngLat)
+          .setText(label + " — provisional slope-only screening; not zoning, geotechnical safety or development approval.")
+          .addTo(instance);
+      });
+      instance.on("mouseenter", "suitability-fill", () => {
+        if (!drawingRef.current) instance.getCanvas().style.cursor = "pointer";
+      });
+      instance.on("mouseleave", "suitability-fill", () => {
+        instance.getCanvas().style.cursor = "";
+      });
       instance.addSource("site", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "site-fill", type: "fill", source: "site", paint: { "fill-color": "#a1f3bf", "fill-opacity": 0.16 } });
       instance.addLayer({ id: "site-halo", type: "line", source: "site", paint: { "line-color": "#b4f77d", "line-width": 10, "line-opacity": 0.12 } });
