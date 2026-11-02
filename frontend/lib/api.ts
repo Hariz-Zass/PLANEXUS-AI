@@ -121,7 +121,7 @@ export type ProposalInputs = {
   facilities_pct: number;
   other_reserve_pct: number;
   policy_profile?: "none" | "national_2016" | "perak_2023";
-  housing_category?: "terrace_low_cost" | "terrace_lower_middle" | "terrace_middle" |
+  housing_category?: "terrace_low_cost" | "terrace_lower_middle" | "terrace_middle" | "terrace_high" |
     "cluster" | "semi_detached" | "detached" | "zero_lot" | "townhouse" | null;
   storeys?: number | null;
   perak_market_segment?: "perak_low_cost" | "perak_middle" | "perak_affordable" | "perak_open" | null;
@@ -137,6 +137,7 @@ export type PolicyCheck = {
   source_id:string;source_title:string;source_url:string;source_page:string;
   role:"primary_reference"|"primary_state_reference"|"supplementary_national_reference";
   binding:false;
+  published_equivalent_ft?:number|null;
 };
 
 export type PolicyAssessment = {
@@ -158,9 +159,14 @@ export type PolicyCatalog = {
   sources:PolicySource[];
   profiles:{id:string;label:string;details:string}[];
   housing_categories:{id:string;label:string;development_type:ProposalInputs["development_type"]}[];
+  terrace_design_presets:{
+    id:"low"|"mid"|"high"; category:string; label:string; width_ft:number;depth_ft:number;
+    width_m:number;depth_m:number;storeys:number;basis:string;status:string;
+    source_url:string;source_page:string;note:string
+  }[];
   national_lot_rules:{
     category:string;storeys:number[];label:string;min_width_m:number;min_depth_m:number;
-    min_floor_area_m2:number|null;page:number;source_id:string;url:string;
+    min_floor_area_m2:number|null;min_width_ft?:number;min_depth_ft?:number;page:number;source_id:string;url:string;
     max_width_m:null;max_depth_m:null
   }[];
   perak_floor_min_sqft:Record<string,number>;
