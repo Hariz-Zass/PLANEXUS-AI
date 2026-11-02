@@ -26,6 +26,8 @@ export type TerrainReport = {
     nominal_resolution_m?: number | null;
     verified: string;
     retrieved_at_utc?: string;
+    fallback_used?: boolean;
+    fallback_reason?: string | null;
   };
   metrics: {
     site_area_ha: number;
@@ -40,10 +42,15 @@ export type TerrainReport = {
     valid_elevation_pixels: number;
     valid_slope_pixels: number;
     slope_classes: SlopeClass[];
+    contour_interval_m?: number | null;
+    contour_features?: number;
+    elevation_legend?: {class_id:number;color:string;min_m:number;max_m:number}[];
     horizontal_crs: string;
     method: string;
   };
   slope_geojson: GeoJSON.FeatureCollection;
+  elevation_geojson?: GeoJSON.FeatureCollection;
+  contours_geojson?: GeoJSON.FeatureCollection;
   warnings: string[];
   assessment_scope: string;
 };

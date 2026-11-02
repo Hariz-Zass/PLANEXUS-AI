@@ -106,6 +106,8 @@ export default function Home() {
   const [savedAt,setSavedAt]=useState("");
   const [saveMessage,setSaveMessage]=useState("");
   const [report, setReport] = useState<TerrainReport | null>(null);
+  const [terrainLayer,setTerrainLayer] = useState<"slope"|"elevation">("slope");
+  const [showContours,setShowContours] = useState(true);
   const [recent, setRecent] = useState<SavedSummary[]>([]);
   const [pending, setPending] = useState<null | "auto" | "upload" | "copilot">(null);
   const [error, setError] = useState("");
@@ -290,7 +292,7 @@ export default function Home() {
                     <div className="card-title-row"><span className="card-icon"><Layers3 size={18}/></span><div className="map-heading"><strong>Geospatial Canvas <span> / 01</span></strong><small>EXPLORE & DEFINE YOUR SITE</small></div></div>
                     <div className="map-topline-right"><span className="card-meta">EPSG:4326 · WGS 84</span><span className="map-status"><i className={report ? "active" : ""}/>{report ? "TERRAIN ANALYSED" : drawing ? "DEFINING BOUNDARY" : geometry ? "SITE SELECTED" : "NO ACTIVE SITE"}</span></div>
                   </div>
-                  <div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} />
+                  <div className="map-layer-controls" aria-label="Terrain data layers"><button className={terrainLayer==="slope"?"active":""} type="button" onClick={()=>setTerrainLayer("slope")}>Slope</button><button className={terrainLayer==="elevation"?"active":""} type="button" onClick={()=>setTerrainLayer("elevation")}>Elevation</button><label><input type="checkbox" checked={showContours} onChange={event=>setShowContours(event.target.checked)} /> Contours</label></div><div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} terrainLayer={terrainLayer} showContours={showContours} />
                     {!geometry && !drawing && <div className="map-empty"><div className="map-empty-icon"><ScanSearch size={26}/></div><strong>Start with your site boundary</strong><span>Draw a polygon on the map or import a GeoJSON file. No sample data is invented.</span><button className="btn btn-accent" onClick={startDraw}><Plus size={15} /> Draw site polygon</button></div>}
                     {drawing && <div className="drawing-notice"><MapPin size={16} /><span>Click vertices · Double-click to finish · <strong>{drawPoints} points</strong></span><button onClick={() => { setDrawing(false); setResetCounter(n=>n+1); setStatus(""); }}>Cancel</button></div>}
                     <div className="map-corner-badge"><CircleDot size={14}/><span>{report ? "TERRAIN LAYERS" : "VECTOR BASEMAP"}</span><i/></div>

@@ -47,3 +47,5 @@
   min-height: 100%;
   display: block;
 }
+
+.shell-v2 .map-layer-controls{display:flex;align-items:center;gap:8px;padding:11px 18px;background:#122a2d;border-top:1px solid #335245;border-bottom:1px solid #335245;flex-wrap:wrap}.shell-v2 .map-layer-controls button{border:1px solid #44665b;border-radius:7px;background:#11242e;color:#b7d1c4;padding:8px 14px;font-size:11px;font-weight:700}.shell-v2 .map-layer-controls button.active{background:#b4f77d;color:#11271b;border-color:#b4f77d}.shell-v2 .map-layer-controls label{display:flex;align-items:center;gap:7px;margin-left:8px;color:#d1dfda;font-size:11px;cursor:pointer}.shell-v2 .map-layer-controls input{accent-color:#b4f77d}.shell-v2 .terrain-detail{margin:18px 0;padding:18px;border:1px solid #476453;border-radius:10px;background:#142c2c;display:flex;flex-direction:column;gap:9px}.shell-v2 .terrain-detail strong{display:flex;gap:8px;align-items:center;color:#cbf6b3;font-size:12px}.shell-v2 .terrain-detail span{font-size:11px;color:#b9cbc3;line-height:1.6}.shell-v2 .terrain-detail .terrain-fallback{color:#f8d68d}

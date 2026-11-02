@@ -11,6 +11,8 @@ type Props = {
   onSiteDrawn: (geometry: FeatureGeometry) => void;
   onPointCount: (count: number) => void;
   resetCounter: number;
+  terrainLayer?: "slope" | "elevation";
+  showContours?: boolean;
 };
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -41,7 +43,7 @@ function limits(geometry: FeatureGeometry): [[number, number], [number, number]]
   ];
 }
 
-export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onPointCount, resetCounter }: Props) {
+export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onPointCount, resetCounter, terrainLayer = "slope", showContours = true }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const drawingRef = useRef(drawing);
@@ -53,8 +55,12 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
   // available even when the source layers are not ready yet.
   const latestGeometry = useRef(geometry);
   const latestReport = useRef(report);
+  const latestTerrainLayer = useRef(terrainLayer);
+  const latestContours = useRef(showContours);
   latestGeometry.current = geometry;
   latestReport.current = report;
+  latestTerrainLayer.current = terrainLayer;
+  latestContours.current = showContours;
 
   const syncMapLayers = useRef<(() => void) | null>(null);
 
@@ -82,6 +88,10 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
     instance.on("load", () => {
       instance.addSource("slope", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "slope-fill", type: "fill", source: "slope", paint: { "fill-color": ["match", ["get", "class_id"], 1, "#4cc9a3", 2, "#e5c46d", 3, "#eb8c64", 4, "#cb626f", "#9ca3af"], "fill-opacity": 0.74 } });
+      instance.addSource("elevation", { type: "geojson", data: EMPTY });
+      instance.addLayer({ id: "elevation-fill", type: "fill", source: "elevation", paint: { "fill-color": ["match", ["get","class_id"],1,"#38679B",2,"#398EAA",3,"#43B3B0",4,"#84C8A3",5,"#BCDB84",6,"#E5D67B","#9ca3af"],"fill-opacity":0.75 },layout:{"visibility":"none"} });
+      instance.addSource("contours", { type: "geojson", data: EMPTY });
+      instance.addLayer({id:"contours-line",type:"line",source:"contours",paint:{"line-color":"#fff1be","line-width":1.4,"line-opacity":0.85},layout:{"visibility":"none"}});
       instance.addSource("site", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "site-fill", type: "fill", source: "site", paint: { "fill-color": "#a1f3bf", "fill-opacity": 0.16 } });
       instance.addLayer({ id: "site-halo", type: "line", source: "site", paint: { "line-color": "#b4f77d", "line-width": 10, "line-opacity": 0.12 } });
@@ -134,10 +144,17 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       if (!instance) return;
       const siteSource = instance.getSource("site") as GeoJSONSource | undefined;
       const slopeSource = instance.getSource("slope") as GeoJSONSource | undefined;
+      const elevationSource = instance.getSource("elevation") as GeoJSONSource | undefined;
+      const contourSource = instance.getSource("contours") as GeoJSONSource | undefined;
       if (!siteSource || !slopeSource) return; // map load will retry
       siteSource.setData(toFeatureCollection(latestGeometry.current));
       if (root.current) root.current.dataset.siteRendered = latestGeometry.current ? "true" : "false";
       slopeSource.setData(latestReport.current?.slope_geojson || EMPTY);
+      elevationSource?.setData(latestReport.current?.elevation_geojson || EMPTY);
+      contourSource?.setData(latestReport.current?.contours_geojson || EMPTY);
+      if(instance.getLayer("slope-fill")) instance.setLayoutProperty("slope-fill","visibility",latestTerrainLayer.current==="slope"?"visible":"none");
+      if(instance.getLayer("elevation-fill")) instance.setLayoutProperty("elevation-fill","visibility",latestTerrainLayer.current==="elevation"?"visible":"none");
+      if(instance.getLayer("contours-line")) instance.setLayoutProperty("contours-line","visibility",latestContours.current && Boolean(latestReport.current?.contours_geojson?.features?.length)?"visible":"none");
       const current = latestGeometry.current;
       if (!current) {
         previousFit.current = "";
@@ -154,7 +171,7 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
     };
     syncMapLayers.current = synchronize;
     synchronize();
-  }, [geometry, report]);
+  }, [geometry, report, terrainLayer, showContours]);
 
   return <div ref={root} className={`terrain-map ${drawing ? "terrain-map-drawing" : ""}`} data-site-polygon={geometry ? "present" : "absent"} aria-label="Peta interaktif PLANEXUS untuk lukis tapak dan melihat kelas kecerunan" />;
 }
