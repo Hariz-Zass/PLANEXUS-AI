@@ -55,14 +55,15 @@ export type SavedSummary = {
   source_name: string;
 };
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!API_BASE) throw new Error("GIS backend belum disambungkan pada Vercel. Analisis topografi belum tersedia secara online.");
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...options });
   } catch {
-    throw new Error("GIS backend tidak dapat dihubungi. Pastikan FastAPI berjalan di localhost:8000.");
+    throw new Error("GIS backend tidak dapat dihubungi. Semak sambungan dan konfigurasi API PLANEXUS.");
   }
   if (!response.ok) {
     let detail = `Ralat HTTP ${response.status}`;

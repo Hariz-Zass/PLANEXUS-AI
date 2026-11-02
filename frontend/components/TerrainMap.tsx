@@ -75,11 +75,12 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       instance.addSource("slope", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "slope-fill", type: "fill", source: "slope", paint: { "fill-color": ["match", ["get", "class_id"], 1, "#4cc9a3", 2, "#e5c46d", 3, "#eb8c64", 4, "#cb626f", "#9ca3af"], "fill-opacity": 0.74 } });
       instance.addSource("site", { type: "geojson", data: EMPTY });
-      instance.addLayer({ id: "site-fill", type: "fill", source: "site", paint: { "fill-color": "#84efe1", "fill-opacity": 0.075 } });
-      instance.addLayer({ id: "site-line", type: "line", source: "site", paint: { "line-color": "#9ef4e9", "line-width": 2.8, "line-dasharray": [2, 1.5] } });
+      instance.addLayer({ id: "site-fill", type: "fill", source: "site", paint: { "fill-color": "#a1f3bf", "fill-opacity": 0.16 } });
+      instance.addLayer({ id: "site-halo", type: "line", source: "site", paint: { "line-color": "#b4f77d", "line-width": 10, "line-opacity": 0.12 } });
+      instance.addLayer({ id: "site-line", type: "line", source: "site", paint: { "line-color": "#b4f77d", "line-width": 2.8, "line-dasharray": [3, 1.3] } });
       instance.addSource("sketch", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "sketch-fill", type: "fill", source: "sketch", paint: { "fill-color": "#18d9ba", "fill-opacity": 0.25 } });
-      instance.addLayer({ id: "sketch-line", type: "line", source: "sketch", paint: { "line-color": "#1cf7cf", "line-width": 2.4 } });
+      instance.addLayer({ id: "sketch-line", type: "line", source: "sketch", paint: { "line-color": "#b4f77d", "line-width": 2.6 } });
     });
     instance.on("click", event => {
       if (!drawingRef.current) return;
