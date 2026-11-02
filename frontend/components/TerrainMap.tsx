@@ -136,6 +136,7 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       const slopeSource = instance.getSource("slope") as GeoJSONSource | undefined;
       if (!siteSource || !slopeSource) return; // map load will retry
       siteSource.setData(toFeatureCollection(latestGeometry.current));
+      if (root.current) root.current.dataset.siteRendered = latestGeometry.current ? "true" : "false";
       slopeSource.setData(latestReport.current?.slope_geojson || EMPTY);
       const current = latestGeometry.current;
       if (!current) {
