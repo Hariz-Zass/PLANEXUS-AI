@@ -41,7 +41,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     };
   }
   const policyCatalog:PolicyCatalog={
-    registry_version:"2026-11-02-gpp-housing-v1",
+    registry_version:"2026-11-02-gpp-housing-v3",
     sources:[
       {id:"gp001a_2016",title:"GP001-A National Housing 2016",year:2016,issuer:"PLANMalaysia",
         jurisdiction:"Malaysia reference",url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
@@ -62,6 +62,16 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
       url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
       max_width_m:null,max_depth_m:null}],
     perak_floor_min_sqft:{perak_affordable:1000},
+    perak_layout_references:[
+      {id:"service_road_width",label:"Lebar jalan perkhidmatan",value_ft:50,
+        value_type:"minimum",value_m:15.24,applicability:"PR1 terrace",
+        source_id:"perak_housing_2023",source_url:"https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file",
+        source_page:"PR1, halaman bercetak 5",automated_geometry_check:false},
+      {id:"front_setback_low_cost",label:"Anjakan hadapan (kos rendah)",value_ft:15,
+        value_type:"stated",value_m:4.572,applicability:"PR1 low-cost terrace",
+        source_id:"perak_housing_2023",source_url:"https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file",
+        source_page:"PR1, halaman bercetak 5",automated_geometry_check:false}
+    ],
     perak_market_segments:[{id:"perak_affordable",label:"Mampu milik"}],
     not_indexed:["parking_gp011a"],
     disclaimer:"Only two housing rule sources are indexed; NOT all indexed."
@@ -213,6 +223,9 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await page.locator(".gpp-action").getByRole("button",{name:/Semak GPP/}).click();
   await expect(page.locator(".gpp-results")).toContainText("Luas ruang lantai minimum");
   await expect(page.locator(".gpp-results")).toContainText("Outside range");
+  await expect(page.locator(".gpp-manual-layout")).toContainText("Lebar jalan perkhidmatan");
+  await expect(page.locator(".gpp-manual-layout")).toContainText("50′");
+  await expect(page.locator(".gpp-manual-layout")).toContainText("NOT AUTOMATICALLY CHECKED");
 
   await page.getByRole("button",{name:/GPP Knowledge Registry/}).click();
   await expect(page.getByRole("heading",{name:/GPP Knowledge Registry/})).toBeVisible();
