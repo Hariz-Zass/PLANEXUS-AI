@@ -49,6 +49,14 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
   const onPointCountRef = useRef(onPointCount);
   const pointsRef = useRef<[number, number][]>([]);
   const previousFit = useRef("");
+  // The map loads asynchronously. Keep the most recent site and analysis
+  // available even when the source layers are not ready yet.
+  const latestGeometry = useRef(geometry);
+  const latestReport = useRef(report);
+  latestGeometry.current = geometry;
+  latestReport.current = report;
+
+  const syncMapLayers = useRef<(() => void) | null>(null);
 
   useEffect(() => { drawingRef.current = drawing; if (map.current) { if (drawing) map.current.doubleClickZoom.disable(); else map.current.doubleClickZoom.enable(); } }, [drawing]);
   useEffect(() => { onSiteDrawnRef.current = onSiteDrawn; }, [onSiteDrawn]);
@@ -81,6 +89,10 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       instance.addSource("sketch", { type: "geojson", data: EMPTY });
       instance.addLayer({ id: "sketch-fill", type: "fill", source: "sketch", paint: { "fill-color": "#18d9ba", "fill-opacity": 0.25 } });
       instance.addLayer({ id: "sketch-line", type: "line", source: "sketch", paint: { "line-color": "#b4f77d", "line-width": 2.6 } });
+      // Re-apply a restored polygon only AFTER the sources actually exist.
+      // Previously isStyleLoaded() could be true before getSource("site")
+      // existed, silently discarding restoration on refresh/remount.
+      syncMapLayers.current?.();
     });
     instance.on("click", event => {
       if (!drawingRef.current) return;
@@ -107,31 +119,41 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       (instance.getSource("sketch") as GeoJSONSource | undefined)?.setData(EMPTY);
       onSiteDrawnRef.current({ type: "Polygon", coordinates: [[...unique, unique[0]]] });
     });
-    return () => { instance.remove(); map.current = null; };
+    const observer = typeof ResizeObserver !== "undefined" && root.current
+      ? new ResizeObserver(() => { if (!instance._removed) instance.resize(); })
+      : null;
+    if (root.current) observer?.observe(root.current);
+    return () => { observer?.disconnect(); syncMapLayers.current = null; instance.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {
-    const instance = map.current;
-    if (!instance) return;
-    const update = () => {
-      (instance.getSource("site") as GeoJSONSource | undefined)?.setData(toFeatureCollection(geometry));
-      if (geometry) {
-        const serialized = JSON.stringify(geometry);
-        if (previousFit.current !== serialized) {
-          previousFit.current = serialized;
-          instance.fitBounds(limits(geometry), { padding: 70, maxZoom: 15, duration: 900 });
-        }
-      } else previousFit.current = "";
+    // Re-register on every MapLibre mount and on changes to geometry/report.
+    // Source and geometry must both be present before setData() is called.
+    const synchronize = () => {
+      const instance = map.current;
+      if (!instance) return;
+      const siteSource = instance.getSource("site") as GeoJSONSource | undefined;
+      const slopeSource = instance.getSource("slope") as GeoJSONSource | undefined;
+      if (!siteSource || !slopeSource) return; // map load will retry
+      siteSource.setData(toFeatureCollection(latestGeometry.current));
+      slopeSource.setData(latestReport.current?.slope_geojson || EMPTY);
+      const current = latestGeometry.current;
+      if (!current) {
+        previousFit.current = "";
+        return;
+      }
+      const serialized = JSON.stringify(current);
+      if (previousFit.current !== serialized) {
+        previousFit.current = serialized;
+        instance.fitBounds(limits(current), {
+          padding: 70, maxZoom: 16,
+          duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 650,
+        });
+      }
     };
-    if (instance.isStyleLoaded()) update(); else instance.once("load", update);
-  }, [geometry]);
+    syncMapLayers.current = synchronize;
+    synchronize();
+  }, [geometry, report]);
 
-  useEffect(() => {
-    const instance = map.current;
-    if (!instance) return;
-    const update = () => (instance.getSource("slope") as GeoJSONSource | undefined)?.setData(report?.slope_geojson || EMPTY);
-    if (instance.isStyleLoaded()) update(); else instance.once("load", update);
-  }, [report]);
-
-  return <div ref={root} className={`terrain-map ${drawing ? "terrain-map-drawing" : ""}`} aria-label="Peta interaktif PLANEXUS untuk lukis tapak dan melihat kelas kecerunan" />;
+  return <div ref={root} className={`terrain-map ${drawing ? "terrain-map-drawing" : ""}`} data-site-polygon={geometry ? "present" : "absent"} aria-label="Peta interaktif PLANEXUS untuk lukis tapak dan melihat kelas kecerunan" />;
 }
