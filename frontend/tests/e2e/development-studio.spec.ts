@@ -93,7 +93,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await expect(page.getByRole("heading",{name:/Development Studio/})).toBeVisible();
   await expect(page.locator(".proposal-hero-number")).toContainText("6.000");
   await expect(page.locator(".proposal-hero-number")).toContainText("ha");
-  await expect(page.locator(".proposal-insight")).toContainText("300");
+  await expect(page.locator(".proposal-result-grid")).toContainText("3.600");
   await expect(page.locator(".proposal-gis-evidence")).toContainText("Save this proposal");
   const form=page.locator(".proposal-editor");
   await form.getByRole("button",{name:/Save scenario/}).click();
