@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-REGISTRY_VERSION = "2026-11-02-gpp-housing-v1"
+REGISTRY_VERSION = "2026-11-02-gpp-housing-v2"
 
 NATIONAL_SOURCE = {
     "id": "gp001a_2016",
@@ -28,7 +28,8 @@ PERAK_SOURCE = {
     "year": 2023,
     "issuer": "PLANMalaysia Perak / Kerajaan Negeri Perak",
     "jurisdiction": "Negeri Perak; review applicable PBT and gazetted Rancangan Tempatan",
-    "url": "https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023",
+    "url": "https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file",
+    "alternate_official_url": "https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023",
     "evidence": "PR1, printed page 5, and approval notice; MMKN 5 September 2023, confirmed 13 September 2023",
     "scope": "State guidance; source table provides minimum floor areas and storey/height constraints, but not numerical lot frontage/depth minima.",
     "status": "curated_rules",
@@ -114,6 +115,32 @@ PERAK_FLOOR_MIN_SQFT = {
     "perak_affordable":1000.0,
     "perak_open":1001.0,
 }
+# Perak PR1 p5 also lists layout geometry. These dimensions are shown as
+# DOCUMENT REFERENCES only until road/lot/setback geometry can be measured.
+# Never assume "stated" equals "minimum" or apply one price class to another.
+PERAK_LAYOUT_REFERENCES: tuple[dict[str, Any], ...] = (
+    {"id":"terrace_block_length", "label":"Panjang blok rumah teres", "value_ft":320,
+     "value_type":"stated", "applicability":"PR1 terrace houses (all listed price classes)"},
+    {"id":"service_road_width", "label":"Lebar jalan perkhidmatan", "value_ft":50,
+     "value_type":"minimum", "applicability":"PR1 terrace houses (all listed price classes)"},
+    {"id":"rear_lane_width", "label":"Lebar lorong belakang", "value_ft":15,
+     "value_type":"stated", "applicability":"PR1 terrace houses"},
+    {"id":"firebreak_side_lane", "label":"Lorong pemisah / lorong tepi (berturap)", "value_ft":20,
+     "value_type":"stated", "applicability":"PR1 terrace houses"},
+    {"id":"front_setback_low_cost", "label":"Anjakan hadapan (kos rendah)", "value_ft":15,
+     "value_type":"stated", "applicability":"PR1 terrace kos rendah only"},
+    {"id":"front_setback_other", "label":"Anjakan hadapan (kos sederhana/mampu milik/bebas)", "value_ft":20,
+     "value_type":"stated", "applicability":"PR1 terrace other than low-cost"},
+    {"id":"corner_lot_side_setback", "label":"Anjakan tepi lot sudut (corner lot)", "value_ft":20,
+     "value_type":"stated", "applicability":"PR1 terrace corner lots"},
+    {"id":"end_lot_setback", "label":"Anjakan sisi (end lot)", "value_ft":5,
+     "value_type":"stated", "applicability":"PR1 terrace end lots"},
+    {"id":"cul_de_sac_max_other", "label":"Panjang maks jalan buntu (bukan kos rendah)", "value_ft":320,
+     "value_type":"maximum", "applicability":"PR1 terrace kos sederhana/mampu milik/bebas; table says TB for low cost"},
+    {"id":"cul_de_sac_head", "label":"Dimensi hujung jalan buntu (bukan kos rendah)", "value_ft":50,
+     "value_type":"stated_square", "applicability":"PR1 50 ft x 50 ft turning end, not a width/depth of a house"},
+)
+
 PERAK_SEGMENT_LABELS = {
     "perak_low_cost":"Kos rendah / Rumah Perakku I",
     "perak_middle":"Kos sederhana / Rumah Perakku II",
@@ -148,6 +175,10 @@ def catalog() -> dict[str, Any]:
             for r in NATIONAL_LOT_RULES
         ],
         "perak_floor_min_sqft": PERAK_FLOOR_MIN_SQFT,
+        "perak_layout_references": [{**r,"value_m":round(r["value_ft"]*0.3048,4),
+            "source_id":PERAK_SOURCE["id"],"source_url":PERAK_SOURCE["url"],
+            "source_page":"PR1, halaman bercetak 5","automated_geometry_check":False}
+            for r in PERAK_LAYOUT_REFERENCES],
         "perak_market_segments": [{"id":key,"label":value} for key,value in PERAK_SEGMENT_LABELS.items()],
         "not_indexed": [item["id"] for item in CATALOG_ONLY],
         "disclaimer":"Only GP001-A (2016) housing lots and selected Perak (2023) housing clauses have machine-readable rules. Catalog entries are NOT all indexed. No GIS auto-jurisdiction, gazetted RT lookup or PBT certification.",
@@ -318,6 +349,7 @@ def answer_gpp_question(question:str)->dict[str,Any]:
             "Rumah teres kos rendah: lantai sekurang-kurangnya 900 kps; kos sederhana 950 kps; "
             "mampu milik 1,000 kps; kategori terbuka 1,001 kps dan ke atas. "
             "Tiga tingkat maksimum, 3 bilik tidur minimum, dan tinggi dari tanah ke bumbung maksimum 60 kaki. "
+            "PR1 juga menyenaraikan jalan perkhidmatan minimum 50 kaki, lorong belakang 15 kaki, lorong tepi 20 kaki, dan anjakan hadapan 15 kaki (kos rendah) / 20 kaki (kategori lain); ini belum dinilai berdasarkan pelan geometri. "
             "Dokumen PR1 ini tidak menyatakan ukuran lebar x panjang lot minimum, jadi rujuk GP001-A dan sahkan dengan PBT/RT yang berkuat kuasa. "
             f"Sumber: {PERAK_SOURCE['url']} (PR1, hlm. 5)."
         )
