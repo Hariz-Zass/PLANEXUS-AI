@@ -92,6 +92,7 @@ def connection(data_dir: Path) -> Iterator[sqlite3.Connection]:
                 input_json TEXT NOT NULL,
                 site_hash TEXT NOT NULL,
                 analysis_id_at_save TEXT,
+                policy_registry_version_at_save TEXT,
                 revision INTEGER NOT NULL DEFAULT 1,
                 created_at_utc TEXT NOT NULL,
                 updated_at_utc TEXT NOT NULL
@@ -99,6 +100,10 @@ def connection(data_dir: Path) -> Iterator[sqlite3.Connection]:
             CREATE INDEX IF NOT EXISTS ix_proposals_by_project
                 ON project_proposals(project_id, updated_at_utc DESC);
             """)
+            # Backward-compatible, additive migration for existing PLANEXUS SQLite files.
+            columns={r["name"] for r in db.execute("PRAGMA table_info(project_proposals)")}
+            if "policy_registry_version_at_save" not in columns:
+                db.execute("ALTER TABLE project_proposals ADD COLUMN policy_registry_version_at_save TEXT")
         yield db
     finally:
         db.close()

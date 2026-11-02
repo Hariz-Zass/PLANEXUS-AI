@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from .geometry import area_km2
 from .project_store import _now, _uuid, connection
 from .proposal_engine import ProposalInput, calculate_land_budget
+from .policy_registry import REGISTRY_VERSION
 
 MAX_PROPOSALS_PER_PROJECT=20
 
@@ -50,11 +51,24 @@ def _serialize(row:Any,project:Any,active_report:dict[str,Any]|None)->dict[str,A
         analysis=active_report if context_matches else None,
         context_current=context_matches,
     )
+    policy_review_needed=(
+        proposal.policy_profile != "none"
+        and row["policy_registry_version_at_save"] != REGISTRY_VERSION
+    )
+    if policy_review_needed:
+        # Never silently represent a freshly edited rule set as having been used
+        # when an older proposal was saved. Request explicit review/resave.
+        result["policy_assessment"]["checks"]=[]
+        result["policy_assessment"]["status"]="registry_version_changed_review"
+        result["policy_assessment"]["message"]="GPP rule registry changed since this scenario was saved. Re-check source pages and update the scenario to adopt current rules."
+        result["policy_assessment"]["warnings"].append("Previously stored policy comparison is not carried forward automatically.")
     return {
         "id":row["id"],"project_id":row["project_id"],
         "created_at_utc":row["created_at_utc"],"updated_at_utc":row["updated_at_utc"],
         "revision":row["revision"],"analysis_id_at_save":row["analysis_id_at_save"],
         "context_changed":not context_matches,
+        "policy_registry_version_at_save":row["policy_registry_version_at_save"],
+        "policy_review_needed":policy_review_needed,
         "inputs":fields,"result":result,
     }
 
@@ -94,10 +108,10 @@ def create_proposal(data_dir:Path,project_id:str,input:ProposalInput,active_repo
                 raise HTTPException(422,"Local project proposal limit of 20 reached.")
             db.execute(
                 "INSERT INTO project_proposals"
-                "(id,project_id,input_json,site_hash,analysis_id_at_save,revision,created_at_utc,updated_at_utc)"
-                " VALUES(?,?,?,?,?,?,?,?)",
+                "(id,project_id,input_json,site_hash,analysis_id_at_save,policy_registry_version_at_save,revision,created_at_utc,updated_at_utc)"
+                " VALUES(?,?,?,?,?,?,?,?,?)",
                 (ident,project_id,json.dumps(input.model_dump(),allow_nan=False),_geometry_hash(project["site_geometry"]),
-                 project["active_analysis_id"],1,time,time),
+                 project["active_analysis_id"],REGISTRY_VERSION,1,time,time),
             )
     return get_proposal(data_dir,project_id,ident,active_report)
 
@@ -111,9 +125,9 @@ def update_proposal(data_dir:Path,project_id:str,proposal_id:str,input:ProposalI
             project=_project(db,project_id)
             updated=db.execute(
                 "UPDATE project_proposals SET input_json=?,site_hash=?,analysis_id_at_save=?,"
-                "revision=revision+1,updated_at_utc=? WHERE id=? AND project_id=? AND revision=?",
+                "policy_registry_version_at_save=?,revision=revision+1,updated_at_utc=? WHERE id=? AND project_id=? AND revision=?",
                 (json.dumps(input.model_dump(),allow_nan=False),_geometry_hash(project["site_geometry"]),
-                 project["active_analysis_id"],_now(),proposal_id,project_id,expected_revision),
+                 project["active_analysis_id"],REGISTRY_VERSION,_now(),proposal_id,project_id,expected_revision),
             )
             if not updated.rowcount:
                 exists=db.execute("SELECT 1 FROM project_proposals WHERE id=? AND project_id=?",
