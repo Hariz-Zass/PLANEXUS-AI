@@ -58,3 +58,17 @@ jobs:
         working-directory: frontend
       - run: npm run test:e2e
         working-directory: frontend
+
+  live-cog-smoke:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # External S3 failures must be visible but not break offline algorithm checks.
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check -r backend/requirements.txt
+      - name: Check real Copernicus public DEM tile and actual raster terrain calculations
+        working-directory: backend
+        run: python -m tests.live_cog_smoke
