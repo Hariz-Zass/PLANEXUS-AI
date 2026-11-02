@@ -142,7 +142,7 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
             </strong>
           </div>)}
         </div>
-        <a target="_blank" rel="noopener noreferrer" href={catalog.sources.find(s=>s.id==="perak_housing_2023")?.url||"https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file"}>Buka PDF PR1 negeri Perak <ArrowUpRight size={14}/></a>
+        <a target="_blank" rel="noopener noreferrer" href={catalog?.sources.find(s=>s.id==="perak_housing_2023")?.url||"https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file"}>Buka PDF PR1 negeri Perak <ArrowUpRight size={14}/></a>
       </div>}
 
     </>}
