@@ -185,7 +185,9 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       siteSource.setData(toFeatureCollection(latestGeometry.current));
       if (root.current) root.current.dataset.siteRendered = latestGeometry.current ? "true" : "false";
       slopeSource.setData(latestReport.current?.slope_geojson || EMPTY);
+      if(root.current)root.current.dataset.slopeFeatures=String(latestReport.current?.slope_geojson?.features?.length??0);
       elevationSource?.setData(latestReport.current?.elevation_geojson || EMPTY);
+      if(root.current)root.current.dataset.elevationFeatures=String(latestReport.current?.elevation_geojson?.features?.length??0);
       contourSource?.setData(latestReport.current?.contours_geojson || EMPTY);
       suitabilitySource?.setData(latestReport.current?.suitability_geojson || EMPTY);
       if(instance.getLayer("slope-fill")) instance.setLayoutProperty("slope-fill","visibility",latestTerrainLayer.current==="slope"?"visible":"none");

@@ -77,3 +77,12 @@
   .shell-v2 .project-create{padding:18px}
 }
 @media(prefers-reduced-motion:reduce){.shell-v2 .project-entry{transition:none}}
+
+.shell-v2 .workspace-recovery-panel{margin:15px 0;padding:16px;border:1px solid #4b7966;border-radius:10px;background:#19332f;display:flex;flex-wrap:wrap;align-items:center;gap:11px}
+.shell-v2 .workspace-recovery-panel strong{width:100%;color:#d1efba;font-size:12px}
+.shell-v2 .workspace-recovery-panel p{width:100%;margin:0;color:#bad1c2;font-size:11px;line-height:1.7}
+.shell-v2 .workspace-recovery-panel label{display:flex;flex-direction:column;gap:6px;color:#bbd3bd;font-size:10px;flex:1;min-width:200px}
+.shell-v2 .workspace-recovery-panel input{padding:10px;color:#efffed;border:1px solid #57786b;border-radius:7px;background:#102b28}
+.shell-v2 .workspace-recovery-panel small{width:100%;color:#e3c991}
+.shell-v2 .analysis-prerequisite{display:flex;gap:8px;align-items:center;padding:12px;border:1px solid #966c50;border-radius:8px;background:#352d28;color:#f3d6a5;font-size:11px;margin:12px 0}
+.shell-v2 .terrain-drawing-explainer{position:absolute;z-index:6;top:70px;left:20px;max-width:320px;padding:10px 12px;border:1px solid #b4f77d;color:#d7f8c4;background:#19352fe6;border-radius:8px;font-size:10px;line-height:1.5}

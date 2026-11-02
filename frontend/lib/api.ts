@@ -305,13 +305,52 @@ export type SavedLayout = {
   preview:LayoutPreview|null;
 };
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
+
+/** Unpredictable browser key gives access to ONE private cloud workspace.
+ * Not a user login; losing the key means losing cloud workspace access. */
+export const WORKSPACE_ACCESS_KEY="planexus:browser-workspace-key:v1";
+export function getWorkspaceAccessKey():string{
+  if(typeof window==="undefined")return "";
+  let key=window.localStorage.getItem(WORKSPACE_ACCESS_KEY);
+  if(key&&/^[A-Za-z0-9_-]{43,96}$/.test(key))return key;
+  const bytes=new Uint8Array(32);
+  window.crypto.getRandomValues(bytes);
+  key=Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("");
+  window.localStorage.setItem(WORKSPACE_ACCESS_KEY,key);
+  return key;
+}
+export function restoreWorkspaceAccessKey(key:string){
+  const candidate=key.trim();
+  if(!/^[A-Za-z0-9_-]{43,96}$/.test(candidate))
+    throw Error("Invalid recovery key format.");
+  window.localStorage.setItem(WORKSPACE_ACCESS_KEY,candidate);
+  window.localStorage.removeItem("planexus:active-project:v1");
+  window.location.reload();
+}
+export function workspaceRequestHeaders(original?:HeadersInit):Headers{
+  const headers=new Headers(original);
+  const key=getWorkspaceAccessKey();
+  if(key)headers.set("X-Planexus-Workspace",key);
+  return headers;
+}
+export async function downloadEvidenceReport(analysisId:string){
+  const response=await fetch(API_BASE+"/api/analyses/"+encodeURIComponent(analysisId)+"/report.md",{
+    headers:workspaceRequestHeaders(),cache:"no-store"
+  });
+  if(!response.ok)throw Error("Cannot download saved report. Confirm your workspace is connected.");
+  const url=URL.createObjectURL(await response.blob());
+  const a=document.createElement("a");
+  a.href=url;a.download="PLANEXUS-Terrain-"+analysisId.slice(0,8)+".md";
+  document.body.appendChild(a);a.click();a.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  if (!API_BASE) throw new Error("GIS backend belum disambungkan pada Vercel. Analisis topografi belum tersedia secara online.");
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...options });
+    response = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...options, headers:workspaceRequestHeaders(options?.headers) });
   } catch {
     throw new Error("GIS backend tidak dapat dihubungi. Semak sambungan dan konfigurasi API PLANEXUS.");
   }

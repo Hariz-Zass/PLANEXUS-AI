@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { Check, ChevronRight, Database, FolderOpen, FolderPlus, LoaderCircle, MapPin, Pencil, Save, ShieldCheck, Trash2, X } from "lucide-react";
-import type { FeatureGeometry, ProjectSummary } from "@/lib/api";
+import {getWorkspaceAccessKey,restoreWorkspaceAccessKey,type FeatureGeometry,type ProjectSummary} from "@/lib/api";
 
 type Props = {
   projects: ProjectSummary[];
@@ -9,6 +9,7 @@ type Props = {
   geometry: FeatureGeometry | null;
   busy: boolean;
   error: string;
+  storageMode:string;
   onCreate: (name:string, description:string, useCurrentBoundary:boolean)=>Promise<void>;
   onOpen: (id:string)=>Promise<void>;
   onRename: (id:string,name:string)=>Promise<void>;
@@ -20,13 +21,17 @@ function projectDate(raw:string) {
   return Number.isNaN(date.getTime())?raw:new Intl.DateTimeFormat("ms-MY",{dateStyle:"medium"}).format(date);
 }
 
-export default function ProjectWorkspace({projects,activeId,geometry,busy,error,onCreate,onOpen,onRename,onDelete}:Props) {
+export default function ProjectWorkspace({projects,activeId,geometry,busy,error,onCreate,onOpen,onRename,onDelete,storageMode}:Props) {
   const [name,setName]=useState("");
   const [description,setDescription]=useState("");
   const [includeBoundary,setIncludeBoundary]=useState(false);
   const [creating,setCreating]=useState(false);
   const [editingId,setEditingId]=useState<string|null>(null);
   const [editingName,setEditingName]=useState("");
+  const [recoveryKey,setRecoveryKey]=useState("");
+  const [recoveryError,setRecoveryError]=useState("");
+  const [keyNotice,setKeyNotice]=useState("");
+  const isCloud=storageMode==="private-blob-per-browser-key";
 
   async function create(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
@@ -44,7 +49,7 @@ export default function ProjectWorkspace({projects,activeId,geometry,busy,error,
   }
 
   return <section className="project-directory" aria-label="Manage PLANEXUS projects">
-    <div className="eyebrow"><span className="eyebrow-dot"/> LOCAL PROJECT REGISTRY <span className="eyebrow-slash">//</span> WORKSPACE 004</div>
+    <div className="eyebrow"><span className="eyebrow-dot"/> PROJECT REGISTRY <span className="eyebrow-slash">//</span> WORKSPACE 001</div>
     <div className="project-directory-heading">
       <div><h1>Project <span className="h1-accent">Workspace</span><span className="hero-title-mark">/</span></h1>
         <p>One boundary, multiple analyses. Reopen your work without drawing the same site twice.</p></div>
@@ -54,8 +59,18 @@ export default function ProjectWorkspace({projects,activeId,geometry,busy,error,
     <div className="project-storage-status">
       <div className="project-storage-icon"><Database size={21}/></div>
       <div><strong>Persistent backend workspace</strong><span>Project records and boundaries are stored in local SQLite. Raster files and reports stay in this computer's backend data folder.</span></div>
-      <span className="project-storage-local"><ShieldCheck size={13}/> LOCAL ONLY</span>
+      <span className="project-storage-local"><ShieldCheck size={13}/> {isCloud?"PRIVATE CLOUD":"LOCAL"}</span>
     </div>
+    {isCloud&&<div className="workspace-recovery-panel">
+      <strong>Private workspace recovery</strong>
+      <p>Save your secret key securely to recover this workspace on another browser. This is not a login or team sharing system; losing the key may mean losing access.</p>
+      <button type="button" className="btn btn-outline" onClick={()=>void navigator.clipboard.writeText(getWorkspaceAccessKey()).then(()=>setKeyNotice("Recovery key copied. Store it securely.")).catch(()=>setKeyNotice("Clipboard blocked. Use a secure browser context."))}>Copy workspace recovery key</button>
+      <label>Restore an existing private workspace key
+        <input value={recoveryKey} onChange={e=>setRecoveryKey(e.target.value)} placeholder="Paste your saved key" aria-label="Workspace recovery key"/>
+      </label>
+      <button type="button" className="btn btn-outline" disabled={!recoveryKey.trim()||busy} onClick={()=>{try{restoreWorkspaceAccessKey(recoveryKey);}catch(e){setRecoveryError(e instanceof Error?e.message:"Invalid key");}}}>Restore workspace</button>
+      {keyNotice&&<small role="status">{keyNotice}</small>}{recoveryError&&<small role="alert">{recoveryError}</small>}
+    </div>}
     {error&&<div className="project-error" role="alert">{error}</div>}
     {creating&&<form className="project-create" onSubmit={event=>{void create(event);}}>
       <div><span className="section-overline">CREATE A NEW WORKSPACE</span><h2>New terrain project</h2></div>
@@ -101,6 +116,6 @@ export default function ProjectWorkspace({projects,activeId,geometry,busy,error,
         </div>
       </article>)}
     </div>
-    <p className="project-footnote">Deleting a project removes its index and associations, not the archived raster/report files. This local build does not yet support sign-in, sharing or cross-device sync. Back up the backend data directory before moving machines.</p>
+    <p className="project-footnote">Deleting a project removes its index and associations, not the archived raster/report files. This workspace does not yet support account sign-in or shared team permissions. Keep the recovery key private. Export important GIS reports and GeoJSON for independent backups.</p>
   </section>;
 }
