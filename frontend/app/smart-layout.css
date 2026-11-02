@@ -97,3 +97,21 @@
 @media(max-width:780px){.shell-v2 .layout-page-header{flex-wrap:wrap}.shell-v2 .layout-scope-badge{max-width:100%;white-space:normal}.shell-v2 .layout-project-strip{gap:9px}.shell-v2 .layout-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shell-v2 .layout-stat:nth-child(2){border-right:0}.shell-v2 .layout-stat:nth-child(-n+2){border-bottom:1px solid #456057}.shell-v2 .layout-slope-grid{grid-template-columns:1fr}.shell-v2 .layout-slope-grid small{min-height:0}.shell-v2 .layout-legend{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.shell-v2 .layout-page-header h1{font-size:30px}.shell-v2 .layout-map-wrap{height:350px}.shell-v2 .layout-card-header{padding:16px}.shell-v2 .layout-tag{white-space:normal;text-align:right}.shell-v2 .layout-toolbar{padding:9px;gap:6px}.shell-v2 .layout-toolbar button{flex:1;font-size:9px}.shell-v2 .layout-controls-card .layout-form{display:flex;flex-direction:column;padding:15px}.shell-v2 .layout-form-actions{width:100%}.shell-v2 .layout-stat{padding:13px}.shell-v2 .layout-stat>strong{font-size:20px}.shell-v2 .layout-slope-summary{margin:12px;padding:13px}.shell-v2 .layout-blocker{flex-wrap:wrap}.shell-v2 .layout-blocker button{width:100%;justify-content:center}.shell-v2 .layout-legend{padding:12px}.shell-v2 .layout-legend>span{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.shell-v2 .layout-map-wrap *{scroll-behavior:auto}}
+
+
+/* Step 3A: topology-only network diagnostics, distinct from legal road access */
+.shell-v2 .layout-network-panel{margin:18px;border:1px solid #547267;border-radius:10px;background:#1a3033;padding:17px}
+.shell-v2 .layout-network-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.shell-v2 .layout-network-heading h3{display:flex;align-items:center;gap:8px;margin:0;font:700 12px var(--display);color:#d4f0c2}
+.shell-v2 .layout-network-status{font:700 9px var(--display);letter-spacing:.25px;color:#b6eac1;border:1px solid #517865;border-radius:6px;padding:8px}
+.shell-v2 .layout-network-status.is-disconnected{color:#ffd2ab;border-color:#986c4d;background:#49372b}
+.shell-v2 .layout-network-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:15px}
+.shell-v2 .layout-network-metrics>div{min-width:0;border:1px solid #3c5a54;background:#172c31;border-radius:8px;padding:11px}
+.shell-v2 .layout-network-metrics small{display:block;font:600 9px/1.5 var(--display);color:#a7c0b3;min-height:28px}
+.shell-v2 .layout-network-metrics strong{display:block;margin-top:5px;color:#e9f5de;font:700 22px var(--display)}
+.shell-v2 .layout-network-components{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+.shell-v2 .layout-network-components span{border:1px dashed #628876;padding:7px 9px;color:#c3dfc8;border-radius:6px;font:600 10px/1.6 var(--display)}
+.shell-v2 .layout-network-caution{display:flex;gap:8px;margin:14px 0 0;font:400 10px/1.8 var(--display);color:#e7c79b}
+.shell-v2 .layout-network-caution svg{flex:none;margin-top:2px}
+@media(max-width:780px){.shell-v2 .layout-network-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.shell-v2 .layout-network-panel{margin:12px;padding:13px}.shell-v2 .layout-network-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

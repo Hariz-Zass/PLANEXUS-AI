@@ -96,11 +96,15 @@ def test_two_crossing_roads_union_and_zero_buffer_are_not_double_counted():
     assert baseline["road_front_margin_ha"]==0
     assert baseline["gross_unencumbered_ha"]==baseline["site_area_ha"]
     assert baseline["road_count"]==0
+    assert baseline["network"]["status"]=="no_roads"
+    assert baseline["layers"]["road_junctions"]["features"]==[]
     single=screen_layout(SITE,_input(front_road_buffer_m=0,perimeter_offset_m=0))
     crossing=screen_layout(SITE,_input(
         road_centerlines=[ROAD,OTHER_ROAD],front_road_buffer_m=0,
         perimeter_offset_m=0
     ))
+    assert crossing["network"]["component_count"]==2
+    assert crossing["network"]["crossing_pairs_unconfirmed"]==1
     assert crossing["road_corridor_ha"]>single["road_corridor_ha"]
     assert crossing["road_corridor_ha"]<single["road_corridor_ha"]*2.1
     assert crossing["gross_unencumbered_ha"]<single["gross_unencumbered_ha"]

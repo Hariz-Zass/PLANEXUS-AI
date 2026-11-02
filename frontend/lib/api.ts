@@ -251,12 +251,29 @@ export type LayoutPolicyCheck = {
   verified_geometry:false;binding:false;
 };
 
+export type RoadNetworkScreening = {
+  status:"no_roads"|"disconnected"|"connected_boundary_candidate"|"connected_internal_only";
+  component_count:number;
+  components:{roads:number[];boundary_candidate:boolean}[];
+  boundary_candidate_endpoints:number;
+  components_with_boundary_candidates:number;
+  dangling_endpoints:number;
+  close_unconnected_pairs:number;
+  crossing_pairs_unconfirmed:number;
+  overlap_pairs:number;
+  boundary_contact_tolerance_m:number;
+  external_access_verified:false;
+  topology_screening_only:true;
+  method:string;
+};
+
 export type LayoutPreview = {
   version:string;method:string;projected_crs:string;site_area_ha:number;
   road_centerline_length_m:number;road_corridor_ha:number;
   road_front_margin_ha:number;perimeter_exclusion_ha:number;
   combined_exclusions_ha:number;gross_unencumbered_ha:number;
   road_count:number;
+  network:RoadNetworkScreening;
   terrain_status:"no_active_suitability"|"no_suitability_in_report"|"report_site_mismatch"|
     "incomplete_vector_overlay"|"large_or_invalid_overlay"|"invalid_suitability_overlay"|
     "low_slope_vector_approximation"|"analysis_changed_review_required";
@@ -273,6 +290,9 @@ export type LayoutPreview = {
     perimeter_exclusion:LayoutPreviewLayer;
     gross_remaining:LayoutPreviewLayer;
     lower_slope_remaining:LayoutPreviewLayer;
+    road_junctions:LayoutPreviewLayer;
+    road_boundary_candidates:LayoutPreviewLayer;
+    road_close_pairs:LayoutPreviewLayer;
   };
 };
 

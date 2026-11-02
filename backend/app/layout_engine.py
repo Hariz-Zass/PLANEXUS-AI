@@ -18,6 +18,7 @@ from shapely.ops import transform, unary_union
 
 from .geometry import local_utm_crs, validate_site
 from .policy_registry import PERAK_SOURCE
+from .road_network import screen_road_network
 
 MAX_ROADS=12
 MAX_VERTICES=200
@@ -144,7 +145,7 @@ def screen_layout(
     exclusions=unary_union([corridor,road_front_zone,outer_band]).intersection(site)
     remaining=site.difference(exclusions)
     return_report={
-        "version":"1.0.0",
+        "version":"1.1.0",
         "method":"WGS84 boundary projected into site-local UTM. Sketched road centrelines buffered by half of assumed width; assumed front-road margin and optional site perimeter offset excluded from polygon.",
         "projected_crs":crs.to_string(),
         "site_area_ha":_area(site),
@@ -182,6 +183,11 @@ def screen_layout(
             "lower_slope_remaining":{"type":"FeatureCollection","features":[]},
         },
     }
+    network_check=screen_road_network(site,lines,world)
+    return_report["network"]=network_check["network"]
+    return_report["layers"].update(network_check["layers"])
+    return_report["warnings"].extend(network_check["warnings"])
+
     if not lines:
         return_report["warnings"].append("No road alignment has been drawn yet; road and front-road areas are zero, NOT proof that no roads are needed.")
     elif input.front_road_buffer_m==0:

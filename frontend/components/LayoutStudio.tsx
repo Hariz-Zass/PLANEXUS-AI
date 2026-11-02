@@ -96,6 +96,13 @@ const STATUS:Record<string,string>={
   analysis_changed_review_required:"NEW GIS / RECHECK REQUIRED",
 };
 
+const NETWORK_STATUS:Record<string,string>={
+  no_roads:"NO ROAD SKETCH",
+  disconnected:"DISCONNECTED — REVIEW NEEDED",
+  connected_internal_only:"INTERNAL LINES CONNECTED · NO EDGE CONTACT",
+  connected_boundary_candidate:"GEOMETRIC LINK + EDGE CANDIDATE",
+};
+
 export default function LayoutStudio({project,report,backendConnected,onOpenProjects,onOpenTerrain}:Props){
   const [inputs,setInputs]=useState<LayoutInputs>(EMPTY_INPUT);
   const [saved,setSaved]=useState<SavedLayout|null>(null);
@@ -228,6 +235,9 @@ export default function LayoutStudio({project,report,backendConnected,onOpenProj
     {color:"#38d2c9",name:"Modeled road reservation"},
     {color:"#edba77",name:"Concept front-road band"},
     {color:"#8c97af",name:"Perimeter exclusion"},
+    {color:"#b0f493",name:"Sketched endpoint junction"},
+    {color:"#ffcb70",name:"Outer-boundary contact candidate"},
+    {color:"#ff8d83",name:"Unverified crossing / close line"},
   ];
 
   return <section className="layout-studio" aria-label="PLANEXUS Smart Layout screening">
@@ -415,6 +425,32 @@ export default function LayoutStudio({project,report,backendConnected,onOpenProj
               <small>{item.name}</small><strong>{fmt(item.number)} <em>{item.unit}</em></strong>
             </div>)}
           </div>
+          <section className="layout-network-panel" aria-label="Road network screening">
+            <div className="layout-network-heading">
+              <h3><Route size={18}/> Road connectivity screening</h3>
+              <span className={"layout-network-status"+(visiblePreview.network.status==="disconnected"?" is-disconnected":"")}>
+                {NETWORK_STATUS[visiblePreview.network.status]??visiblePreview.network.status}
+              </span>
+            </div>
+            <div className="layout-network-metrics">
+              <div><small>Road components</small><strong>{visiblePreview.network.component_count}</strong></div>
+              <div><small>Boundary endpoint candidates</small><strong>{visiblePreview.network.boundary_candidate_endpoints}</strong></div>
+              <div><small>Unconnected road ends</small><strong>{visiblePreview.network.dangling_endpoints}</strong></div>
+              <div><small>Unconfirmed crossing pairs</small><strong>{visiblePreview.network.crossing_pairs_unconfirmed}</strong></div>
+              <div><small>Close but separate road pairs</small><strong>{visiblePreview.network.close_unconnected_pairs}</strong></div>
+            </div>
+            {visiblePreview.network.components.length>0&&<div className="layout-network-components">
+              {visiblePreview.network.components.map((component,index)=><span key={index}>
+                Group {index+1}: road {component.roads.join(", ")}
+                {component.boundary_candidate?" · edge candidate":" · internal only"}
+              </span>)}
+            </div>}
+            <p className="layout-network-caution"><AlertTriangle size={15}/>
+              Drawing endpoints at a junction is required to count a connection. Interior crossings are NOT assumed at-grade.
+              Boundary contact within 0.5 m is only a sketch candidate; no external road, access rights,
+              road safety design, gradient or PBT permission has been verified.
+            </p>
+          </section>
           <div className="layout-slope-summary">
             <div className="layout-slope-header"><span><Layers3 size={18}/> LOWER TERRAIN CONSTRAINT OVERLAP</span>
               <span>{STATUS[visiblePreview.terrain_status]??visiblePreview.terrain_status}</span></div>

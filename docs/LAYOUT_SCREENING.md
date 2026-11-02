@@ -54,3 +54,17 @@ When the saved project boundary changes, old road sketches are hidden and cannot
 **Not yet implemented:** actual lot layout, residential-unit fitting, lot-front building setback compliance, road junction connectivity/external access, gradient design, geotechnics, flood/drainage, local zoning, title/ownership and automated PBT decision. These are later modules.
 
 No Vercel deployment; existing GeoPilot repo untouched.
+
+
+## Step 3A — Road Network Validation (conservative topology check)
+
+On each Preview / Save, the backend checks the **drawn** road centreline geometry in local UTM metres. The preview and project save record now include a road-network screening object, plus map markers (junction candidates, outer-boundary candidates, close-but-disconnected alignments). This does NOT download or certify any existing external road network.
+
+- Component links require a centreline **endpoint touching another sketch** (including T-junctions) or geometrically overlapping drawings. An interior-only crossing of two lines is flagged as an **unconfirmed crossing** and does *not* make the two roads a confirmed turnable network. Grade separations, bridges and turning restrictions are unknown.
+- Gaps are **not snapped together**. Distinct road pairs less than 1.0 m apart appear in the review count, whether they are intended parallel alignments or an actual gap.
+- An endpoint within 0.5 m of the **outer** site polygon edge is only a *boundary contact candidate*. Holes/excluded internal rings are not external access. This never means a legal road junction or access to a verified public road.
+- Each component lists its numbered sketch lines and whether it has a boundary contact candidate. Counted dangling endpoints are not an assessment of cul-de-sac turning areas, fire vehicle access, emergency routes, roadway gradient or road capacity. Overlapping lines are flagged for manual inspection.
+- No roads = no topology conclusion. One connected component with a contact candidate = **sketch topology only**; exterior road continuation, ownership, reservations, junction geometry, sight distance and PBT requirements remain unverified.
+- This is *preliminary plan-view topology*, not a regulatory/engineering validation. Do not use it as evidence that any lot will be accessible. Housing-lot placement and access check remain Step 3B and beyond.
+
+Synthetic backend unit tests cover empty, T-junction, interior cross, multiple components, near-gap, overlapping sketches and outer-versus-hole boundary. The browser test uses **mock network responses**; it does not certify real road data.

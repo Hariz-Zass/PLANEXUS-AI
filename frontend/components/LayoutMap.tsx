@@ -112,6 +112,19 @@ export default function LayoutMap({
       map.addSource("layout-sketch",{type:"geojson",data:EMPTY});
       map.addLayer({id:"layout-sketch-line",type:"line",source:"layout-sketch",
         paint:{"line-color":"#ffffff","line-width":3,"line-dasharray":[2,1]}});
+      for(const [id,color] of [
+        ["layout-junctions","#b0f493"],
+        ["layout-boundary-candidates","#ffcb70"],
+        ["layout-close-pairs","#ff8d83"],
+      ]){
+        map.addSource(id,{type:"geojson",data:EMPTY});
+        map.addLayer({id:id+"-point",type:"circle",source:id,paint:{
+          "circle-color":id==="layout-junctions"?
+            ["match",["get","kind"],"unconfirmed_crossing","#fa927c",color]:color,
+          "circle-radius":5.5,"circle-stroke-color":"#172c30",
+          "circle-stroke-width":2,"circle-opacity":.95,
+        }});
+      }
       applyRef.current?.();
     });
     map.on("click",event=>{
@@ -168,9 +181,13 @@ export default function LayoutMap({
       set("layout-perimeter",layers?.perimeter_exclusion);
       set("layout-remaining",layers?.gross_remaining);
       set("layout-low",layers?.lower_slope_remaining);
+      set("layout-junctions",layers?.road_junctions);
+      set("layout-boundary-candidates",layers?.road_boundary_candidates);
+      set("layout-close-pairs",layers?.road_close_pairs);
       if(root.current){
         root.current.dataset.layoutRendered="true";
         root.current.dataset.roadCount=String(input.inputRoads.length);
+        root.current.dataset.networkStatus=input.preview?.network?.status??"none";
         root.current.dataset.lowSlopeVisible=
           layers?.lower_slope_remaining.features.length?"true":"false";
       }

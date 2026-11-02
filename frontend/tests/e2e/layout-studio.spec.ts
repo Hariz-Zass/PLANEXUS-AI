@@ -37,6 +37,9 @@ function makePreview(input:LayoutInputs):LayoutPreview{
       type:"Feature" as const,properties:{label:"MOCK GIS - not real"},geometry:SITE
     }]},
     lower_slope_remaining:NONE,
+    road_junctions:NONE,
+    road_boundary_candidates:NONE,
+    road_close_pairs:NONE,
   };
   const perak=input.policy_profile==="perak_2023";
   return {
@@ -45,7 +48,18 @@ function makePreview(input:LayoutInputs):LayoutPreview{
     road_centerline_length_m:roads*240,road_corridor_ha:corridor,
     road_front_margin_ha:front,perimeter_exclusion_ha:perimeter,
     combined_exclusions_ha:exclusions,gross_unencumbered_ha:11.2-exclusions,
-    road_count:roads,terrain_status:"no_active_suitability",terrain_source:null,
+    road_count:roads,
+    network:{
+      status:roads?"connected_internal_only":"no_roads",
+      component_count:roads?1:0,
+      components:roads?[{roads:Array.from({length:roads},(_,i)=>i+1),boundary_candidate:false}]:[],
+      boundary_candidate_endpoints:0,components_with_boundary_candidates:0,
+      dangling_endpoints:roads*2,close_unconnected_pairs:0,
+      crossing_pairs_unconfirmed:0,overlap_pairs:0,
+      boundary_contact_tolerance_m:0.5,external_access_verified:false,
+      topology_screening_only:true,method:"Synthetic network fixture only; NOT assessed on a real road",
+    },
+    terrain_status:"no_active_suitability",terrain_source:null,
     lower_slope_overlap_ha:null,lower_slope_remaining_ha:null,
     largest_contiguous_lower_patch_ha:null,lower_patch_count:null,
     quality_status:"geometry_only",
@@ -147,6 +161,9 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
   await expect(page.locator(".layout-draft-flag")).toContainText("Unsaved changes");
   await page.getByRole("button",{name:"Preview layout"}).click();
   await expect(page.locator(".layout-stat-grid")).toContainText("0.366");
+  await expect(page.locator(".layout-network-panel")).toContainText("INTERNAL LINES CONNECTED");
+  await expect(page.locator(".layout-network-panel")).toContainText("Boundary endpoint candidates");
+  await expect(page.locator(".layout-map[data-network-status='connected_internal_only']")).toBeVisible({timeout:30000});
   await expect(page.locator(".layout-map[data-road-count='1']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:"Save layout"}).click();
   await expect(page.locator(".proposal-success")).toContainText("Layout sketch saved");

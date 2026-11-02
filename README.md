@@ -330,3 +330,10 @@ The new local-only Smart Layout Studio sidebar module lets planners sketch/impor
 Optional Perak PR1 road and front setback numeric comparisons only compare typed input values to cited reference amounts: they are NOT verified building setback compliance or PBT approval. Stored lines are invalidated if project boundary changes; DEM changes require review. SQLite backups include layout sketches.
 
 Read [the Smart Layout limits and QA guide](docs/LAYOUT_SCREENING.md). This feature remains on GitHub only, without a Vercel deployment.
+
+
+### Step 3A — Road Network Validation (local GitHub-only)
+
+Smart Layout Studio now screens road-sketch topology in projected UTM metres. It reports separately drawn road components, endpoint-based T-junction connections, **unconfirmed interior-only crossings**, close-but-unjoined lines, dangling sketch endpoints and outer site-boundary contact *candidates*. Matching map markers and a mobile-friendly diagnostics panel make disconnected conceptual alignments visible before any lot-generator work. A line crossing without an explicit endpoint is not assumed to be an at-grade road connection. A line touching the site edge is **not** proof of a legal/public road access point; grade, ownership, external streets, engineering design, accessibility and PBT review remain outside this check.
+
+Detailed method and local QA: [docs/LAYOUT_SCREENING.md](docs/LAYOUT_SCREENING.md). No automatic lot placement, no Vercel deployment, and no changes to GeoPilot.
