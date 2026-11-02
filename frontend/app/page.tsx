@@ -288,74 +288,168 @@ export default function Home() {
     finally{setProjectBusy(false);}
   }
 
-  const activateSite=useCallback((input:FeatureGeometry,origin:SiteOrigin)=>{
+  const activateSite=useCallback(async (input:FeatureGeometry,origin:SiteOrigin)=>{
     const valid=validateSiteBoundary(input);
-    const r=saveSiteBoundary(valid,origin);
+    const local=saveSiteBoundary(valid,origin);
+    const current=projectRef.current;
     setGeometry(valid);setReport(null);setChat([]);setDrawing(false);setError("");setResetCounter(n=>n+1);
-    if(r.saved){setSaveState("saved");setSavedAt(r.site.savedAt);setSaveMessage("");setStatus("Tapak disimpan automatik dalam browser ini.");}
-    else{setSaveState("error");setSaveMessage(r.message);setStatus("Tapak dipaparkan tetapi belum disimpan. Export GeoJSON sebagai backup.");}
-  },[]);
+    if(current){
+      setProjectBusy(true);setSaveState("checking");
+      setStatus("Menyimpan sempadan ke project registry…");
+      try{
+        const updated=await api<ProjectDetail>("/api/projects/"+current.id,{
+          method:"PATCH",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({expected_revision:current.revision,geometry:valid})
+        });
+        if(projectRef.current?.id===current.id){
+          projectRef.current=updated;setActiveProject(updated);
+          setSaveState("saved");setSavedAt(updated.updated_at_utc);setSaveMessage("");
+          setStatus("Sempadan disimpan dalam projek '"+updated.name+"' (SQLite tempatan).");
+        }
+        await refreshProjectList();
+      }catch(e){
+        const message=e instanceof Error?e.message:"Project save failed";
+        setSaveState("error");
+        setSaveMessage("Simpanan projek gagal: "+message+(local.saved?" · Backup polygon hanya di browser.":" · Browser backup juga gagal."));
+        setError("Sempadan belum disimpan ke projek. "+message);
+      }finally{setProjectBusy(false);}
+    }else if(local.saved){
+      setSaveState("saved");setSavedAt(local.site.savedAt);setSaveMessage("");
+      setStatus("Tapak disimpan dalam browser sahaja. Cipta projek untuk simpan dalam SQLite.");
+    }else{
+      setSaveState("error");setSaveMessage(local.message);
+      setStatus("Tapak belum disimpan. Export GeoJSON sebagai backup.");
+    }
+  },[refreshProjectList]);
+
   const onSiteDrawn=useCallback((geo:FeatureGeometry)=>{
-    try{activateSite(geo,"map-drawing");}catch(e){setError(e instanceof Error?e.message:"Polygon tidak sah.");setDrawing(false);}
+    void activateSite(geo,"map-drawing").catch(e=>{
+      setError(e instanceof Error?e.message:"Polygon tidak sah.");
+      setDrawing(false);
+    });
   },[activateSite]);
+
   function startDraw(){
-    setDrawing(true);setError("");setStatus("Lukis tapak baharu. Tapak asal tidak dipadam sehingga polygon baru siap.");setResetCounter(n=>n+1);
+    if(projectBusy||pending)return;
+    setDrawing(true);setError("");
+    setStatus("Lukis tapak baharu. Tapak asal tidak dipadam sehingga polygon baharu siap.");
+    setResetCounter(n=>n+1);
   }
-  function clearSite(){
-    if(!window.confirm("Padam sempadan tapak daripada browser ini? Export GeoJSON dahulu untuk backup."))return;
+
+  async function clearSite(){
+    if(projectBusy||pending)return;
+    if(!window.confirm("Padam sempadan tapak aktif? Jika projek dipilih, sempadan pada database juga dikosongkan. Export GeoJSON dahulu untuk backup."))return;
+    const current=projectRef.current;
+    if(current){
+      setProjectBusy(true);setError("");
+      try{
+        const updated=await api<ProjectDetail>("/api/projects/"+current.id,{
+          method:"PATCH",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({expected_revision:current.revision,geometry:null})
+        });
+        projectRef.current=updated;setActiveProject(updated);
+        removeSavedSite();
+        setGeometry(null);setDrawing(false);setReport(null);setChat([]);
+        setResetCounter(n=>n+1);setSaveState("empty");setSavedAt("");
+        setStatus("Sempadan projek telah dipadam daripada rekod aktif. Sejarah analisis dikekalkan.");
+        await refreshProjectList();
+      }catch(e){setSaveState("error");setSaveMessage("Gagal padam daripada database.");setError(e instanceof Error?e.message:"Gagal memadam sempadan projek.");}
+      finally{setProjectBusy(false);}
+      return;
+    }
     const r=removeSavedSite();
     if(!r.removed){setSaveState("error");setSaveMessage(r.message||"Gagal memadam simpanan.");return;}
-    setGeometry(null);setDrawing(false);setReport(null);setChat([]);setResetCounter(n=>n+1);setSaveState("empty");setSavedAt("");setStatus("Sempadan tapak dipadam.");
+    setGeometry(null);setDrawing(false);setReport(null);setChat([]);
+    setResetCounter(n=>n+1);setSaveState("empty");setSavedAt("");
+    setStatus("Sempadan tapak lokal dipadam.");
   }
+
   async function loadGeoJson(file?:File){
     if(!file)return;
     setError("");
     try{
       if(file.size>3000000)throw new Error("Fail GeoJSON melebihi 3 MB.");
-      activateSite(normalizeGeoJSON(JSON.parse(await file.text()) as unknown),"geojson-import");
-      setStatus("GeoJSON diimport dan disimpan pada browser. Koordinat disemak secara asas, bukan pengesahan ukur tanah.");
+      await activateSite(normalizeGeoJSON(JSON.parse(await file.text()) as unknown),"geojson-import");
     }catch(e){setError(e instanceof Error?e.message:"Import GeoJSON gagal.");}
     finally{if(geojsonInput.current)geojsonInput.current.value="";}
   }
 
-  async function analyzeAuto() {
-    if (!geometry || pending) return;
-    setPending("auto"); setError(""); setStatus("Mendapatkan data Copernicus GLO-30 Public daripada sumber rasmi dan mengira analisis…");
-    try {
-      const result = await api<TerrainReport>("/api/terrain/auto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry }) });
-      setReport(result); setChat([]); setStatus("Analisis GIS selesai dan disimpan. Baca amaran kualiti data sebelum menggunakan hasil.");
+  async function analyzeAuto(){
+    if(!geometry||pending||projectBusy)return;
+    const current=projectRef.current;
+    setPending("auto");setError("");
+    setStatus("Mendapatkan DSM Copernicus, mengira kecerunan dan mengekalkan sumber data…");
+    try{
+      const result=await api<TerrainReport>("/api/terrain/auto",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({geometry,project_id:current?.id??null})
+      });
+      setReport(result);setChat([]);
+      setStatus(current?"Analisis selesai dan dipautkan kepada projek aktif.":"Analisis disimpan sebagai laporan lama tanpa pautan projek.");
+      if(current){
+        try{
+          const updated=await api<ProjectDetail>("/api/projects/"+current.id);
+          if(projectRef.current?.id===current.id){projectRef.current=updated;setActiveProject(updated);}
+          await refreshProjectList();
+        }catch{setProjectError("Analisis siap tetapi senarai projek belum dapat dimuat semula.");}
+      }
       void refreshRecent();
-    } catch (ex) { setError(ex instanceof Error ? ex.message : "Gagal mengambil DEM. Tiada data rekaan digunakan."); setStatus(""); }
-    finally { setPending(null); }
+    }catch(e){setError(e instanceof Error?e.message:"Gagal mengambil DSM. Tiada data rekaan.");setStatus("");}
+    finally{setPending(null);}
   }
 
-  async function analyzeUploaded() {
-    if (!geometry || !demFile || !sourceName.trim() || !confirmedUnits || pending) return;
-    setPending("upload"); setError(""); setStatus("Memproses GeoTIFF pengguna dan mengesahkan CRS, liputan serta statistik cerun…");
-    try {
-      const form = new FormData();
-      form.append("geometry", JSON.stringify(geometry));
-      form.append("file", demFile);
-      form.append("source_name", sourceName);
-      form.append("vertical_unit", "metres");
-      form.append("height_model", heightModel);
-      form.append("vertical_datum", datum || "unknown");
-      const result = await api<TerrainReport>("/api/terrain/upload", { method: "POST", body: form });
-      setReport(result); setChat([]); setStatus("GeoTIFF diproses dan analisis disimpan secara lokal.");
+  async function analyzeUploaded(){
+    if(!geometry||!demFile||!sourceName.trim()||!confirmedUnits||pending||projectBusy)return;
+    const current=projectRef.current;
+    setPending("upload");setError("");setStatus("Memproses GeoTIFF dan mengesahkan CRS serta statistik cerun…");
+    try{
+      const form=new FormData();
+      form.append("geometry",JSON.stringify(geometry));
+      form.append("file",demFile);
+      form.append("source_name",sourceName);
+      form.append("vertical_unit","metres");
+      form.append("height_model",heightModel);
+      form.append("vertical_datum",datum||"unknown");
+      if(current)form.append("project_id",current.id);
+      const result=await api<TerrainReport>("/api/terrain/upload",{method:"POST",body:form});
+      setReport(result);setChat([]);
+      setStatus(current?"GeoTIFF dianalisis dan dipautkan ke projek aktif.":"GeoTIFF dianalisis, tetapi belum dipautkan ke projek.");
+      if(current){
+        try{
+          const updated=await api<ProjectDetail>("/api/projects/"+current.id);
+          if(projectRef.current?.id===current.id){projectRef.current=updated;setActiveProject(updated);}
+          await refreshProjectList();
+        }catch{setProjectError("Analisis siap tetapi projek perlu dimuat semula.");}
+      }
       void refreshRecent();
-    } catch (ex) { setError(ex instanceof Error ? ex.message : "Analisis GeoTIFF gagal."); setStatus(""); }
-    finally { setPending(null); }
+    }catch(e){setError(e instanceof Error?e.message:"Analisis GeoTIFF gagal.");setStatus("");}
+    finally{setPending(null);}
   }
 
-  async function reopenAnalysis(id: string) {
-    setPending("auto"); setError("");
-    try {
-      const result = await api<TerrainReport>(`/api/analyses/${id}`);
-      activateSite(result.geometry, "analysis-reopened"); setReport(result); setDrawing(false); setChat([]);
-      setStatus(`Analisis ${id.slice(0, 8)} dibuka daripada storan lokal.`);
-      setTab("workspace"); setMobileNav(false);
-    } catch (ex) { setError(ex instanceof Error ? ex.message : "Tidak dapat memuatkan analisis."); }
-    finally { setPending(null); }
+  async function reopenAnalysis(id:string){
+    if(pending||projectBusy)return;
+    const current=projectRef.current;
+    setPending("auto");setError("");
+    try{
+      if(current&&!current.analyses.some(item=>item.analysis_id===id)){
+        throw Error("Analisis ini bukan milik projek aktif. Pilih projek yang betul dahulu.");
+      }
+      const report=await api<TerrainReport>("/api/analyses/"+id);
+      if(current){
+        const updated=await api<ProjectDetail>("/api/projects/"+current.id+"/activate-analysis",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({analysis_id:id})
+        });
+        applyProject(updated,report);
+        await refreshProjectList();
+      }else{
+        await activateSite(report.geometry,"analysis-reopened");
+        setReport(report);
+      }
+      setStatus("Laporan dan layer GIS dipulihkan daripada analisis tersimpan.");
+      setTab("workspace");setMobileNav(false);
+    }catch(e){setError(e instanceof Error?e.message:"Tidak dapat membuka analisis.");}
+    finally{setPending(null);}
   }
 
   async function askCopilot() {
