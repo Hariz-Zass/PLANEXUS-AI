@@ -124,3 +124,22 @@ CI workflows also attempt frontend type-check and build, once the repository is 
 ## License
 
 Source code license not yet selected. Third-party datasets retain **their own provider licenses**. Review terms and any commercial API conditions before public operation.
+
+
+## PLANEXUS V2.2 — site recovery, GIS and Copilot testing (NOT DEPLOYED)
+
+**Site boundary bug:** The MapLibre map must finish its asynchronous `load` event and add its `site`/ `slope` GeoJSON sources before applying saved geometry. V2.2 synchronizes the latest boundary after the sources exist; it restores the polygon and fits its bounding box. The existing versioned browser localStorage key is `planexus:site-boundary:v1`. A saved polygon is **local to the same browser + exact origin** (localhost vs vercel.app are different). It is not a cross-device cloud save. Use **Export GeoJSON** for backup; do not clear browser site data without backup. For full cloud history, authentication and a spatial database will be needed later.
+
+**Terrain GIS:** The included FastAPI backend handles actual `/api/terrain/auto` (Copernicus GLO-30 DSM tile retrieval), `/api/terrain/upload` (GeoTIFF), slope/elevation statistics, and `/api/analyses`. Valid DEM coverage and internet access are prerequisites. No invented results: failed tile access is an explicit error. Verify real-site raster results independently in QGIS before using them in a planning report.
+
+**Copilot:** After a successful analysis, `/api/copilot/assess` provides an evidence-based deterministic GIS summary without credentials. To enable generative AI, copy `backend/.env.example` to `backend/.env` and set `OPENAI_API_KEY` and an available `OPENAI_MODEL`; `python-dotenv` loads them when the Python API starts. API credentials must never be committed. This system is not a substitute for RSN, RT, RKK, GPP or engineering confirmation.
+
+**Vercel remains unchanged.** The existing live site deploys only the frontend, so GIS/AI endpoints will not work there until a real hosted backend with persistent object storage is configured and connected. The repository fixes can be tested locally with the two-server launcher; no Vercel deployment has been triggered for V2.2. Next.js should be configured with `NEXT_PUBLIC_API_BASE_URL` pointing to the authorized backend only when its public origin is ready and protected. Do not expose an unauthenticated GIS backend publicly.
+
+### Manual acceptance checks
+
+1. On localhost, draw a 4-corner polygon, finish, and confirm the `SITE AUTOSAVED` chip. Refresh and assert the outline returns at the original coordinates and the map zooms there. Navigate Data Registry / Saved Analyses / Terrain and repeat. Export GeoJSON and reimport it.
+2. Import a valid WGS84 polygon and refresh; confirm it returns. Start a redraw, then cancel; the previous polygon must remain. Clear only after export and confirmation.
+3. Test `POST /api/site/inspect` with a WGS84 polygon. Run DEM auto on a small real site with public source coverage. Compare slope class areas to QGIS, inspect data provenance and warnings; test deliberate missing coverage/error.
+4. Upload a trusted local DEM/DTM with declared metadata. Check elevation range, slope mean, saved analysis, evidence report and Copilot question. Without API key, response must say `deterministic_evidence_summary`; with a valid configured key, check `llm_grounded`. No unsupported approval claims should appear.
+

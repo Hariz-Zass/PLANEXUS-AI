@@ -9,3 +9,5 @@ pyproj>=3.6,<4
 httpx>=0.27,<1
 openai>=1.70,<3
 pytest>=8,<10
+
+python-dotenv>=1.0,<2

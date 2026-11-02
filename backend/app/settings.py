@@ -3,6 +3,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Make backend/.env work with uvicorn, CLI and the Windows launcher.
+# Existing shell variables always take precedence.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+
 
 DATA_DIR = Path(os.getenv("PLANEXUS_DATA_DIR", Path(__file__).resolve().parents[1] / "data"))
 CORS_ORIGINS = [value.strip() for value in os.getenv("PLANEXUS_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if value.strip()]
