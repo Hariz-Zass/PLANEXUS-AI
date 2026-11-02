@@ -379,3 +379,115 @@ def test_house_types_other_than_terrace_are_not_mislabeled_as_perak_pr1():
     checks=evaluate_policy(profile)["checks"]
     assert all("PR2" in item["source_page"] for item in checks if item["role"]=="primary_state_reference")
     assert not any("PR1" in item["source_page"] for item in checks if item["role"]=="primary_state_reference")
+
+
+@pytest.mark.parametrize("category,storeys,front_ft,depth_ft",[
+    ("terrace_low_cost",1,20,55),
+    ("terrace_low_cost",2,14,55),
+    ("terrace_lower_middle",1,20,60),
+    ("terrace_lower_middle",2,18,55),
+    ("terrace_middle",1,20,65),
+    ("terrace_middle",2,18,65),
+    ("terrace_middle",3,18,65),
+])
+def test_printed_imperial_equivalents_never_fail_metre_rounding(category,storeys,front_ft,depth_ft):
+    """Published 20ft == 6.096m, while GP001-A prints a rounded 6.1m."""
+    p=ProposalInput.model_validate({
+        **BASE,"policy_profile":"national_2016","housing_category":category,
+        "storeys":storeys,"lot_width_m":round(front_ft*.3048,4),
+        "lot_depth_m":round(depth_ft*.3048,4),
+        "floor_area_m2":150,
+    })
+    assessment=evaluate_policy(p)
+    dimensions={c["key"]:c for c in assessment["checks"] if c["key"].startswith("min_lot_")}
+    assert dimensions["min_lot_frontage"]["result"]=="meets_number"
+    assert dimensions["min_lot_depth"]["result"]=="meets_number"
+    assert dimensions["min_lot_frontage"]["published_equivalent_ft"]==front_ft
+    assert dimensions["min_lot_depth"]["published_equivalent_ft"]==depth_ft
+    assert assessment["status"]=="numeric_reference_only"
+    p_below=ProposalInput.model_validate({
+        **p.model_dump(),"lot_width_m":round((front_ft-.2)*.3048,4)
+    })
+    assert any(c["key"]=="min_lot_frontage" and c["result"]=="below_min"
+               for c in evaluate_policy(p_below)["checks"])
+
+
+def test_mid_terrace_20_by_70_real_project_size_is_not_gp001a_minimum():
+    cat=catalog()
+    examples={p["id"]:p for p in cat["terrace_design_presets"]}
+    assert set(examples)=={"low","mid","high"}
+    middle=examples["mid"]
+    assert middle["category"]=="terrace_middle"
+    assert middle["width_ft"]==20 and middle["depth_ft"]==70
+    assert middle["width_m"]==pytest.approx(6.096)
+    assert middle["depth_m"]==pytest.approx(21.336)
+    assert "hims.kpkt.gov.my" in middle["source_url"]
+    assert middle["basis"]=="observed_mid_cost_project_example_not_national_gpp_min"
+    p=ProposalInput.model_validate({
+        **BASE,"policy_profile":"national_2016",
+        "housing_category":middle["category"],"storeys":middle["storeys"],
+        "lot_width_m":middle["width_m"],"lot_depth_m":middle["depth_m"],
+        "floor_area_m2":150,
+    })
+    result=evaluate_policy(p)
+    checks={i["key"]:i for i in result["checks"]}
+    assert result["status"]=="numeric_reference_only"
+    assert checks["min_lot_frontage"]["value"]==6.1
+    assert checks["min_lot_depth"]["value"]==19.8
+    assert checks["min_lot_frontage"]["result"]=="meets_number"
+    assert checks["min_lot_depth"]["result"]=="meets_number"
+    calc=calculate_land_budget(p,site_area_ha=12)
+    assert calc["required_gross_area_ha"]==pytest.approx(6.50321,abs=1e-5)
+    assert calc["required_plot_area_ha"]==pytest.approx(3.90193,abs=1e-5)
+    assert "20 × 70" in answer_gpp_question(
+        "GPP rumah teres kos sederhana 1 tingkat 20 x 70"
+    )["response"]
+
+
+def test_high_terrace_premium_size_is_unverified_design_choice_not_national_min():
+    preset=next(p for p in catalog()["terrace_design_presets"] if p["id"]=="high")
+    assert preset["category"]=="terrace_high"
+    assert preset["width_ft"]==22 and preset["depth_ft"]==75
+    p=ProposalInput.model_validate({
+        **BASE,"policy_profile":"national_2016","housing_category":"terrace_high",
+        "storeys":2,"lot_width_m":preset["width_m"],
+        "lot_depth_m":preset["depth_m"],
+    })
+    evidence=evaluate_policy(p)
+    assert evidence["status"]=="insufficient_rule_coverage"
+    assert evidence["checks"]==[]
+    assert evidence["max_lot_width_m"] is None
+    assert evidence["max_lot_depth_m"] is None
+    assert any("NO high-cost" in w for w in evidence["warnings"])
+    answer=answer_gpp_question("GPP rumah teres high cost 2 tingkat?")
+    assert "tidak menetapkan had minimum" in answer["response"]
+    assert "22 × 75" in answer["response"]
+    assert "contoh" in answer["response"].lower()
+    assert len(answer["policy_sources"])==2
+    # Perak PR1 still applies by the actual state housing COST segment entered,
+    # not by silently mapping "premium" to "open market".
+    perak=ProposalInput.model_validate({
+        **p.model_dump(),"policy_profile":"perak_2023",
+        "perak_market_segment":"perak_open","floor_area_m2":100,
+        "bedrooms":3,"building_height_m":10,
+    })
+    state=evaluate_policy(perak)
+    assert any(x["key"]=="min_floor_area_perak" and x["result"]=="meets_number"
+               for x in state["checks"])
+    assert not any(x["key"]=="min_lot_frontage" for x in state["checks"])
+    assert state["status"]=="numeric_reference_only"
+
+
+def test_practical_low_mid_high_design_sizes_cannot_override_other_verified_categories():
+    examples=catalog()["terrace_design_presets"]
+    assert len(examples)==3
+    assert all(p["status"]=="design_starting_point_not_approval" for p in examples)
+    assert all(p["source_url"].startswith("https://") for p in examples)
+    audit={(r["category"],tuple(r["storeys"])):(r["min_width_m"],r["min_depth_m"])
+           for r in catalog()["national_lot_rules"]}
+    assert audit[("cluster",(1,))]==(12.2,15.2)
+    assert audit[("cluster",(2,3))]==(9.1,16.8)
+    assert audit[("semi_detached",(1,))]==(12.2,19.8)
+    assert audit[("detached",(1,))]==(15.2,22.9)
+    assert audit[("zero_lot",(1,))]==(13.7,21.3)
+    assert all(r["category"]!="terrace_high" for r in catalog()["national_lot_rules"])
