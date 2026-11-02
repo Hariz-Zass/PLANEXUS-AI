@@ -8,11 +8,13 @@ import {
   Globe2, Info, Layers3, LoaderCircle, Map as MapIcon, MapPin, Menu, Mountain,
   Plus, ScanSearch, Send, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X, Radar, Ruler, Crosshair, Orbit, ChevronRight, WandSparkles, CircleDot, MoveUpRight
 } from "lucide-react";
-import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport } from "@/lib/api";
+import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
+import ProjectWorkspace from "@/components/ProjectWorkspace";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
-type SidebarTab = "workspace" | "sources" | "history";
+type SidebarTab = "workspace" | "sources" | "history" | "projects";
+const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
 type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
 type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null };
 
@@ -103,6 +105,11 @@ export default function Home() {
   const [drawPoints, setDrawPoints] = useState(0);
   const [resetCounter, setResetCounter] = useState(0);
   const [geometry, setGeometry] = useState<FeatureGeometry | null>(null);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [activeProject, setActiveProject] = useState<ProjectDetail | null>(null);
+  const [projectBusy, setProjectBusy] = useState(false);
+  const [projectError, setProjectError] = useState("");
+  const projectRef = useRef<ProjectDetail | null>(null);
   const [saveState,setSaveState]=useState<"checking"|"saved"|"empty"|"error">("checking");
   const [savedAt,setSavedAt]=useState("");
   const [saveMessage,setSaveMessage]=useState("");
@@ -129,6 +136,24 @@ export default function Home() {
   const footprintDisplay = geometry ? formattedNumber(report?.metrics.site_area_ha ?? footprint?.areaHa, 3) : "—";
   const perimeterDisplay = geometry ? formattedNumber(footprint?.perimeterKm, 2) : "—";
 
+  const refreshProjectList = useCallback(async () => {
+    if (!API_BASE) return;
+    const result=await api<{projects:ProjectSummary[]}>("/api/projects");
+    setProjects(result.projects);
+  }, []);
+
+  const applyProject = useCallback((details:ProjectDetail, analysis:TerrainReport|null) => {
+    projectRef.current=details;setActiveProject(details);
+    setGeometry(details.geometry);setReport(analysis);setChat([]);
+    setDrawing(false);setResetCounter(n=>n+1);
+    setSaveState(details.geometry?"saved":"empty");
+    setSavedAt(details.updated_at_utc);
+    setSaveMessage("");
+    window.localStorage.setItem(ACTIVE_PROJECT_KEY,details.id);
+    setStatus("Projek ""+details.name+"" dibuka. "+
+      (analysis?"Layer dan laporan analisis berjaya dipulihkan.":details.geometry?"Sempadan tapak dipulihkan daripada SQLite.":"Cipta atau import sempadan baharu."));
+  }, []);
+
   const refreshRecent = useCallback(async () => {
     try { const results = await api<{ analyses: SavedSummary[] }>("/api/analyses"); setRecent(results.analyses); }
     catch { /* backend may be offline; shown when the user requests analysis */ }
@@ -152,8 +177,38 @@ export default function Home() {
   }, []);
 
 
+  useEffect(() => {
+    if (!API_BASE) return;
+    let active=true;
+    const initialize=async()=>{
+      try {
+        const listing=await api<{projects:ProjectSummary[]}>("/api/projects");
+        if(!active)return;
+        setProjects(listing.projects);
+        const savedId=window.localStorage.getItem(ACTIVE_PROJECT_KEY);
+        if(!savedId)return;
+        if(!listing.projects.some(item=>item.id===savedId)){
+          window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+          return;
+        }
+        const detail=await api<ProjectDetail>("/api/projects/"+savedId);
+        let analysis:TerrainReport|null=null;
+        if(detail.active_analysis_id){
+          try { analysis=await api<TerrainReport>("/api/analyses/"+detail.active_analysis_id); }
+          catch { if(active)setProjectError("Laporan projek terakhir tiada dalam backend. Sempadan masih boleh dipulihkan."); }
+        }
+        if(active)applyProject(detail,analysis);
+      }catch(e){
+        if(active)setProjectError(e instanceof Error?e.message:"Project registry tidak boleh dibuka.");
+      }
+    };
+    void initialize();
+    return()=>{active=false;};
+  }, [applyProject]);
+
   useEffect(()=>{
     const restore=()=>{
+      if(projectRef.current)return;
       const r=readSavedSite();
       if(r.state==="found"){setGeometry(r.site.geometry);setSaveState("saved");setSavedAt(r.site.savedAt);setSaveMessage("");setReport(null);setChat([]);}
       else if(r.state==="empty"){setGeometry(null);setSaveState("empty");setSavedAt("");setSaveMessage("");setReport(null);setChat([]);}
@@ -164,6 +219,75 @@ export default function Home() {
     window.addEventListener("storage",onStorage);
     return()=>window.removeEventListener("storage",onStorage);
   },[]);
+  async function openProject(id:string){
+    if(projectBusy||pending)return;
+    setProjectBusy(true);setProjectError("");setError("");
+    try{
+      const detail=await api<ProjectDetail>("/api/projects/"+encodeURIComponent(id));
+      let analysis:TerrainReport|null=null;
+      if(detail.active_analysis_id){
+        try{analysis=await api<TerrainReport>("/api/analyses/"+detail.active_analysis_id);}
+        catch{setProjectError("Hasil analisis untuk projek ini tiada dalam storan. Boundary masih dipulihkan.");}
+      }
+      applyProject(detail,analysis);
+      setTab("workspace");setMobileNav(false);
+      await refreshProjectList();
+    }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat membuka projek.");throw e;}
+    finally{setProjectBusy(false);}
+  }
+
+  async function createProject(name:string,description:string,useCurrentBoundary:boolean){
+    if(projectBusy||pending)throw Error("Workspace sedang digunakan.");
+    setProjectBusy(true);setProjectError("");setError("");
+    try{
+      const detail=await api<ProjectDetail>("/api/projects",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name,description,geometry:useCurrentBoundary?geometry:null})
+      });
+      applyProject(detail,null);
+      setTab("workspace");setMobileNav(false);
+      await refreshProjectList();
+    }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat mencipta projek.");throw e;}
+    finally{setProjectBusy(false);}
+  }
+
+  async function renameProject(id:string,name:string){
+    if(projectBusy||pending)throw Error("Workspace sedang digunakan.");
+    setProjectBusy(true);setProjectError("");
+    try{
+      const current=projects.find(item=>item.id===id);
+      if(!current)throw Error("Projek tidak ditemui dalam senarai.");
+      const detail=await api<ProjectDetail>("/api/projects/"+encodeURIComponent(id),{
+        method:"PATCH",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({expected_revision:current.revision,name})
+      });
+      if(projectRef.current?.id===id){projectRef.current=detail;setActiveProject(detail);}
+      await refreshProjectList();
+    }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat tukar nama projek.");throw e;}
+    finally{setProjectBusy(false);}
+  }
+
+  async function deleteProject(id:string){
+    if(projectBusy||pending)return;
+    const target=projects.find(item=>item.id===id);
+    if(!target)return;
+    if(!window.confirm("Padam rekod projek '"+target.name+"' daripada database tempatan? Laporan/raster lama masih disimpan di folder backend."))return;
+    setProjectBusy(true);setProjectError("");
+    try{
+      await api<void>("/api/projects/"+encodeURIComponent(id),{method:"DELETE"});
+      if(projectRef.current?.id===id){
+        projectRef.current=null;setActiveProject(null);
+        window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+        removeSavedSite();
+        setGeometry(null);setReport(null);setChat([]);setSaveState("empty");setSavedAt("");
+        setResetCounter(n=>n+1);
+        setStatus("Rekod projek dipadam. Fail analisis asal tidak dipadam.");
+      }
+      await refreshProjectList();
+    }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat memadam projek.");}
+    finally{setProjectBusy(false);}
+  }
+
   const activateSite=useCallback((input:FeatureGeometry,origin:SiteOrigin)=>{
     const valid=validateSiteBoundary(input);
     const r=saveSiteBoundary(valid,origin);
