@@ -264,3 +264,27 @@ def test_versioned_gpp_scenario_require_explicit_recheck_when_registry_changes(m
     assert not updated["policy_review_needed"]
     assert updated["policy_registry_version_at_save"]=="future-policy-digest-v2"
     assert updated["revision"]==2
+
+
+def test_perak_layout_references_are_source_attributed_but_not_automatically_compliance_checked():
+    registry=catalog()
+    rules={item["id"]:item for item in registry["perak_layout_references"]}
+    assert rules["service_road_width"]["value_ft"]==50
+    assert rules["service_road_width"]["value_type"]=="minimum"
+    assert rules["front_setback_low_cost"]["value_ft"]==15
+    assert rules["front_setback_other"]["value_ft"]==20
+    assert rules["terrace_block_length"]["value_ft"]==320
+    assert rules["rear_lane_width"]["value_ft"]==15
+    assert rules["firebreak_side_lane"]["value_ft"]==20
+    assert rules["cul_de_sac_max_other"]["value_type"]=="maximum"
+    assert rules["cul_de_sac_max_other"]["value_ft"]==320
+    for rule in rules.values():
+        assert rule["automated_geometry_check"] is False
+        assert rule["source_page"]=="PR1, halaman bercetak 5"
+        assert rule["source_url"].startswith("https://lphp.gov.my/")
+        assert rule["value_m"]==pytest.approx(round(rule["value_ft"]*.3048,4))
+    question=answer_gpp_question("GPP Perak berapa lebar jalan perkhidmatan dan anjakan hadapan?")
+    assert "minimum 50 kaki" in question["response"]
+    assert "15 kaki" in question["response"]
+    assert "belum dinilai" in question["response"]
+    assert question["policy_sources"][0]["url"]==PERAK_SOURCE["url"]
