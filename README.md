@@ -153,3 +153,29 @@ Source code license not yet selected. Third-party datasets retain **their own pr
 - Tests include offline miniature public-COG stand-in GeoTIFFs and synthetic slope/elevation fixtures. A green test certifies local algorithm/integration behavior under fixtures, **not** live public AWS availability or survey-level validation.
 - On a laptop, start both servers using START-PLANEXUS.bat (Python 3.11/3.12, Node 22+) and define a WGS84 polygon. Click Get DEM & Run Analysis; wait for publicly available DEM cells. The site must contain at least 9 valid slope pixels, so tiny sites may require a higher-resolution uploaded DEM. If public GLO-30 cannot be retrieved, the 90 m fallback may also be too coarse.
 - Cloud Vercel remains on the earlier frontend-only deployment until requested. The GitHub repository is the authoritative next test version. The Python GIS API requires a separate deployment/persistent storage architecture for actual hosted analysis. Never expose a GIS upload endpoint anonymously on the public internet.
+
+---
+
+## PLANEXUS Copilot V2.4 - GIS-grounded assistance (GitHub-only)
+
+The Copilot has two distinct modes:
+
+- **Before analysis:** truthful operational/workflow guidance, with no claimed site-specific slope, zoning, flood risk or housing yield.
+- **After a saved GIS report:** focused responses to slope, elevation and preliminary housing questions grounded in the measured analysis. Every API response returns a separate machine-readable evidence object with the analysis ID, dataset type, source, coverage, resolution and measurements.
+- **Without an OpenAI key:** deterministic question-aware GIS interpretations. This is NOT generative AI.
+- **With a valid OpenAI key:** optional model-generated planning interpretation based on compact GIS evidence, with graceful fallback on provider errors. The presence of a key does not prove the model is connected; human verification is mandatory.
+- **Without official RT/RSN/RFN/RKK/GPP, hydrology, soil and layout data:** the Copilot must not infer statutory zoning, approved density, flood safety, a permissible unit count or development approval. These topics receive scope-limited answers even when a model key is set.
+
+### Windows local setup
+
+1. Start both servers with START-PLANEXUS.bat or use the manual backend/frontend commands above.
+2. Inspect GIS health at http://localhost:8000/api/health and capabilities at http://localhost:8000/api/copilot/capabilities.
+3. You can ask about workflow before DEM analysis with no API key. A completed analysis unlocks GIS-specific measured questions.
+4. For optional generative AI, copy backend/.env.example to backend/.env, add an authorized OPENAI_API_KEY and compatible OPENAI_MODEL, then restart the Python server. Never place secrets in Next.js or GitHub.
+5. Confirm source, vertical-unit assumption, approximate coverage, data resolution and slope statistics against the saved report. For planning reports, compare results with an independent GIS workflow and official survey data.
+
+### Tests and limitations
+
+Automated GitHub Actions run Python terrain tests, API/Copilot safety tests, Next.js build checks, Chromium site persistence and Copilot UI checks. A separate live S3 diagnostic uses public Copernicus GLO-30 raster cells to test actual tile retrieval; this is a connectivity and calculation smoke test, not a field-survey or QGIS accuracy certificate.
+
+Deployment is intentionally unchanged. The older Vercel site is a frontend preview and will not receive these commits until explicitly requested. GIS/Copilot features require a running Python backend; a public deployment would additionally need authorization, resource limits and persistent object storage.
