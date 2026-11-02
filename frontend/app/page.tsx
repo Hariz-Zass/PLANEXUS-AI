@@ -203,7 +203,7 @@ export default function Home() {
           try { analysis=await api<TerrainReport>("/api/analyses/"+detail.active_analysis_id); }
           catch { if(active)setProjectError("Laporan projek terakhir tiada dalam backend. Sempadan masih boleh dipulihkan."); }
         }
-        if(active){applyProject(detail,analysis);setTab("workspace");}
+        if(active){applyProject(detail,analysis);setTab(current=>current==="projects"?"workspace":current);}
       }catch(e){
         if(active)setProjectError(e instanceof Error?e.message:"Project registry tidak boleh dibuka.");
       }
