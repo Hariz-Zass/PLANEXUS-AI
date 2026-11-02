@@ -5,6 +5,7 @@ import "./v2.css";
 import "./site-persistence.css";
 import "./workspace-projects.css";
 import "./suitability.css";
+import "./proposal-studio.css";
 
 export const metadata: Metadata = {
   title: "PLANEXUS AI | Geospatial Planning Copilot",
