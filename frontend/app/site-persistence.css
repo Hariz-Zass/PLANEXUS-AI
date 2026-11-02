@@ -53,3 +53,5 @@
 .shell-v2 .copilot-evidence-line{display:flex;align-items:flex-start;gap:7px;padding:10px 12px;margin-top:10px;border:1px solid #416b52;background:#1c3931;border-radius:8px;color:#c5efb8;font-size:10px;line-height:1.65}
 .shell-v2 .copilot-evidence-line svg{flex:none;margin-top:1px}
 .shell-v2 .system-indicator.system-online i{background:#b4f77d;box-shadow:0 0 0 4px #b4f77d20}
+
+.shell-v2 .terrain-legend-note{display:block;color:#93b2a9;font-size:10px;margin-top:8px;line-height:1.5}
