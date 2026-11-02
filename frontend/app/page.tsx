@@ -11,10 +11,11 @@ import {
 import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import SuitabilityPanel from "@/components/SuitabilityPanel";
+import ProposalStudio from "@/components/ProposalStudio";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
-type SidebarTab = "workspace" | "sources" | "history" | "projects";
+type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals";
 const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
 type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
 type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null };
@@ -486,12 +487,13 @@ export default function Home() {
       <div className="layout">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="sidebar-inner-title"><span className="sidebar-studio-icon"><NexusMark size={18}/></span><div><strong>Planner Studio</strong><small>GEOSPATIAL WORKSPACE</small></div></div>
-          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 04</span></div>
+          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 05</span></div>
           <nav className="nav-list" aria-label="Modul PLANEXUS">
             <button className={"nav-item "+(tab === "workspace" ? "selected" : "")} onClick={() => { setTab("workspace"); setMobileNav(false); }}><span className="nav-index">01</span><Mountain size={18}/><span>Terrain Intelligence</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "sources" ? "selected" : "")} onClick={() => { setTab("sources"); setMobileNav(false); }}><span className="nav-index">02</span><Database size={18}/><span>Data Registry</span></button>
             <button className={"nav-item "+(tab === "history" ? "selected" : "")} onClick={() => { setTab("history"); setMobileNav(false); }}><span className="nav-index">03</span><FolderOpen size={18}/><span>Saved Analyses</span>{displayedAnalyses.length > 0 && <span className="nav-count">{displayedAnalyses.length}</span>}</button>
             <button className={"nav-item "+(tab === "projects" ? "selected" : "")} onClick={() => { setTab("projects"); setMobileNav(false); }}><span className="nav-index">04</span><Database size={18}/><span>Project Workspace</span>{projects.length > 0 && <span className="nav-count">{projects.length}</span>}</button>
+            <button className={"nav-item "+(tab === "proposals" ? "selected" : "")} onClick={() => { setTab("proposals"); setMobileNav(false); }}><span className="nav-index">05</span><BarChart3 size={18}/><span>Development Studio</span><span className="nav-on-dot"/></button>
           </nav>
           <div className="sidebar-section-title secondary-title">FUTURE INTELLIGENCE <span>ROADMAP</span></div>
           <div className="nav-list locked-modules">
@@ -502,7 +504,7 @@ export default function Home() {
           <div className="sidebar-rule-graphic" aria-hidden="true"><span>PX</span><i/><i/><i/></div>
           <div className="sidebar-bottom">
             <div className="sidebar-principle"><ShieldCheck size={18} /><div><strong>Evidence-first analysis</strong><span>No verified data, no unsupported conclusion.</span></div></div>
-            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.4.0 LOCAL</span></div>
+            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.5.0 LOCAL</span></div>
           </div>
         </aside>
 
@@ -652,6 +654,7 @@ export default function Home() {
               </aside>
             </div>
           </>}
+          {tab === "proposals" && <ProposalStudio key={activeProject?.id??"no-project"} project={activeProject} backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}/>}
           {tab === "projects" && <ProjectWorkspace projects={projects} activeId={activeProject?.id??null}
             geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
             onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/>}
