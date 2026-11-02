@@ -304,3 +304,11 @@ If a project boundary or active DEM analysis is changed, the scenario becomes **
 6. Save a second scenario and compare arithmetic land demand; test each project's isolation and back up your SQLite workspace before migrating machines.
 
 **No Vercel redeployment** has been triggered. The previous public frontend remains unchanged. Module 3 (full option comparison / spatial layout suitability) and Module 4 (AI planning recommendation with verified policy inputs) are future work.
+
+### Phase 5 GPP Knowledge Registry - evidence-linked planning guideline checks
+
+The **GPP Knowledge Registry** now lists indexed versus catalog-only official PLANMalaysia sources. In Development Studio choose National GP001-A (2016) or Perak Housing (2023), specify house type and storeys, optionally input Perak price category/floor space/bedrooms/height, and press **Semak GPP**. Checks have source URLs and printed pages. You can copy a national minimum lot dimension into your input with **Use reference dimensions**, but this does not mean the PBT approves that lot or the whole development.
+
+The first numerical edition includes selected national housing minima (GP001-A Jadual 2) and state-level Perak PR1 floor/storey requirements; commercial, parking, community facilities and hillside GPP are listed as **catalog only** until independently validated. Maximum house lot dimensions are left **unknown** when not expressly stated. Saved scenarios record a GPP registry version and require manual review when that version changes.
+
+**Full coverage and editorial rules:** [docs/GPP_COVERAGE.md](docs/GPP_COVERAGE.md). No external GPP PDF is republished into this repository; only small sourced numerical checks and official links are stored.
