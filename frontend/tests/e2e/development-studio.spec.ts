@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import type { ProjectDetail, ProposalInputs, SavedProposal, ProposalCalculation } from "../../lib/api";
+import type { ProjectDetail, ProposalInputs, SavedProposal, ProposalCalculation, PolicyCatalog, PolicyAssessment } from "../../lib/api";
 
 const PROJECT_ID="11111111-1111-4111-8111-000000000001";
 const SITE={type:"Polygon" as const,coordinates:[[[101.07,4.66],[101.08,4.66],[101.08,4.67],[101.07,4.67],[101.07,4.66]]]};
@@ -40,6 +40,66 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
       not_approval:true
     };
   }
+  const policyCatalog:PolicyCatalog={
+    registry_version:"2026-11-02-gpp-housing-v1",
+    sources:[
+      {id:"gp001a_2016",title:"GP001-A National Housing 2016",year:2016,issuer:"PLANMalaysia",
+        jurisdiction:"Malaysia reference",url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
+        evidence:"Jadual 2 p44-45",scope:"Reference only",status:"curated_rules"},
+      {id:"perak_housing_2023",title:"Perak Housing Guidelines 2023",year:2023,issuer:"PLANMalaysia Perak",
+        jurisdiction:"Perak",url:"https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023",
+        evidence:"PR1 p5",scope:"State reference only",status:"curated_rules"},
+      {id:"parking_gp011a",title:"Parking GPP",year:null,issuer:"PLANMalaysia",jurisdiction:"Verify PBT",
+        url:"https://www.planmalaysia.gov.my/main/garis-panduan-perancangan",
+        evidence:"Official index only",scope:"Not indexed",status:"catalog_only"}
+    ],
+    profiles:[{id:"none",label:"Choose",details:"Unselected"},
+      {id:"national_2016",label:"National",details:"Reference"},
+      {id:"perak_2023",label:"Perak",details:"State"}],
+    housing_categories:[{id:"terrace_middle",label:"Rumah teres kos sederhana",development_type:"terrace_housing"}],
+    national_lot_rules:[{category:"terrace_middle",storeys:[2,3],label:"Rumah teres kos sederhana, 2-3 tingkat",
+      min_width_m:5.5,min_depth_m:19.8,min_floor_area_m2:null,page:44,source_id:"gp001a_2016",
+      url:"https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf",
+      max_width_m:null,max_depth_m:null}],
+    perak_floor_min_sqft:{perak_affordable:1000},
+    perak_market_segments:[{id:"perak_affordable",label:"Mampu milik"}],
+    not_indexed:["parking_gp011a"],
+    disclaimer:"Only two housing rule sources are indexed; NOT all indexed."
+  };
+  function assessPolicy(inputs:ProposalInputs):PolicyAssessment{
+    const profile=inputs.policy_profile??"none";
+    const perak=profile==="perak_2023";
+    const width=inputs.lot_width_m;
+    const source=policyCatalog.sources[perak?1:0];
+    const checks:PolicyAssessment["checks"]=[];
+    if(profile!=="none"){
+      checks.push({
+        key:"min_lot_frontage",title:"Lebar hadapan lot minimum",type:"min",value:5.5,observed:width,
+        unit:"m",result:width<5.5?"below_min":"meets_number",
+        source_id:"gp001a_2016",source_title:policyCatalog.sources[0].title,
+        source_url:policyCatalog.sources[0].url,source_page:"Jadual 2, muka surat bercetak 44",
+        role:perak?"supplementary_national_reference":"primary_reference",binding:false
+      });
+    }
+    if(perak){
+      checks.push({
+        key:"min_floor_area_perak",title:"Luas ruang lantai minimum",type:"min",value:92.903,
+        observed:inputs.floor_area_m2??null,unit:"m²",
+        result:inputs.floor_area_m2==null?"not_supplied":inputs.floor_area_m2<92.903?"below_min":"meets_number",
+        source_id:source.id,source_title:source.title,source_url:source.url,source_page:"PR1, halaman bercetak 5; 1000 kps",
+        role:"primary_state_reference",binding:false
+      });
+    }
+    return {
+      registry_version:policyCatalog.registry_version,profile_id:profile,
+      profile_label:perak?"Perak 2023":"National GP001-A",
+      status:perak&&inputs.floor_area_m2!=null&&inputs.floor_area_m2<92.903?"outside_numeric_reference":
+        !perak&&width<5.5?"outside_numeric_reference":"more_inputs_needed",
+      checks,reference_only:true,warnings:["Test fixtures; no approval"],
+      max_lot_width_m:null,max_lot_depth_m:null,
+      message:"Minimum reference sizes only; no statutory maximum lot dimensions entered."
+    };
+  }
   await page.addInitScript(id=>localStorage.setItem("planexus:active-project:v1",id),PROJECT_ID);
   await page.route("http://localhost:8000/api/**",async route=>{
     const request=route.request();
@@ -48,6 +108,10 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     const respond=async(status:number,data:unknown)=>route.fulfill({status,headers:cors,json:data});
     if(method==="OPTIONS"){await route.fulfill({status:204,headers:cors});return;}
     if(path==="/api/health"){await respond(200,{status:"ok"});return;}
+    if(path==="/api/policy/catalog"&&method==="GET"){await respond(200,policyCatalog);return;}
+    if(path==="/api/policy/assess"&&method==="POST"){
+      await respond(200,assessPolicy(request.postDataJSON() as ProposalInputs));return;
+    }
     if(path==="/api/copilot/capabilities"){await respond(200,{generative_ai_configured:false});return;}
     if(path==="/api/analyses"){await respond(200,{analyses:[]});return;}
     if(path==="/api/projects"&&method==="GET"){await respond(200,{projects:[project]});return;}
@@ -126,4 +190,32 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   await form.getByRole("spinbutton",{name:/Roads and access/}).fill("70");
   await expect(page.locator(".proposal-validation")).toContainText("less than 85%");
   await expect(form.getByRole("button",{name:/Update scenario/})).toBeDisabled();
+
+  // The curated official GPP catalog exposes a national reference with page provenance.
+  await form.getByRole("spinbutton",{name:/Roads and access/}).fill("20");
+  await form.getByRole("combobox",{name:"GPP jurisdiction"}).selectOption("national_2016");
+  await form.getByRole("combobox",{name:"GPP house category"}).selectOption("terrace_middle");
+  await form.getByRole("combobox",{name:"GPP number of storeys"}).selectOption("2");
+  await expect(page.locator(".gpp-suggestion")).toContainText("5.5 × 19.8");
+  await page.locator(".gpp-suggestion").getByRole("button",{name:"Use reference dimensions"}).click();
+  await expect(form.getByRole("spinbutton",{name:/Lot frontage/})).toHaveValue("5.5");
+  await form.getByRole("spinbutton",{name:/Lot frontage/}).fill("5.2");
+  await page.locator(".gpp-action").getByRole("button",{name:/Semak GPP/}).click();
+  await expect(page.locator(".gpp-results")).toContainText("BELOW / ABOVE NUMERIC LIMIT");
+  await expect(page.locator(".gpp-results")).toContainText("Jadual 2");
+  await expect(page.locator(".gpp-results a").first()).toHaveAttribute("href",/planmalaysia.gov.my/);
+
+  // Perak state rule: 1,000 sq ft floor area for the selected cost segment,
+  // independent of national supplementary lot-frontage dimensions.
+  await form.getByRole("combobox",{name:"GPP jurisdiction"}).selectOption("perak_2023");
+  await form.getByRole("combobox",{name:"Perak housing segment"}).selectOption("perak_affordable");
+  await form.getByRole("spinbutton",{name:"GPP proposed floor area"}).fill("90");
+  await page.locator(".gpp-action").getByRole("button",{name:/Semak GPP/}).click();
+  await expect(page.locator(".gpp-results")).toContainText("Luas ruang lantai minimum");
+  await expect(page.locator(".gpp-results")).toContainText("Outside range");
+
+  await page.getByRole("button",{name:/GPP Knowledge Registry/}).click();
+  await expect(page.getByRole("heading",{name:/GPP Knowledge Registry/})).toBeVisible();
+  await expect(page.locator(".gpp-library-source")).toHaveCount(3);
+  await expect(page.locator(".gpp-library-source").filter({hasText:"Parking GPP"})).toContainText("SOURCE ONLY");
 });
