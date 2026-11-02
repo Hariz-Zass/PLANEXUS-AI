@@ -120,7 +120,7 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       onSiteDrawnRef.current({ type: "Polygon", coordinates: [[...unique, unique[0]]] });
     });
     const observer = typeof ResizeObserver !== "undefined" && root.current
-      ? new ResizeObserver(() => { if (!instance._removed) instance.resize(); })
+      ? new ResizeObserver(() => { if (map.current === instance) instance.resize(); })
       : null;
     if (root.current) observer?.observe(root.current);
     return () => { observer?.disconnect(); syncMapLayers.current = null; instance.remove(); map.current = null; };
