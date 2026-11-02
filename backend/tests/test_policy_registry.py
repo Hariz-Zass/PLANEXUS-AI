@@ -186,3 +186,81 @@ def test_impossible_profile_housing_category_inputs_rejected():
         ProposalInput.model_validate({**BASE,"storeys":0,"policy_profile":"perak_2023"})
     with pytest.raises(ValidationError):
         ProposalInput.model_validate({**BASE,"floor_area_m2":float("nan")})
+
+
+def test_copilot_does_not_apply_residential_sizes_to_shoplots_or_unindexed_gpp():
+    client=TestClient(main.app)
+    shop=client.post("/api/copilot/assess",json={"question":"GPP saiz lot rumah kedai berapa?"})
+    assert shop.status_code==200,shop.text
+    data=shop.json()
+    assert data["mode"]=="verified_policy_registry_summary"
+    assert "belum mengesahkan" in data["response"]
+    assert "saiz lot minimum atau maksimum" in data["response"]
+    assert "5.5 x 19.8 m" not in data["response"]
+    assert "Perdagangan" in data["policy_sources"][0]["title"]
+    parking=client.post("/api/copilot/assess",json={"question":"GPP parking berapa nisbah petak?"})
+    assert parking.status_code==200
+    assert "belum mengesahkan" in parking.json()["response"].lower()
+    assert "source" not in parking.json().get("mode","")
+    assert "letak kenderaan" in parking.json()["policy_sources"][0]["title"].lower()
+
+
+def test_existing_project_database_migrates_policy_column_without_erasing_saved_proposals(tmp_path):
+    import sqlite3
+    from app.project_store import create_project
+    from app.proposal_store import create_proposal, list_proposals
+
+    polygon={"type":"Polygon","coordinates":[
+        [[101.07,4.66],[101.08,4.66],[101.08,4.67],[101.07,4.67],[101.07,4.66]]
+    ]}
+    project=create_project(tmp_path,"Local policy migration test",geometry=polygon)
+    saved=create_proposal(tmp_path,project["id"],ProposalInput.model_validate({
+        **BASE,"policy_profile":"national_2016","housing_category":"terrace_middle",
+        "storeys":2
+    }))
+    db_file=tmp_path/"planexus-workspace.sqlite3"
+    with sqlite3.connect(db_file) as db:
+        # Emulate a pre-GPP v0.5 database; keep the actual existing scenario.
+        db.execute("ALTER TABLE project_proposals DROP COLUMN policy_registry_version_at_save")
+        assert "policy_registry_version_at_save" not in {
+            row[1] for row in db.execute("PRAGMA table_info(project_proposals)")
+        }
+    after=list_proposals(tmp_path,project["id"])["proposals"]
+    assert len(after)==1
+    assert after[0]["id"]==saved["id"]
+    assert after[0]["inputs"]["name"]==BASE["name"]
+    assert after[0]["policy_review_needed"] is True
+    assert after[0]["result"]["policy_assessment"]["checks"]==[]
+    assert after[0]["result"]["policy_assessment"]["status"]=="registry_version_changed_review"
+    with sqlite3.connect(db_file) as db:
+        assert "policy_registry_version_at_save" in {
+            row[1] for row in db.execute("PRAGMA table_info(project_proposals)")
+        }
+
+
+def test_versioned_gpp_scenario_require_explicit_recheck_when_registry_changes(monkeypatch,tmp_path):
+    from app.project_store import create_project
+    import app.proposal_store as store
+
+    polygon={"type":"Polygon","coordinates":[
+        [[101.07,4.66],[101.08,4.66],[101.08,4.67],[101.07,4.67],[101.07,4.66]]
+    ]}
+    project=create_project(tmp_path,"GPP registry version test",geometry=polygon)
+    p=ProposalInput.model_validate({
+        **BASE,"policy_profile":"national_2016",
+        "housing_category":"terrace_middle","storeys":2,
+    })
+    saved=store.create_proposal(tmp_path,project["id"],p)
+    assert saved["policy_registry_version_at_save"]==REGISTRY_VERSION
+    assert not saved["policy_review_needed"]
+    assert len(saved["result"]["policy_assessment"]["checks"])>=2
+    monkeypatch.setattr(store,"REGISTRY_VERSION","future-policy-digest-v2")
+    old=store.list_proposals(tmp_path,project["id"])["proposals"][0]
+    assert old["policy_review_needed"] is True
+    assert old["result"]["policy_assessment"]["status"]=="registry_version_changed_review"
+    assert old["result"]["policy_assessment"]["checks"]==[]
+    updated=store.update_proposal(tmp_path,project["id"],saved["id"],p,
+                                  expected_revision=saved["revision"])
+    assert not updated["policy_review_needed"]
+    assert updated["policy_registry_version_at_save"]=="future-policy-digest-v2"
+    assert updated["revision"]==2
