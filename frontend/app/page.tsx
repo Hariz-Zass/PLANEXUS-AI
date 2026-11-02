@@ -135,6 +135,7 @@ export default function Home() {
   const footprint = useMemo(() => geometry ? getFootprint(geometry) : null, [geometry]);
   const footprintDisplay = geometry ? formattedNumber(report?.metrics.site_area_ha ?? footprint?.areaHa, 3) : "—";
   const perimeterDisplay = geometry ? formattedNumber(footprint?.perimeterKm, 2) : "—";
+  const displayedAnalyses = activeProject ? activeProject.analyses : recent;
 
   const refreshProjectList = useCallback(async () => {
     if (!API_BASE) return;
@@ -482,11 +483,12 @@ export default function Home() {
       <div className="layout">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="sidebar-inner-title"><span className="sidebar-studio-icon"><NexusMark size={18}/></span><div><strong>Planner Studio</strong><small>GEOSPATIAL WORKSPACE</small></div></div>
-          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 03</span></div>
+          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 04</span></div>
           <nav className="nav-list" aria-label="Modul PLANEXUS">
             <button className={"nav-item "+(tab === "workspace" ? "selected" : "")} onClick={() => { setTab("workspace"); setMobileNav(false); }}><span className="nav-index">01</span><Mountain size={18}/><span>Terrain Intelligence</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "sources" ? "selected" : "")} onClick={() => { setTab("sources"); setMobileNav(false); }}><span className="nav-index">02</span><Database size={18}/><span>Data Registry</span></button>
-            <button className={"nav-item "+(tab === "history" ? "selected" : "")} onClick={() => { setTab("history"); setMobileNav(false); }}><span className="nav-index">03</span><FolderOpen size={18}/><span>Saved Analyses</span>{recent.length > 0 && <span className="nav-count">{recent.length}</span>}</button>
+            <button className={"nav-item "+(tab === "history" ? "selected" : "")} onClick={() => { setTab("history"); setMobileNav(false); }}><span className="nav-index">03</span><FolderOpen size={18}/><span>Saved Analyses</span>{displayedAnalyses.length > 0 && <span className="nav-count">{displayedAnalyses.length}</span>}</button>
+            <button className={"nav-item "+(tab === "projects" ? "selected" : "")} onClick={() => { setTab("projects"); setMobileNav(false); }}><span className="nav-index">04</span><Database size={18}/><span>Project Workspace</span>{projects.length > 0 && <span className="nav-count">{projects.length}</span>}</button>
           </nav>
           <div className="sidebar-section-title secondary-title">FUTURE INTELLIGENCE <span>ROADMAP</span></div>
           <div className="nav-list locked-modules">
@@ -497,7 +499,7 @@ export default function Home() {
           <div className="sidebar-rule-graphic" aria-hidden="true"><span>PX</span><i/><i/><i/></div>
           <div className="sidebar-bottom">
             <div className="sidebar-principle"><ShieldCheck size={18} /><div><strong>Evidence-first analysis</strong><span>No verified data, no unsupported conclusion.</span></div></div>
-            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.1.0</span></div>
+            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.4.0 LOCAL</span></div>
           </div>
         </aside>
 
@@ -510,12 +512,24 @@ export default function Home() {
                 <p>The terrain tells a story. <span>Understand the site, question the evidence, plan with clarity.</span></p>
               </div>
               <div className="head-actions">
-                <button className="btn btn-subtle" onClick={() => geojsonInput.current?.click()}><UploadCloud size={16}/> Import GeoJSON</button>
-                <button className="btn btn-accent" onClick={startDraw}><Crosshair size={17}/> {geometry ? "Redraw site" : "Define site"} <ArrowRight size={15}/></button>
+                <button className="btn btn-subtle" disabled={projectBusy||pending!==null} onClick={() => geojsonInput.current?.click()}><UploadCloud size={16}/> Import GeoJSON</button>
+                <button className="btn btn-accent" disabled={projectBusy||pending!==null} onClick={startDraw}><Crosshair size={17}/> {geometry ? "Redraw site" : "Define site"} <ArrowRight size={15}/></button>
               </div>
             </div>
+            <div className="active-project-strip">
+              <span className="active-project-icon"><FolderOpen size={21}/></span>
+              <div className="active-project-text">
+                <small>ACTIVE PROJECT / LOCAL SQLITE</small>
+                <strong>{activeProject ? activeProject.name : "No project selected"}</strong>
+                <span>{activeProject ? projectBusy ? "Saving project..." : activeProject.has_site ? "Boundary stored · revision "+activeProject.revision : "Empty project · define a site" : "Browser-only site mode · create a project to keep analyses together"}</span>
+              </div>
+              <button className="btn btn-outline" onClick={()=>setTab("projects")} disabled={projectBusy||pending!==null}>
+                <Database size={15}/>{activeProject?"Manage projects":"Create project"}<ChevronRight size={15}/>
+              </button>
+            </div>
+            {projectError && <div className="project-error" role="alert">{projectError}</div>}
             <section className="site-ribbon" aria-label="Snapshot geospatial tapak">
-              <div className="ribbon-context"><span className="ribbon-context-icon"><Radar size={24}/></span><div><small>PROJECT TELEMETRY</small><strong>{geometry ? "Site 01 / Active boundary" : "Awaiting site definition"}</strong><span>{geometry ? "Saved on this device · WGS84" : "Start by drawing a real site polygon"}</span></div></div>
+              <div className="ribbon-context"><span className="ribbon-context-icon"><Radar size={24}/></span><div><small>PROJECT TELEMETRY</small><strong>{activeProject ? activeProject.name : geometry ? "Browser draft / Active boundary" : "Awaiting site definition"}</strong><span>{geometry ? activeProject ? "Project boundary · WGS84" : "Browser backup · WGS84" : "Start by drawing a real site polygon"}</span></div></div>
               <div className="ribbon-data featured"><small>01 / SITE AREA</small><div className="ribbon-value">{geometry && !report ? "≈ " : ""}{footprintDisplay}<em>ha</em></div><span>{report ? "GIS-calculated" : geometry ? "Spherical estimate · not surveyed" : "No boundary selected"}</span></div>
               <div className="ribbon-data"><small>02 / PERIMETER</small><div className="ribbon-value">{geometry ? "≈ " : ""}{perimeterDisplay}<em>km</em></div><span>{geometry ? "Spherical estimate" : "Awaiting geometry"}</span></div>
               <div className="ribbon-data"><small>03 / MEAN SLOPE</small><div className="ribbon-value">{report ? formattedNumber(report.metrics.slope_mean_deg, 1) : "—"}<em>°</em></div><span>{report ? "From valid DEM pixels" : "DEM analysis required"}</span></div>
@@ -544,7 +558,7 @@ export default function Home() {
                   <div className="site-preservation-bar">
 <div className={"save-indicator "+(saveState==="saved"?"save-indicator-ready":saveState==="error"?"save-indicator-error":"")}>
 <span className="save-indicator-mark">{saveState==="saved"?<CheckCircle2 size={17}/>:saveState==="error"?<CircleAlert size={17}/>:<ShieldCheck size={17}/>}</span>
-<div><strong>{saveState==="saved"?"SITE AUTOSAVED":saveState==="error"?"SITE NOT SAVED":saveState==="checking"?"CHECKING STORAGE":"NO SAVED SITE"}</strong><small>{saveState==="saved"&&savedAt?"Browser ini · "+shortDate(savedAt):saveState==="error"?"Export untuk backup":"Lukis atau import polygon"}</small></div></div>
+<div><strong>{saveState==="saved"?(activeProject?"PROJECT SAVED":"SITE AUTOSAVED"):saveState==="error"?"SITE NOT SAVED":saveState==="checking"?"SAVING / CHECKING":"NO SAVED SITE"}</strong><small>{saveState==="saved"&&savedAt?(activeProject?"SQLite backend · ":"Browser ini · ")+shortDate(savedAt):saveState==="error"?"Export GeoJSON for backup":"Draw/import a site boundary"}</small></div></div>
 <div className="site-preservation-actions"><button className="btn btn-outline site-action-button" disabled={!geometry} onClick={()=>geometry&&downloadSiteGeoJSON(geometry)}><ArrowDownToLine size={15}/> Export GeoJSON</button><button className="btn btn-outline site-action-button destructive" disabled={!geometry} onClick={clearSite}><Trash2 size={15}/> Clear site</button></div></div>
 {saveState==="error"&&<div className="save-warning" role="alert"><CircleAlert size={16}/>{saveMessage}</div>}
 <div className="map-bottom"><div><span className="legend-title">TERRAIN LEGEND <span>//</span> {terrainLayer === "slope" ? "INDICATIVE SLOPE CLASSES" : "ELEVATION BANDS"} {report ? "" : "· AWAITING ANALYSIS"}</span>{terrainLayer === "slope" ? <div className="legend-row"><span><i style={{ background: "#4cc9a3" }} />0–15°</span><span><i style={{ background: "#e5c46d" }} />15–25°</span><span><i style={{ background: "#eb8c64" }} />25–35°</span><span><i style={{ background: "#cb626f" }} />≥35°</span></div> : <div className="legend-row">{report?.metrics.elevation_legend?.length ? report.metrics.elevation_legend.map(band=><span key={band.class_id}><i style={{background:band.color}}/>{formattedNumber(band.min_m,0)}–{formattedNumber(band.max_m,0)} m</span>) : <span>No verified elevation classes yet</span>}</div>}{showContours && report?.metrics.contour_interval_m && <span className="terrain-legend-note">Contour preview at {report.metrics.contour_interval_m} m intervals · not surveyed</span>}</div><span className="map-credit"><ShieldCheck size={13}/> GIS screening only · Not planning approval</span></div>
@@ -571,7 +585,7 @@ export default function Home() {
                     <div className={`workflow-option ${geometry ? "available" : ""}`}>
                       <div className="workflow-option-head"><span className="option-icon"><CloudDownload size={19}/></span><div><h3>Automatic DEM Retrieval</h3><p>Copernicus GLO-30 · Public DSM · ~30 m</p></div></div>
                       <p className="option-detail">Ambil COG rasmi mengikut koordinat tapak, semak liputan dan kira kelas kecerunan. Untuk saringan awal sahaja.</p>
-                      <button className="btn btn-primary wide" disabled={!geometry || pending !== null} onClick={() => void analyzeAuto()}>{pending === "auto" ? <LoaderCircle size={17} className="spin" /> : <ArrowRight size={16} />} {pending === "auto" ? "Retrieving & analysing…" : "Get DEM & Run Analysis"}</button>
+                      <button className="btn btn-primary wide" disabled={!geometry || pending !== null || projectBusy} onClick={() => void analyzeAuto()}>{pending === "auto" ? <LoaderCircle size={17} className="spin" /> : <ArrowRight size={16} />} {pending === "auto" ? "Retrieving & analysing…" : "Get DEM & Run Analysis"}</button>
                     </div>
                     <div className="workflow-option">
                       <div className="workflow-option-head"><span className="option-icon secondary"><UploadCloud size={19}/></span><div><h3>Professional Raster Upload</h3><p>GeoTIFF DTM / DSM · Max 60 MB</p></div></div>
@@ -584,7 +598,7 @@ export default function Home() {
                     <div className="fields-row"><label>Dataset / provider<input placeholder="e.g. JUPEM site survey, 2025" value={sourceName} onChange={e => setSourceName(e.target.value)} /></label><label>Height model<select value={heightModel} onChange={e => setHeightModel(e.target.value)}><option value="DTM">DTM (bare-earth)</option><option value="DSM">DSM (surface)</option><option value="DEM-unknown">DEM (type unknown)</option></select></label></div>
                     <label className="full-label">Vertical datum (if known)<input placeholder="e.g. source documentation / unknown" value={datum} onChange={e => setDatum(e.target.value)}/></label>
                     <label className="checkbox-line"><input type="checkbox" checked={confirmedUnits} onChange={e => setConfirmedUnits(e.target.checked)} /> Saya sahkan nilai ketinggian raster dalam unit meter; ketepatan ukur perlu disemak secara berasingan.</label>
-                    <button className="btn btn-primary" disabled={!geometry || !demFile || !sourceName.trim() || !confirmedUnits || pending !== null} onClick={() => void analyzeUploaded()}>{pending === "upload" ? <LoaderCircle className="spin" size={16} /> : <Activity size={16}/>} Analyse Uploaded GeoTIFF</button>
+                    <button className="btn btn-primary" disabled={!geometry || !demFile || !sourceName.trim() || !confirmedUnits || pending !== null || projectBusy} onClick={() => void analyzeUploaded()}>{pending === "upload" ? <LoaderCircle className="spin" size={16} /> : <Activity size={16}/>} Analyse Uploaded GeoTIFF</button>
                   </div>}
                 </div>
                 {(status || error) && <div role="status" className={`inline-notice ${error ? "notice-error" : ""}`}>{error ? <CircleAlert size={16}/> : <CheckCircle2 size={16}/>}<span>{error || status}</span>{error && <button onClick={() => setError("")} aria-label="Tutup ralat"><X size={15}/></button>}</div>}
@@ -634,8 +648,11 @@ export default function Home() {
               </aside>
             </div>
           </>}
+          {tab === "projects" && <ProjectWorkspace projects={projects} activeId={activeProject?.id??null}
+            geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
+            onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/>}
           {tab === "sources" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> SOURCE TRANSPARENCY</div><h1>Data Source Registry <span className="h1-accent">.</span></h1><p>Setiap sumber mempunyai identiti, keupayaan dan had penggunaan. Tiada dataset geospatial yang direka oleh AI.</p><div className="info-panel"><div className="info-panel-head"><span className="info-icon"><Database size={22}/></span><div><strong>Copernicus DEM GLO-30 Public</strong><span>Primary automatic retrieval source · Public Cloud Optimized GeoTIFF</span></div><span className="registry-state">ACTIVE ADAPTER</span></div><div className="detail-table"><div><span>Publisher</span><strong>Copernicus Programme / ESA</strong></div><div><span>Approx. spatial resolution</span><strong>30 m</strong></div><div><span>Raster type</span><strong>DSM (buildings and vegetation included)</strong></div><div><span>Acquisition</span><strong>Direct public AWS COG tiles, no API key</strong></div><div><span>Primary purpose</span><strong>Preliminary terrain screening</strong></div></div><a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer" className="source-link">Official dataset documentation <ArrowRight size={16}/></a></div><div className="quality-panel"><CircleAlert size={19}/><div><strong>Important boundary</strong><p>Satellite-derived DSM is not equivalent to surveyed bare-earth DTM. Analysis outcomes do not certify zoning, flood safety, land title, slope stability or development approval. Public coverage may differ by country and tile availability.</p></div></div><div className="workflow-card"><h2>Additional data paths</h2><p>Users can upload GeoTIFF from authorized survey providers. PLANEXUS will inspect raster CRS and available cells but cannot independently authenticate the original survey or vertical datum without its documentation.</p></div></div>}
-          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / THIS BROWSER</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"?"Saved on this device":"Not backed up"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Hasil analisis disimpan pada direktori backend lokal. Untuk production, sambungkan persistent object storage dan authentication dahulu.</p><div className="history-list">{recent.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : recent.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
+          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / ACTIVE WORKSPACE</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"?"Saved on this device":"Not backed up"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Analisis aktif dipautkan kepada projek dipilih. Fail laporan/GeoTIFF berada pada storan backend lokal; cloud sync belum tersedia.</p><div className="history-list">{displayedAnalyses.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : displayedAnalyses.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
         </main>
       </div>
       <input ref={geojsonInput} hidden type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={event=>void loadGeoJson(event.target.files?.[0])} />
