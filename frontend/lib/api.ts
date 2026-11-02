@@ -110,6 +110,60 @@ export type ProjectDetail = ProjectSummary & {
   analyses: SavedSummary[];
 };
 
+export type ProposalInputs = {
+  name: string;
+  development_type: "terrace_housing" | "shoplots" | "other_landed";
+  units: number;
+  lot_width_m: number;
+  lot_depth_m: number;
+  roads_pct: number;
+  open_space_pct: number;
+  facilities_pct: number;
+  other_reserve_pct: number;
+};
+
+export type ProposalCalculation = {
+  method: string;
+  inputs: ProposalInputs;
+  site_area_ha: number;
+  lot_area_m2: number;
+  required_plot_area_ha: number;
+  reserve_total_pct: number;
+  net_plots_share_pct: number;
+  required_gross_area_ha: number;
+  allocations_ha: Record<string, number>;
+  gross_site_density_units_per_ha: number;
+  gross_site_area_margin_ha: number;
+  gross_site_area_check: "arithmetic_area_envelope" | "gross_area_shortfall";
+  screening_status: "no_active_analysis" | "no_suitability_layer" | "context_changed" | "invalid_suitability" | "quality_limited" | "indicative_cell_area_only";
+  analysis_id: string | null;
+  lower_constraint_cell_area_ha_est: number | null;
+  lower_constraint_area_margin_ha_est: number | null;
+  terrain_screening_cell_area_check: "cell_area_envelope_only" | "cell_area_shortfall" | null;
+  quality_warnings: string[];
+  conclusion: string;
+  not_approval: true;
+};
+
+export type SavedProposal = {
+  id: string;
+  project_id: string;
+  created_at_utc: string;
+  updated_at_utc: string;
+  revision: number;
+  analysis_id_at_save: string | null;
+  context_changed: boolean;
+  inputs: ProposalInputs;
+  result: ProposalCalculation;
+};
+
+export type ProposalList = {
+  project_id: string;
+  project_active_analysis_id: string | null;
+  proposals: SavedProposal[];
+  storage: string;
+};
+
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
