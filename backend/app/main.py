@@ -254,6 +254,29 @@ def download_report(analysis_id: str):
     m = report["metrics"]
     classification = "\n".join(f"| {c['name']} | {c['min_deg']}°–{str(c['max_deg']) + '°' if c['max_deg'] is not None else 'lebih'} | {c['area_ha_est']} | {c['percent_of_valid_slope']}% |" for c in m["slope_classes"])
     warnings = "\n".join("- " + w for w in report["warnings"])
+    screening = report.get("suitability")
+    if screening:
+        screen_lines = "\\n".join(
+            f"| {b['label']} | "
+            f"{b['min_deg'] if b['min_deg'] is not None else 'n/a'}–"
+            f"{b['max_deg'] if b['max_deg'] is not None else 'upwards'} | "
+            f"{b['area_ha_est']} | "
+            f"{str(b['share_of_assessed_pct']) + '%' if b['share_of_assessed_pct'] is not None else 'not assessed'} |"
+            for b in screening["bands"]
+        )
+        suitability_block = (
+            "\\n## Preliminary terrain constraint screening (NOT development approval)\\n\\n"
+            "| Screening group | Slope (degrees) | Cell area (ha, approx.) | Share of assessed slope |\\n"
+            "|---|---|---:|---:|\\n" + screen_lines +
+            "\\n\\nArea with a verified slope sample (pixel estimate): "
+            + str(screening["assessed_area_ha_est"]) + " ha.\\n"
+            + "Unassessed area (approximate, includes pixel-boundary effects): "
+            + str(screening["unassessed_area_ha_est"]) + " ha.\\n\\n"
+            + screening["disclaimer"] + "\\n\\n"
+        )
+    else:
+        suitability_block = "\\n## Terrain constraint screening\\n\\nUnavailable in this older analysis. Rerun DEM analysis to compute it.\\n\\n"
+
     text = f"""# PLANEXUS AI — Terrain Screening Report
 
 **Analysis ID:** `{analysis_id}`  
@@ -277,6 +300,7 @@ def download_report(analysis_id: str):
 |---|---|---:|---:|
 {classification}
 
+{suitability_block}
 ## Method
 
 {m['method']}

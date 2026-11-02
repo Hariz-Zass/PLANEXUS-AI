@@ -18,6 +18,7 @@ from pyproj import Transformer
 
 from .geometry import area_km2, local_utm_crs
 from .overlays import build_terrain_overlays
+from .suitability import build_suitability
 from .settings import MAX_RASTER_PIXELS
 
 SLOPE_CLASSES = [
@@ -102,6 +103,11 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         geojson_features.append({"type": "Feature", "properties": {"class_id": int(value)}, "geometry": wgs84_geom})
 
     overlays = build_terrain_overlays(elevation, valid, target_transform, dst_crs, source_metadata)
+    suitability = build_suitability(
+        slope_degrees=slope, valid_slope=slope_valid, inside_site=inside,
+        pixel_area_m2=pixel_area_m2, site_area_ha=site_area_km2 * 100,
+        transform=target_transform, crs=dst_crs, source=source_metadata,
+    )
 
     warnings = [
         "Penilaian ini ialah saringan topografi, BUKAN keputusan keseluruhan kesesuaian pembangunan atau kelulusan PBT.",
@@ -124,6 +130,10 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         warnings.append("Kurang daripada 100 pixel ketinggian sah di tapak; statistik cerun sangat sensitif kepada resolusi.")
     if truncated_overlay:
         warnings.append("Peta polygon cerun dihadkan kepada 1,200 features untuk prestasi; statistik raster penuh tidak dihadkan.")
+    if suitability["summary"]["area_exceeds_site_due_to_pixelization"]:
+        warnings.append("Keluasan piksel kelas saringan melebihi keluasan geodesik tapak kerana resolusi/sel sempadan; bukan ukuran lot.")
+    if suitability["summary"]["class_overlay_truncated"]:
+        warnings.append("Polygon kesesuaian dihadkan untuk paparan; statistik kelas tetap berdasarkan semua piksel sah.")
 
     return {
         "analysis_id": analysis_id,
@@ -151,6 +161,8 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
             "vertical_units_assumption": "metres (MUST be checked against original source metadata)",
         },
         "slope_geojson": {"type": "FeatureCollection", "features": geojson_features},
+        "suitability": suitability["summary"],
+        "suitability_geojson": suitability["geojson"],
         "elevation_geojson": overlays["elevation_geojson"],
         "contours_geojson": overlays["contours_geojson"],
         "warnings": warnings,
