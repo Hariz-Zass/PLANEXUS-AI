@@ -226,3 +226,40 @@ For independent validation, run backend tests using `python -m pytest -q` in `ba
 After at least one project has been saved, stop the frontend/backend server terminals and double-click **BACKUP-PLANEXUS.bat**. This runs the Python SQLite backup API and creates a dated ZIP archive under the repository's `backups/` folder. The archive includes the project database, saved report JSONs, source GeoTIFFs and a `BACKUP-MANIFEST.json` file. It excludes unrelated secrets such as `.env` files. Store a private copy of the ZIP on another drive. The archive is not encrypted.
 
 To restore onto another local machine: stop both PLANEXUS servers, first preserve any existing backend data directory, then extract the contents of the ZIP into the configured `PLANEXUS_DATA_DIR`. Remove stale SQLite `-wal`/`-shm` sidecar files left from the **old** database only while both servers are stopped. Restart the backend and confirm all projects/reports in the UI. Do not overwrite an existing workspace without a separate backup.
+
+---
+
+## Phase 5 - Terrain Suitability Engine (Module 1; GitHub/local only)
+
+PLANEXUS now produces a **terrain constraint screening** overlay after a verified DEM/DSM raster analysis. It does NOT determine permission to develop land, official zoning, slope stability, permitted housing units, drainage suitability or engineering feasibility. This module is deterministic raster analysis, NOT an ML prediction.
+
+### Explicit provisional thresholds
+
+| Raster slope (degrees) | Screening label | Meaning |
+|---|---|---|
+| 0 to below 15 | Lower terrain constraint | Relatively lower slope constraints only |
+| 15 to below 25 | Moderate terrain constraint | Detailed technical review needed |
+| 25 and above | Higher terrain constraint | Closer assessment recommended, not an automatic statutory ban |
+| No valid slope | Not assessed | Cannot infer suitability; do not assume the area is gentle |
+
+These are PLANEXUS's provisional groupings, NOT official RT/RSN/RKK/GPP thresholds, land-use approval, geotechnical standards or a survey-based construction classification. All projects still require checks of policy, drainage, flooding, roads, geotechnics, ownership, verified DTM and site layout.
+
+### How it works
+
+- Bands are derived from the SAME projected metric raster slope grid and validity mask as the terrain engine. Pixel count multiplied by projected full-cell area produces an approximate hectare estimate. Band percentages are calculated from assessed slope pixels only.
+- Invalid or missing slope pixels within the site are assigned to Not assessed rather than lower constraint. The approximate unassessed area also includes boundary differences between geodesic site area and raster-cell area.
+- Raster-grid pixels at the polygon border may cause the area summed across all classes to exceed surveyed parcel area, particularly at coarse resolution. The system provides a warning instead of forcing pixel counts to match land title or cadastral areas.
+- Vector map features are capped for browser performance; the class statistics use all valid slope cells. GLO-90 and DSM surface models may miss local gradients or include buildings/vegetation.
+- The saved GIS report now includes a suitability summary and a suitability GeoJSON overlay. The markdown export includes method caveats and grouped areas. Legacy saved reports show an explicit request to rerun the DEM analysis rather than invent historical suitability.
+
+### Test it locally (no Vercel deployment)
+
+1. Update the repository locally and run START-PLANEXUS.bat. Ensure both FastAPI and Next.js are running.
+2. Create/open a project and draw/import a real WGS84 polygon. Run Get DEM & Run Analysis, or upload an authorized raster.
+3. Select the Suitability map layer next to Slope and Elevation. Review the colours, source, coverage, hectares and category distribution. Click a coloured map cell for a category explanation. Unassessed cells are not to be treated as developable.
+4. Refresh and reopen the same project. The suitability overlay and counts should return with the stored analysis. Switch to a different project and verify there is no data leakage across projects.
+5. Compare results with independent QGIS slope classification and the original raster before using in any professional planning report.
+
+Unit tests cover the 15-degree and 25-degree thresholds, NoData, full-cell area estimates, overlay truncation and persistence. Chromium tests cover the suitability map layer and project restoration with a declared synthetic fixture. Live public GLO-30 retrieval is checked separately; it does not certify survey accuracy.
+
+**Not included in Module 1:** development proposal input, housing unit/density calculation, layout scenarios, official policy lookup, hydrological assessment or AI approvals. These require additional inputs and will be handled in later modules. No Vercel deployment has been requested or performed.
