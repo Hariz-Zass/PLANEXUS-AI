@@ -167,7 +167,7 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
   await page.getByRole("button",{name:"Preview layout"}).click();
   await expect(page.locator(".layout-policy-results")).toContainText("Perak PR1");
   await expect(page.locator(".layout-policy-results")).toContainText("Entered value meets reference");
-  await expect(page.locator(".layout-policy-results a")).toHaveAttribute("href",/lphp.gov.my/);
+  await expect(page.locator(".layout-policy-results a").first()).toHaveAttribute("href",/lphp.gov.my/);
   await page.getByRole("button",{name:"Save layout"}).click();
   await expect(page.locator(".layout-persistence-note")).toContainText("revision 2");
 
