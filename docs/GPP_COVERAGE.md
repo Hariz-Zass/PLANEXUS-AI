@@ -21,7 +21,7 @@ The user can select a GPP jurisdiction in Development Studio. The interface disp
 This is **not all Malaysian GPP**. The wider official catalog covers many other development categories; any missing category remains unknown until independently researched and verified.
 
 Official references:
-- National housing PDF: https://www.planmalaysia.gov.my/uploads/content-downloads/file_20251114202120.pdf — **GP001-A (2016), Jadual 2, printed pp.44–45**.
+- National housing PDF: https://mytownnet.planmalaysia.gov.my/ver2/gp/GPP_PERUMAHAN.pdf — **GP001-A (2016), Jadual 2, printed pp.44–45**.
 - Perak 2023 PDF (LPHP official mirror, PR1 p5, PR2 p7, PR3 p9, PR4 p11, PR5 p13, PR6 p15): https://lphp.gov.my/index.php/pekeliling-lphp/35-gp-piawaian-perumahan-negeri-perak-2023-1/file — **PR1, printed p.5**. Alternate PLANMalaysia Perak copy: https://planmalaysia.perak.gov.my/index.php/icon-media/muat-turun-borang/2-garis-panduan-perancangan?download=109%3Agaris-panduan-piawan-perumahan-negeri-perak-2023 .
 - PLANMalaysia full GPP portal: https://www.planmalaysia.gov.my/main/garis-panduan-perancangan .
 - PLANMalaysia facilities guideline publication: https://www.planmalaysia.gov.my/main/latest-news-details?id=999087c8-ffc9-11ef-bf69-fa163eda1aa9 .
@@ -34,7 +34,7 @@ Official references:
 | Terrace, low-cost | 2 | 4.3 × 16.8 |
 | Terrace, lower-middle cost | 1 | 6.1 × 18.3 |
 | Terrace, lower-middle cost | 2 | 5.5 × 16.8 |
-| Terrace, middle cost | 1 | 6.1 × 19.8 |
+| Terrace, middle cost | 1–1½ (selector supports whole storeys only) | 6.1 × 19.8 |
 | Terrace, middle cost | 2–3 | 5.5 × 19.8 |
 | Cluster | 1 | 12.2 × 15.2 |
 | Cluster | 2–3 | 9.1 × 16.8 |
@@ -45,6 +45,41 @@ Official references:
 These are **lot measurements** only, not the floor area of the house, an allowance for roads or a permitted site density. Selected 1-storey floor-area minima (low-cost terrace 65 m²; lower-middle terrace 69.7 m²; middle terrace 79 m²; cluster 83.6 m²; semi-detached 97.5 m²; detached 125.4 m²; zero-lot 92.9 m²) are stored where Jadual 2 explicitly provides them. These values must **not** be propagated to 2–3-storey classifications where a numeric floor minimum is not printed.
 
 **Maximum lot size:** No maximum lot width or depth is recorded in Jadual 2. Fields \`max_lot_width_m\` and \`max_lot_depth_m\` must remain \`null\`. Developer-only numeric input guardrails such as width \`<=150 m\` are technical validation ranges, **not a GPP maximum**.
+
+### November 2026 terrace audit: ordinary Low / Mid / High vs official minimum
+
+**Why this correction exists:** the first version assumed 6 × 20 m for 300 terrace units, which is not a documented terrace lot standard. The revised **Development Studio default** is the user's ordinary **Mid cost / 20 × 70 ft** size (exactly 6.096 × 21.336 m, approximately 1,400 sq ft per lot). This is **a selectable scheme dimension, not a national GPP minimum**.
+
+The UI offers three easy-to-understand **design presets**, separate from machine-enforced national/source policy minima:
+
+| Product-facing design selection | Preset lot | Basis | Legal policy meaning |
+|---|---|---|---|
+| Low terrace | 20 × 55 ft, 1 storey | GP001-A 2016 low-cost 1-storey minimum | A documented national minimum *for this class/storey only* |
+| Mid terrace | **20 × 70 ft**, 1 storey | Real KPKT/HIMS mid-cost housing scheme brochures describe 1-storey 20 × 70 ft terraces | **Not** the national minimum. GP001-A 2016 middle-cost 1–1½ storey minimum is **20 × 65 ft**; for 2–3 storeys it is **18 × 65 ft** |
+| High / Premium terrace | 22 × 75 ft, 2 storeys | An example terrace dimension appears in KEJORA's project listings | **Not a government-defined high-cost minimum**, and the KEJORA project listing does not itself confer a GPP high-cost category. GP001-A Jadual 2 has NO dedicated high-cost terrace row |
+
+**Other official national band remains preserved:** "Kos sederhana rendah" is a separate category under GP001-A, not silently merged with Mid. It has 1-storey **20 × 60 ft** and 2-storey **18 × 55 ft** minimum. It is available in the detailed GPP selector alongside the three user-facing design starting points.
+
+The minimum national terrace lots in **GP001-A 2016 Jadual 2** as verified from the official PDF (printed pp.44–45) are:
+- Kos rendah: 1 tingkat **20 × 55 ft** (6.1 × 16.8 m); 2 tingkat **14 × 55 ft** (4.3 × 16.8 m).
+- Kos sederhana rendah: 1 tingkat **20 × 60 ft** (6.1 × 18.3 m); 2 tingkat **18 × 55 ft** (5.5 × 16.8 m).
+- Kos sederhana: 1–1½ tingkat **20 × 65 ft** (6.1 × 19.8 m); 2–3 tingkat **18 × 65 ft** (5.5 × 19.8 m).
+- **Teres kos tinggi:** no separate category-specific minimum printed in national Jadual 2.
+
+**Other national house types rechecked against the same 2016 edition:** cluster 12.2 × 15.2 m (1 storey), cluster 9.1 × 16.8 m (2–3), semi-detached 12.2 × 19.8 m, detached 15.2 × 22.9 m and detached zero-lot 13.7 × 21.3 m. Do not mix earlier 2014/other editions with the 2016 GP001-A values (for example the cluster 1-storey depth was printed differently in another edition).
+
+### Local authority differences and real project examples
+
+- **Kelantan, MBK planning-review form:** the locally published submission checklist distinguishes *Kos Sederhana* **20 × 65 ft** from *Teres Biasa* **20 × 70 ft**. Other local minima differ (example: low-cost terrace 20 × 50 ft). This document is **not automatically applied** to Perak, other states or all of Kelantan; adoption, amendments and RT must still be checked. Source: https://mbk.gov.my/web/wp-content/uploads/2021/03/template_ulasan_km_perumahan.pdf , printed p.1.
+- **KPKT HIMS housing scheme examples:** 20 × 70 ft also appears in sales brochures explicitly labelled *Rumah Teres Kos Sederhana*, showing a legitimate **project size**, not a statutory universal minimum. Source: https://hims.kpkt.gov.my/files/8502/8502-4/IKLAN_BROSUR_01.pdf .
+- **KEJORA project listings:** 22 × 75 ft occurs in recorded terrace-house project components, used solely as a flexible example for premium-sized development. Source: https://www.kejora.gov.my/perkhidmatan/hartanah/projek-penswastaan-dan-pembangunan-bercampur-3/ .
+- **Perak PR1 (2023) printed p.5:** for terrace housing, **floor area** minima by class are 900/950/1,000/1,001 sq ft; no numerical minimum lot frontage × depth is specified. Never confuse the **floor area of a house** with its **land lot area**.
+
+**Feet/metre precision:** GP001-A pairs rounded metric values with feet: 20 ft = exactly 6.096 m whereas the printed metric is 6.1 m; 18 ft = 5.4864 m whereas the printed metric is 5.5 m. A proposal entered in exact feet should **not fail by 4–36 mm** just because the document uses rounded metric equivalents. The engine accepts both published equivalent units (using the lesser of the two mathematically equivalent printed minima, not an arbitrary slack), retains the document's displayed metric bound and exposes the printed equivalent in checks. It still flags genuinely undersized plots.
+
+**Updated gross-land default example:** 300 mid-cost lots at **20 × 70 ft**, with 20% road, 10% open space, 5% facilities and 5% other reserves (all user assumptions) require about **3.90193 ha of plot rectangles and 6.50321 ha gross**. The former 6.0 ha figure applied only to the earlier arbitrary **6 × 20 m** assumption, not to 20 × 70 ft.
+
+Nothing in these sizes verifies frontage layout, land ownership, legal zoning, availability of contiguous low-slope areas, road widths or setbacks. No maximum lot dimensions are inferred where the local/national source gives only a minimum.
 
 ### Perak PR2–PR6 minimum floor area (confirmed published tables)
 

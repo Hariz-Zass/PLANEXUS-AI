@@ -279,7 +279,7 @@ Use the new **Development Studio** sidebar module to define and save up to 20 in
 - Gross site density = proposed unit count / current gross project hectares. It remains a decimal; **one unit is not rounded to zero**. This is a proposal density, not the density permitted by the relevant RT/GPP.
 - Gross area margin = gross project hectares - required gross hectares. Positive margin means the arithmetic land budget is not larger than the polygon, **not** that a compliant or connected layout is feasible.
 
-**Illustrative user assumptions only:** 300 landed terrace lots, 6 m x 20 m plots, 20% roads, 10% open space, 5% facilities and 5% other reserves produces 3.6 ha of plot rectangles, 40% assumed total reserves and **6.0 ha required gross**. These values are examples in the initial form and are NOT official Malaysian development/lot standards.
+**Updated default scheme (editable, not a national minimum):** 300 mid-cost terrace lots at **20 x 70 ft** (exactly 6.096 x 21.336 m), 20% assumed roads, 10% open space, 5% facilities and 5% other reserves produce approximately **3.90193 ha plot area** and **6.50321 ha required gross**. The previous 6.0 ha example applied to a different 6 x 20 m plot and is not the present default. All percentages remain user assumptions and are not planning standards.
 
 ### Comparison with measured terrain only
 
@@ -307,8 +307,17 @@ If a project boundary or active DEM analysis is changed, the scenario becomes **
 
 ### Phase 5 GPP Knowledge Registry - evidence-linked planning guideline checks
 
-The **GPP Knowledge Registry** now lists indexed versus catalog-only official PLANMalaysia sources. In Development Studio choose National GP001-A (2016) or Perak Housing (2023), specify house type and storeys, optionally input Perak price category/floor space/bedrooms/height, and press **Semak GPP**. Checks have source URLs and printed pages. You can copy a national minimum lot dimension into your input with **Use reference dimensions**, but this does not mean the PBT approves that lot or the whole development.
+The **GPP Knowledge Registry** now lists indexed versus catalog-only official PLANMalaysia sources. In Development Studio choose National GP001-A (2016) or Perak Housing (2023), specify house type and storeys, optionally input Perak price category/floor space/bedrooms/height, and press **Semak GPP**. Checks have source URLs and printed pages. You can replace a proposal dimension with a national minimum by choosing **Use GPP minimum (replaces proposal size)**, but this does not mean the PBT approves that lot or the whole development.
 
 The first numerical edition includes selected national housing lot and one-storey floor-area minima (GP001-A Jadual 2) and state-level Perak PR1–PR6 floor/storey requirements; PR1 service-road/lane/setback dimensions are also listed as **unchecked references** because there is no measured layout geometry. Commercial, parking, community facilities and hillside GPP are **catalog only** until independently validated. Maximum house lot dimensions are left **unknown** when not expressly stated. Saved scenarios record a GPP registry version and require manual review when that version changes.
 
 **Full coverage and editorial rules:** [docs/GPP_COVERAGE.md](docs/GPP_COVERAGE.md). No external GPP PDF is republished into this repository; only small sourced numerical checks and official links are stored.
+
+
+### Low / Mid / High terrace sizes re-audited against GP001-A (November 2026)
+
+**Development Studio now starts at Mid 20 × 70 ft** as a practical project layout example. The GPP panel adds **Low 20 × 55 ft**, **Mid 20 × 70 ft** and **High 22 × 75 ft (editable example)** buttons. These are design input presets, **NOT three statutory minima**. The official national GP001-A 2016 standard lists separate terrace **kos rendah**, **kos sederhana rendah** and **kos sederhana** bands; a dedicated national **teras kos tinggi** lot minimum is not provided in Jadual 2. GP001-A middle-cost minima are **20 × 65 ft (1–1½ storeys)** or **18 × 65 ft (2–3 storeys)**, whereas 20 × 70 ft is a legitimate project size and the older MBK review checklist calls 20 × 70 ft *teras biasa*, distinct from *kos sederhana* 20 × 65 ft.
+
+Input values in exact feet (20 ft = 6.096 m) no longer fail because a GPP rounds the same figure to 6.1 m. The backend still compares each selected category and number of storeys against its actual official numeric minimum with document/page citations. Perak 2023 PR1 gives different **house floor area** minima, not a new 20 × 70 ft land lot rule. The user must choose appropriate state/PBT scope; "high" is not automatically mapped to a Perak market cost band.
+
+Sources, foot/metre accuracy, all housing-category audits and comparison rules: [docs/GPP_COVERAGE.md](docs/GPP_COVERAGE.md). No Vercel deployment is performed by this change.
