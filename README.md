@@ -263,3 +263,44 @@ These are PLANEXUS's provisional groupings, NOT official RT/RSN/RKK/GPP threshol
 Unit tests cover the 15-degree and 25-degree thresholds, NoData, full-cell area estimates, overlay truncation and persistence. Chromium tests cover the suitability map layer and project restoration with a declared synthetic fixture. Live public GLO-30 retrieval is checked separately; it does not certify survey accuracy.
 
 **Not included in Module 1:** development proposal input, housing unit/density calculation, layout scenarios, official policy lookup, hydrological assessment or AI approvals. These require additional inputs and will be handled in later modules. No Vercel deployment has been requested or performed.
+
+---
+
+## Phase 5 - Development Proposal Input (Module 2, GitHub/local only)
+
+Use the new **Development Studio** sidebar module to define and save up to 20 independent, explicitly assumed development options per saved project. This module models **landed residential plots, shoplots and other landed lots only**. It does **not** model apartments, floors, GFA, FAR, engineering design, official density permissions, zoning or planning approval.
+
+### Auditable, editable land-budget formula
+
+- Inputs: scenario name; type of landed use; integer proposed unit/lot count; frontage (metres); depth (metres); user-assumed road, open-space, community-facility and other-reserve percentages.
+- Plot hectares = units x frontage_m x depth_m / 10,000.
+- Total reserved percentage = roads + open_space + facilities + other. This must be below 85%; each individual share is validated as 0-70%. Each allocation refers to a share of **required total gross land**, not of the net plot area.
+- Required gross hectares = plot hectares / (1 - total_reserved_pct / 100). Individual reserve hectares are then calculated as a percentage of required gross hectares.
+- Gross site density = proposed unit count / current gross project hectares. It remains a decimal; **one unit is not rounded to zero**. This is a proposal density, not the density permitted by the relevant RT/GPP.
+- Gross area margin = gross project hectares - required gross hectares. Positive margin means the arithmetic land budget is not larger than the polygon, **not** that a compliant or connected layout is feasible.
+
+**Illustrative user assumptions only:** 300 landed terrace lots, 6 m x 20 m plots, 20% roads, 10% open space, 5% facilities and 5% other reserves produces 3.6 ha of plot rectangles, 40% assumed total reserves and **6.0 ha required gross**. These values are examples in the initial form and are NOT official Malaysian development/lot standards.
+
+### Comparison with measured terrain only
+
+Saved scenarios evaluate against a project's active GIS suitability report only when it is the **same saved boundary and active analysis** used when the scenario was saved/reassessed. The calculator optionally compares gross requirement with the **raster-derived lower terrain-constraint cell-area estimate**, capped to site area. The result is labelled either an indicative cell-area envelope or a cell-area shortfall, always with warnings. It does not calculate spatially contiguous buildable land, real road layout, zoning, flood/drainage restrictions or allowable housing yield.
+
+If a project boundary or active DEM analysis is changed, the scenario becomes **CONTEXT CHANGED / REVIEW GIS**. Its previous terrain comparison is withheld rather than silently carried across projects or datasets. Reopen and update the scenario to bind it explicitly to the current site and report. If no slope analysis is available, the form remains usable as an **area-only worksheet** with no GIS conclusion.
+
+### Persistence and testing
+
+- Scenarios are in the existing local SQLite project database's `project_proposals` table and are automatically included in `BACKUP-PLANEXUS.bat` because they share the database. There is no cloud sync or user authentication.
+- `GET /api/projects/{project_id}/proposals` lists saved proposals and their current context-aware calculations; `POST` creates; `GET /{proposal_id}` fetches; `PUT /{proposal_id}` updates with `expected_revision` optimistic concurrency; `DELETE /{proposal_id}` removes only that proposal.
+- Pydantic validates each submitted input and rejects invalid units, empty names, unsupported apartments, negative dimensions, NaN/Infinity and allocation totals of 85% or higher.
+- Backend tests verify 300-unit area arithmetic, one-unit density, stale GIS context, different projects, editing concurrency and cascading project deletions. The Chromium browser test exercises live form editing, local persistence, reload and stale-context messages using explicitly MOCKED API responses; those mocks are not real terrain data.
+
+### Test it locally
+
+1. Update `Hariz-Zass/PLANEXUS-AI` to the latest main branch. Start the backend and frontend locally with `START-PLANEXUS.bat`.
+2. Create/open a project and draw/import its polygon. Open **Development Studio** from the sidebar.
+3. Set a proposal, adjust all assumptions, and inspect the live **gross land requirement**. Click **Save scenario**.
+4. Reload the browser. Select the saved scenario and verify that units, lot sizes and reserve percentages return. Use **Update scenario** to edit.
+5. Run a real DEM analysis for that project, then return to Development Studio. Previous scenarios will show **REVIEW GIS** until they are explicitly updated. Any comparison is **screening only**.
+6. Save a second scenario and compare arithmetic land demand; test each project's isolation and back up your SQLite workspace before migrating machines.
+
+**No Vercel redeployment** has been triggered. The previous public frontend remains unchanged. Module 3 (full option comparison / spatial layout suitability) and Module 4 (AI planning recommendation with verified policy inputs) are future work.
