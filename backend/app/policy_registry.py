@@ -121,7 +121,7 @@ NATIONAL_LOT_RULES: tuple[dict[str, Any], ...] = (
      "min_width_m":6.1, "min_depth_m":18.3, "min_floor_area_m2":69.7, "page":44},
     {"category":"terrace_lower_middle", "storeys":[2], "min_width_ft":18, "min_depth_ft":55, "label":"Rumah teres kos sederhana rendah, 2 tingkat",
      "min_width_m":5.5, "min_depth_m":16.8, "min_floor_area_m2":None, "page":44},
-    {"category":"terrace_middle", "storeys":[1], "min_width_ft":20, "min_depth_ft":65, "label":"Rumah teres kos sederhana, 1 tingkat",
+    {"category":"terrace_middle", "storeys":[1], "min_width_ft":20, "min_depth_ft":65, "label":"Rumah teres kos sederhana, 1–1½ tingkat (pilihan 1 tingkat)",
      "min_width_m":6.1, "min_depth_m":19.8, "min_floor_area_m2":79.0, "page":44},
     {"category":"terrace_middle", "storeys":[2,3], "min_width_ft":18, "min_depth_ft":65, "label":"Rumah teres kos sederhana, 2-3 tingkat",
      "min_width_m":5.5, "min_depth_m":19.8, "min_floor_area_m2":None, "page":44},
