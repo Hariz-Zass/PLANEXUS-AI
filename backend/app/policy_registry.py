@@ -455,7 +455,13 @@ def answer_gpp_question(question:str)->dict[str,Any]:
         }
 
     selected_category = None
-    if any(x in q for x in ("zero lot","zero-lot","zlb")):
+    if ("teres" in q or "terrace" in q) and any(x in q for x in ("kos tinggi","high cost","high-cost","premium")):
+        selected_category="terrace_high"
+    elif ("teres" in q or "terrace" in q) and any(x in q for x in ("mid cost","mid-cost","medium cost")):
+        selected_category="terrace_middle"
+    elif ("teres" in q or "terrace" in q) and any(x in q for x in ("low cost","low-cost")):
+        selected_category="terrace_low_cost"
+    elif any(x in q for x in ("zero lot","zero-lot","zlb")):
         selected_category="zero_lot"
     elif any(x in q for x in ("berkembar","semi-detached","semi detached")):
         selected_category="semi_detached"
@@ -498,7 +504,21 @@ def answer_gpp_question(question:str)->dict[str,Any]:
                 for rule in rules
             )
         else:
-            rows="Tiada baris Jadual 2 yang disahkan bagi jenis rumah dan bilangan tingkat ini."
+            rows=(
+                "GP001-A 2016 Jadual 2 tidak menetapkan had minimum lot "
+                "khusus teres kos TINGGI (High) - sila semak garis panduan "
+                "negeri dan PBT." if selected_category=="terrace_high" else
+                "Tiada baris Jadual 2 yang disahkan bagi jenis rumah dan bilangan tingkat ini."
+            )
+        practical=next((preset for preset in PRACTICAL_TERRACE_PRESETS
+                        if preset["category"]==selected_category),None)
+        example_note=""
+        if practical and selected_category in ("terrace_middle","terrace_high"):
+            example_note=(
+                "\n**Preset reka bentuk, bukan had GPP:** "+practical["label"]
+                +". "+practical["note"]
+                +" Sumber contoh: "+practical["source_url"]+"\n"
+            )
         if perak:
             if selected_category.startswith("terrace_"):
                 category_note=(
@@ -521,11 +541,16 @@ def answer_gpp_question(question:str)->dict[str,Any]:
                     )
                 else:
                     category_note="Tiada aturan Perak khusus yang telah diindeks bagi jenis rumah ini."
-            body=category_note+"\n**Rujukan tambahan lot kebangsaan GP001-A (bukan syarat Perak/PBT yang disahkan):**\n"+rows
+            body=category_note+"\n**Rujukan tambahan lot kebangsaan GP001-A (bukan syarat Perak/PBT yang disahkan):**\n"+rows+example_note
             refs=[PERAK_SOURCE,NATIONAL_SOURCE]
         else:
-            body="**GP001-A 2016 Jadual 2 (hlm.44–45), jenis rumah diminta:**\n"+rows
+            body="**GP001-A 2016 Jadual 2 (hlm.44–45), jenis rumah diminta:**\n"+rows+example_note
             refs=[NATIONAL_SOURCE]
+        if practical and selected_category in ("terrace_middle","terrace_high"):
+            refs.append({
+                "title":"Contoh saiz lot projek teres, bukan GPP",
+                "url":practical["source_url"],"evidence":practical["source_page"]
+            })
         return {
             "mode":"verified_policy_registry_summary",
             "response":body+"\n\nSaiz lot di atas ialah minimum, bukan maksimum. "
