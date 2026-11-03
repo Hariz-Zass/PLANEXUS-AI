@@ -61,7 +61,7 @@ jobs:
 
   live-cog-smoke:
     runs-on: ubuntu-latest
-    continue-on-error: true  # External S3 failures must be visible but not break offline algorithm checks.
+    # Required acceptance check: source failures must not produce an overall green workflow.
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -181,7 +181,7 @@ jobs:
   real-three-site-gis-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 14
-    continue-on-error: true
+    # Required live-data acceptance check; no synthetic substitute.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -203,7 +203,7 @@ jobs:
 
   live-public-osm-context:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # Required real-source acceptance check; a provider outage must fail CI.
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
@@ -214,6 +214,24 @@ jobs:
       - name: Verify real OSM source on public Malaysian reference square
         working-directory: backend
         run: python -m tests.live_site_context_smoke
+      - name: Display live OSM status in GitHub job summary
+        if: always()
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path("source_osm_live_evidence.json")
+          result=json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"status":"diagnostic_missing"}
+          status=result.get("status","unknown")
+          message=("PASS: real source returned data" if status=="retrieved" else
+                   "FAIL: live source did not return usable data")
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("## Live OSM data-source verification\\n\\n")
+              out.write(f"**{message}**\\n\\n")
+              out.write(f"Status: \`{status}\`\\n\\n")
+              out.write("A failure is not a zero-amenity result, and is not a successful one-stop planning data service.\\n")
+          PY
       - if: always()
         uses: actions/upload-artifact@v4
         with:
