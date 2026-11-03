@@ -41,7 +41,7 @@ def sign_in(client, email, password):
 
 def test_all_private_routes_require_real_session(monkeypatch,tmp_path):
     bootstrap(monkeypatch,tmp_path)
-    with TestClient(main.app) as client:
+    with TestClient(main.app,base_url="https://testserver") as client:
         assert client.get("/api/health").status_code == 200
         for route in ("/api/projects","/api/analyses","/api/policy/catalog",
                       "/api/sources","/api/copilot/capabilities",
@@ -61,7 +61,7 @@ def test_all_private_routes_require_real_session(monkeypatch,tmp_path):
 
 def test_cookie_csrf_session_expiry_logout_origin_and_password_hash(monkeypatch,tmp_path):
     data,_=bootstrap(monkeypatch,tmp_path)
-    with TestClient(main.app) as client:
+    with TestClient(main.app,base_url="https://testserver") as client:
         assert client.post("/api/projects",json={"name":"No session"}).status_code==401
         bad=client.post("/api/auth/login",json={"email":"admin@example.test","password":"incorrect"})
         assert bad.status_code==401
@@ -92,7 +92,7 @@ def test_cookie_csrf_session_expiry_logout_origin_and_password_hash(monkeypatch,
         assert client.get("/api/projects").status_code==401
         assert client.get("/api/auth/me").status_code==401
 
-    with TestClient(main.app) as later:
+    with TestClient(main.app,base_url="https://testserver") as later:
         sign_in(later,"admin@example.test",ADMIN_PASSWORD)
         with sqlite3.connect(data/"planexus-workspace.sqlite3") as conn:
             conn.execute("UPDATE auth_sessions SET expires_at_utc='2000-01-01T00:00:00+00:00'")
@@ -101,7 +101,7 @@ def test_cookie_csrf_session_expiry_logout_origin_and_password_hash(monkeypatch,
 
 def test_invite_only_registration_single_use_and_account_isolation(monkeypatch,tmp_path):
     data,admin=bootstrap(monkeypatch,tmp_path)
-    with TestClient(main.app) as admin_client, TestClient(main.app) as other:
+    with TestClient(main.app,base_url="https://testserver") as admin_client, TestClient(main.app,base_url="https://testserver") as other:
         sign_in(admin_client,"admin@example.test",ADMIN_PASSWORD)
         site=admin_client.post("/api/projects",json={"name":"Private Alpha","geometry":SITE})
         assert site.status_code==201,site.text
@@ -173,7 +173,7 @@ def test_invite_only_registration_single_use_and_account_isolation(monkeypatch,t
 def test_legacy_project_retained_but_invisible_until_offline_claim(monkeypatch,tmp_path):
     data,admin=bootstrap(monkeypatch,tmp_path)
     legacy=create_project(data,"Old Private Planning Site",geometry=SITE)
-    with TestClient(main.app) as client:
+    with TestClient(main.app,base_url="https://testserver") as client:
         sign_in(client,"admin@example.test",ADMIN_PASSWORD)
         assert client.get("/api/projects").json()["projects"]==[]
         assert client.get(f"/api/projects/{legacy['id']}").status_code==404
@@ -190,7 +190,7 @@ def test_legacy_project_retained_but_invisible_until_offline_claim(monkeypatch,t
 
 def test_login_attempt_limit(monkeypatch,tmp_path):
     bootstrap(monkeypatch,tmp_path)
-    with TestClient(main.app) as client:
+    with TestClient(main.app,base_url="https://testserver") as client:
         for _ in range(auth.LOGIN_LIMIT):
             assert client.post("/api/auth/login",json={
                 "email":"admin@example.test","password":"wrong-password"}).status_code==401

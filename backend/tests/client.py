@@ -21,6 +21,9 @@ class TestClient(RealTestClient):
     __test__ = False
 
     def __init__(self, *args, **kwargs):
+        # The server correctly marks non-local-domain cookies Secure. Run
+        # HTTPX's synthetic testserver over HTTPS, not insecure HTTP.
+        kwargs.setdefault("base_url", "https://testserver")
         super().__init__(*args, **kwargs)
         self._workspace = ""
         self._csrf = ""
