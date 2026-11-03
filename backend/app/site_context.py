@@ -135,8 +135,22 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
                 problems.append({"provider":endpoint.split("/")[2],
                                  "type":type(exc).__name__,"http_status":status})
     if data is None:
+        # Optional licensed OSM extract installed once by the backend operator.
+        # No fabricated zero-count result and no user-by-user manual upload.
+        extract=os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","").strip()
+        if extract:
+            from .geofabrik_context import fetch_geofabrik_context
+            try:
+                offline=fetch_geofabrik_context(
+                    geometry,radius_m=radius_m,gpkg_path=Path(extract),
+                    geometry_sha256=geometry_digest(geometry))
+                offline["provider_failures_before_success"]=problems
+                return offline
+            except (OSError,ValueError,RuntimeError) as exc:
+                problems.append({"provider":"configured_geofabrik_gpkg",
+                                 "type":type(exc).__name__,"http_status":None})
         raise HTTPException(503,
-            "Sumber OpenStreetMap/Overpass tidak tersedia pada pelayan yang dikonfigurasi; "
+            "Sumber OpenStreetMap/Overpass dan extract offline tidak tersedia; "
             "tiada jalan atau kemudahan direka. Status: "+json.dumps(problems))
     elements=data.get("elements") if isinstance(data,dict) else None
     if not isinstance(elements,list) or len(elements)>MAX_RESULTS:
