@@ -22,7 +22,10 @@ from fastapi import HTTPException
 from pyproj import Geod
 from shapely.geometry import shape
 
-OVERPASS_ENDPOINT="https://overpass-api.de/api/interpreter"
+# Two documented public, best-effort instances; production can use a
+# licensed/self-hosted provider after explicit operator configuration.
+OVERPASS_ENDPOINT="https://overpass.private.coffee/api/interpreter"
+OVERPASS_FALLBACK="https://overpass-api.de/api/interpreter"
 OSM_LICENSE="https://www.openstreetmap.org/copyright"
 CATEGORIES=("education","healthcare","transport","retail","parks","civic","roads","waterways")
 MAX_RESULTS=6500
@@ -79,23 +82,36 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     centre=shape(geometry).representative_point()
     lat,lon=round(float(centre.y),5),round(float(centre.x),5)
     query=build_query(lat,lon,radius_m)
-    try:
-        with httpx.Client(timeout=httpx.Timeout(30.0,connect=8.0),
-                          follow_redirects=False) as client:
-            response=client.post(OVERPASS_ENDPOINT,data={"data":query},
-                                 headers={"User-Agent":"PLANEXUS-AI-private-site-screening/1.0",
-                                          "Accept":"application/json"})
-            response.raise_for_status()
-            raw=response.content
-        if len(raw)>MAX_RESPONSE_BYTES:
-            raise ValueError("Response exceeds bounded GIS-context payload.")
-        data=json.loads(raw)
-    except (httpx.HTTPError,ValueError,UnicodeDecodeError) as exc:
-        # Never quietly turn a network failure into '0 nearby facilities'.
+    # Public Overpass instances are frequently rate-limited (429/504);
+    # try at most one documented alternative, without inventing a 0-count
+    # dataset. Do not follow redirects into arbitrary hosts.
+    data=None
+    used_endpoint=None
+    problems=[]
+    with httpx.Client(timeout=httpx.Timeout(30.0,connect=8.0),
+                      follow_redirects=False) as client:
+        for endpoint in (OVERPASS_ENDPOINT, OVERPASS_FALLBACK):
+            try:
+                response=client.post(endpoint,data={"data":query},
+                                     headers={"User-Agent":"PLANEXUS-AI-private-site-screening/1.0",
+                                              "Accept":"application/json"})
+                response.raise_for_status()
+                if len(response.content)>MAX_RESPONSE_BYTES:
+                    raise ValueError("OSM response exceeds bounded payload.")
+                decoded=response.json()
+                if not isinstance(decoded,dict) or not isinstance(decoded.get("elements"),list):
+                    raise ValueError("Overpass did not return JSON elements.")
+                data=decoded
+                used_endpoint=endpoint
+                break
+            except (httpx.HTTPError,ValueError,UnicodeDecodeError) as exc:
+                status=exc.response.status_code if isinstance(exc,httpx.HTTPStatusError) else None
+                problems.append({"provider":endpoint.split("/")[2],
+                                 "type":type(exc).__name__,"http_status":status})
+    if data is None:
         raise HTTPException(503,
-            "Sumber sekitar OpenStreetMap/Overpass tidak dapat dicapai atau respons rosak; "
-            "tiada kemudahan atau jalan direka sebagai pengganti. "
-            f"Kategori ralat: {type(exc).__name__}.") from exc
+            "Sumber OpenStreetMap/Overpass belum tersedia selepas dua pelayan dicuba; "
+            "tiada jalan atau kemudahan direka. Status: "+json.dumps(problems))
     elements=data.get("elements") if isinstance(data,dict) else None
     if not isinstance(elements,list) or len(elements)>MAX_RESULTS:
         raise HTTPException(503,"Respons OSM melebihi had atau tidak mempunyai rekod yang sah.")
@@ -144,7 +160,8 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     return {
         "status":"retrieved","source_id":"openstreetmap-overpass-community",
         "source_name":"© OpenStreetMap contributors / Overpass",
-        "source_url":OSM_LICENSE,"api_endpoint":OVERPASS_ENDPOINT,
+        "source_url":OSM_LICENSE,"api_endpoint":used_endpoint,
+        "provider_failures_before_success":problems,
         "licence":"ODbL; https://www.openstreetmap.org/copyright",
         "retrieved_at_utc":datetime.now(timezone.utc).isoformat(),
         "source_quality":"community_unverified_not_official",
