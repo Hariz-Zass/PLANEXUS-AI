@@ -80,7 +80,8 @@ def test_restore_all_sqlite_scenarios_layout_and_raster_evidence(monkeypatch, tm
         assert restarted.get(f"/api/analyses/{aid}").json()["elevation_geojson"]["features"]
         assert len(restarted.get(f"/api/projects/{pid}/proposals").json()["proposals"])==1
         assert restarted.get(f"/api/projects/{pid}/layout").json()["exists"] is True
-        assert restarted.get(f"/api/projects/{other_id}/layout").json()["exists"] is False
+        # An empty second project has no layout canvas until a boundary is saved.
+        assert restarted.get(f"/api/projects/{other_id}/layout").status_code == 422
 
 
 def test_refuse_restore_over_existing_data_even_when_empty(tmp_path):
