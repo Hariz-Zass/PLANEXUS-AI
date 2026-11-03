@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 from pydantic import BaseModel, Field
 from rasterio.errors import RasterioError
 from shapely.geometry import shape
@@ -24,11 +26,22 @@ from .geometry import validate_site
 from .project_store import (create_project, list_projects, get_project, update_project, remove_project,
                             attach_analysis, activate_analysis)
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
+from .storage_health import check_storage
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.7.0", description="Evidence-first geospatial screening. Local development only; no authentication.")
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.8.0", description="Evidence-first GIS. Single trusted operator, volume-enforced persistence; no public-user authentication.")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
+
+
+@app.middleware("http")
+async def block_writes_without_storage(request: Request, call_next):
+    # Reject writes to ephemeral containers rather than silently losing projects.
+    if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        state = check_storage(DATA_DIR)
+        if not state["ready"]:
+            return JSONResponse(status_code=503, content={"detail": state["detail"], "storage": state["type"]})
+    return await call_next(request)
 
 
 class SitePayload(BaseModel):
@@ -50,7 +63,22 @@ def job_dir(analysis_id: str) -> Path:
 
 
 def save_report(path: Path, report: dict[str, Any]) -> dict[str, Any]:
-    (path / "result.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    """Atomically replace the report so interrupted writes cannot corrupt it."""
+    path.mkdir(parents=True, exist_ok=True)
+    staged: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path,
+            prefix=".result-", suffix=".tmp", delete=False
+        ) as handle:
+            staged = Path(handle.name)
+            json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(staged, path / "result.json")
+    finally:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
     return report
 
 
@@ -63,7 +91,18 @@ def load_report(analysis_id: str) -> dict[str, Any]:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "PLANEXUS AI Terrain", "storage": "local-persistent-folder", "production_ready": False}
+    state = check_storage(DATA_DIR)
+    payload = {
+        "status": "ok" if state["ready"] else "error",
+        "service": "PLANEXUS AI Terrain",
+        "storage": state["type"],
+        "persistent": state["persistent"],
+        "detail": state["detail"],
+        "public_multiuser_ready": False,
+    }
+    if not state["ready"]:
+        return JSONResponse(status_code=503, content=payload)
+    return payload
 
 
 @app.get("/api/policy/catalog")

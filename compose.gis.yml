@@ -1,0 +1,23 @@
+# Private single-machine pilot verification, not a public production gateway.
+services:
+  gis:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PLANEXUS_DATA_DIR: /data
+      PLANEXUS_REQUIRE_PERSISTENT_VOLUME: "1"
+      PLANEXUS_CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - planexus-gis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health',timeout=8)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+volumes:
+  planexus-gis-data:
