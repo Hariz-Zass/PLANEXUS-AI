@@ -15,7 +15,7 @@ COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir -r requirements.txt \
     && groupadd --system --gid 10001 planexus \
     && useradd --system --uid 10001 --gid 10001 --home-dir /nonexistent planexus \
-    && mkdir /data && chown 10001:10001 /data
+    && mkdir -p /data /backups && chown 10001:10001 /data /backups
 COPY app ./app
 # Surface missing native GIS dependencies at image-build time, not after deploy.
 RUN python -c "from app.main import app; print(app.title)"

@@ -19,5 +19,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 45s
+  # Opt-in only: docker compose -f compose.gis.yml --profile backup up -d
+  # Archive volume is SEPARATE from GIS volume but is still on this HOST.
+  # Host failure destroys both unless the operator mirrors archives off-host.
+  backup:
+    profiles: ["backup"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.backup_scheduler", "run", "--data-dir", "/data", "--output-dir", "/backups", "--keep", "14", "--interval-hours", "24"]
+    environment:
+      PLANEXUS_DATA_DIR: /data
+      PLANEXUS_REQUIRE_PERSISTENT_VOLUME: "1"
+    volumes:
+      - planexus-gis-data:/data
+      - planexus-gis-backups:/backups
+    restart: unless-stopped
 volumes:
   planexus-gis-data:
+  planexus-gis-backups:

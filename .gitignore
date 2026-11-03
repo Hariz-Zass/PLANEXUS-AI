@@ -43,3 +43,6 @@ frontend/tests/fixtures/generated/
 # B3.1 private backup and offline restore data
 private-backups/
 recovered-planexus-data/
+
+# B3.4 automatically generated private backups and reports
+private-backups/automatic/
