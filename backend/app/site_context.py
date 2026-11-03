@@ -26,7 +26,9 @@ from shapely.geometry import shape
 # licensed/self-hosted provider after explicit operator configuration.
 OVERPASS_ENDPOINT="https://overpass.private.coffee/api/interpreter"
 OVERPASS_FALLBACK="https://overpass-api.de/api/interpreter"
-OVERPASS_FAST_MIRROR="https://lz4.overpass-api.de/api/interpreter"
+# Documented global-coverage fallback; regional-only Overpass servers must not
+# be used for Malaysian sites.
+OVERPASS_VK_GLOBAL="https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 OVERPASS_CH_KEY_ENDPOINT="https://api.overpass.ch/v1/interpreter"
 
 
@@ -39,7 +41,7 @@ def _providers() -> list[tuple[str, dict[str, str]]]:
     if key:
         choices.append((OVERPASS_CH_KEY_ENDPOINT,{"X-API-Key":key}))
     choices.extend((endpoint,{}) for endpoint in
-                   (OVERPASS_ENDPOINT,OVERPASS_FAST_MIRROR,OVERPASS_FALLBACK))
+                   (OVERPASS_ENDPOINT,OVERPASS_VK_GLOBAL,OVERPASS_FALLBACK))
     return choices
 OSM_LICENSE="https://www.openstreetmap.org/copyright"
 CATEGORIES=("education","healthcare","transport","retail","parks","civic","roads","waterways")
@@ -114,7 +116,13 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
                 if len(response.content)>MAX_RESPONSE_BYTES:
                     raise ValueError("OSM response exceeds bounded payload.")
                 decoded=response.json()
-                if not isinstance(decoded,dict) or not isinstance(decoded.get("elements"),list):
+                if not isinstance(decoded,dict):
+                    raise ValueError("Overpass did not return a JSON object.")
+                # Overpass sometimes returns HTTP 200 with a 'remark' timeout
+                # plus partial/empty elements. Never claim that as a valid scan.
+                if isinstance(decoded.get("remark"),str) and decoded["remark"].strip():
+                    raise ValueError("Overpass reported a query error: "+decoded["remark"][:150])
+                if not isinstance(decoded.get("elements"),list):
                     raise ValueError("Overpass did not return JSON elements.")
                 data=decoded
                 used_endpoint=endpoint
