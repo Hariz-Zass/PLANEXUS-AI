@@ -202,6 +202,10 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       if (root.current) {
         root.current.dataset.slopeRendered=slopeVisible?"true":"false";
         root.current.dataset.elevationRendered=elevationVisible?"true":"false";
+        root.current.dataset.slopeFeatures=String(latestReport.current?.slope_geojson?.features?.length??0);
+        root.current.dataset.elevationFeatures=String(latestReport.current?.elevation_geojson?.features?.length??0);
+        root.current.dataset.contoursFeatures=String(latestReport.current?.contours_geojson?.features?.length??0);
+        root.current.dataset.activeTerrainLayer=latestTerrainLayer.current;
         root.current.dataset.suitabilityRendered =
           latestTerrainLayer.current === "suitability" &&
           Boolean(latestReport.current?.suitability_geojson?.features?.length) ? "true" : "false";

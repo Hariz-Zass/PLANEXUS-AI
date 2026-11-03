@@ -67,6 +67,9 @@ export type TerrainReport = {
     slope_mean_deg: number;
     slope_max_deg: number;
     coverage_percent_est: number;
+    slope_coverage_percent?: number;
+    site_mask_pixels?: number;
+    coverage_method?: string;
     analysis_resolution_m_est: number;
     valid_elevation_pixels: number;
     valid_slope_pixels: number;
@@ -82,6 +85,29 @@ export type TerrainReport = {
   suitability_geojson?: GeoJSON.FeatureCollection;
   elevation_geojson?: GeoJSON.FeatureCollection;
   contours_geojson?: GeoJSON.FeatureCollection;
+  quality?:{
+    version:string;
+    status:"screening"|"review"|"limited";
+    elevation_site_cell_coverage_pct:number;
+    slope_site_cell_coverage_pct:number;
+    site_center_cells:number;
+    site_grid_area_ha_est:number;
+    geodesic_vs_cell_area_difference_pct:number|null;
+    method:string;
+    external_gdal_qgis_comparison:string;
+    terrain_screening_only:true;
+    field_vertical_accuracy_verified:false;
+    flags:string[];
+  };
+  source_file?:{
+    sha256:string; size_bytes:number; input_crs:string;
+    input_nodata:number|null; input_pixel_size_in_crs_units:number[];
+    input_vertical_band_unit:string;
+    source_authenticity_independently_verified:boolean;
+  };
+  qa_artifacts?:{
+    projected_elevation:string;projected_slope:string;qgis_verification:string;
+  }|null;
   warnings: string[];
   assessment_scope: string;
 };
@@ -313,7 +339,7 @@ let csrfToken:string|null = null;
 
 export function setAuthCsrf(value:string|null):void { csrfToken=value; }
 
-function browserApiBase():string {
+export function browserApiBase():string {
   // Same-site cookies are mandatory on local HTTP: localhost:3000 and
   // 127.0.0.1:8000 are different cookie sites. Match whichever loopback
   // hostname the planner used to open the dashboard.

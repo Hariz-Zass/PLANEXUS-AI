@@ -8,7 +8,7 @@ import {
   Globe2, Info, Layers3, LoaderCircle, Map as MapIcon, MapPin, Menu, Mountain, Route,
   Plus, ScanSearch, Send, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X, Radar, Ruler, Crosshair, Orbit, ChevronRight, WandSparkles, CircleDot, MoveUpRight
 } from "lucide-react";
-import { API_BASE, api, setAuthCsrf, type AuthResponse, type AuthUser, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
+import { API_BASE, api, browserApiBase, setAuthCsrf, type AuthResponse, type AuthUser, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import SuitabilityPanel from "@/components/SuitabilityPanel";
 import ProposalStudio from "@/components/ProposalStudio";
@@ -665,9 +665,34 @@ function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
                   <div className="subsection-head"><strong>Slope distribution</strong><span>% of valid slope pixels</span></div>
                   <div className="slope-bar">{report.metrics.slope_classes.map(c => <div key={c.id} style={{ width: `${c.percent_of_valid_slope}%`, background: c.color }} title={`${c.name}: ${c.percent_of_valid_slope}%`} />)}</div>
                   <div className="class-results">{report.metrics.slope_classes.map(c => <div key={c.id}><span><i style={{ background: c.color }} />{c.name}</span><strong>{formattedNumber(c.percent_of_valid_slope)}%</strong><small>{formattedNumber(c.area_ha_est,3)} ha</small></div>)}</div>
+                  <section className="terrain-qa" role="region" aria-label="GIS Data Quality Review" data-qa-status={report.quality?.status??"legacy"}>
+                    <div className="terrain-qa-title">
+                      <div><strong><ShieldCheck size={16}/> GIS DATA QUALITY</strong>
+                        <p>Keputusan automatik ini bukan pengesahan ketepatan ukur atau kelulusan PBT.</p>
+                      </div>
+                      <span className="terrain-qa-status">{report.quality?.status?.toUpperCase()??"LEGACY — NOT REVIEWED"}</span>
+                    </div>
+                    {report.quality ? <>
+                      <div className="terrain-qa-metrics">
+                        <div><small>Elevation coverage</small><strong>{formattedNumber(report.quality.elevation_site_cell_coverage_pct,1)}%</strong></div>
+                        <div><small>Slope coverage (Horn 3×3)</small><strong>{formattedNumber(report.quality.slope_site_cell_coverage_pct,1)}%</strong></div>
+                        <div><small>Contour lines</small><strong>{report.metrics.contour_features??0}</strong></div>
+                        <div><small>Processing CRS</small><strong>{report.metrics.horizontal_crs.replace("EPSG:","EPSG ")}</strong></div>
+                      </div>
+                      <p className="terrain-qa-method">{report.quality.method}</p>
+                      {report.quality.flags.length>0 && <div className="terrain-qa-flags">{report.quality.flags.map((flag,i)=><p key={i}><CircleAlert size={13}/>{flag}</p>)}</div>}
+                      {report.source_file && <div className="terrain-qa-provenance"><small>Input raster SHA-256</small><code title={report.source_file.sha256}>{report.source_file.sha256}</code></div>}
+                      <p className="terrain-qa-pending">QGIS site-specific comparison: NOT YET VERIFIED. Source accuracy is not certified.</p>
+                    </> : <p className="terrain-qa-pending">Laporan lama belum melalui audit B3.3. Jalankan semula DEM dan simpan laporan baharu.</p>}
+                    <div className="terrain-qa-downloads">
+                      {report.quality&&<a href={`${browserApiBase()}/api/analyses/${report.analysis_id}/verification.md`} className="btn btn-outline"><ArrowDownToLine size={14}/> GIS QA Report (.md)</a>}
+                      {report.qa_artifacts&&<a href={`${browserApiBase()}/api/analyses/${report.analysis_id}/elevation-utm.tif`} className="btn btn-outline"><ArrowDownToLine size={14}/> Elevation UTM (.tif)</a>}
+                      {report.qa_artifacts&&<a href={`${browserApiBase()}/api/analyses/${report.analysis_id}/slope-utm.tif`} className="btn btn-outline"><ArrowDownToLine size={14}/> Slope UTM (.tif)</a>}
+                    </div>
+                  </section>
                   <div className="source-card"><div className="source-icon"><ShieldCheck size={18}/></div><div><strong>Data Provenance</strong><p>{report.source.name} · {report.source.data_type}</p><span>{report.source.verified}</span>{report.source.reference && <a href={report.source.reference} target="_blank" rel="noopener noreferrer">Official dataset reference ↗</a>}</div></div>
                   <div className="limitations"><strong><CircleAlert size={16}/> Quality & scope warnings</strong>{report.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</div>
-                  <a className="btn btn-outline report-download" href={`${API_BASE}/api/analyses/${report.analysis_id}/report.md`}><ArrowDownToLine size={17}/> Download Evidence Report (.md)</a>
+                  <a className="btn btn-outline report-download" href={`${browserApiBase()}/api/analyses/${report.analysis_id}/report.md`}><ArrowDownToLine size={17}/> Download Evidence Report (.md)</a>
                 </div>}
               </section>
               <aside className="copilot-card">

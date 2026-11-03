@@ -88,3 +88,27 @@
 .shell-v2 .account-logout:hover{background:#285440}
 .auth-alert{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#402524;color:#ffe0d5;border:1px solid #aa665f;padding:9px 13px;border-radius:9px;z-index:9999;max-width:95vw;font:600 11px var(--display)}
 @media(max-width:700px){.shell-v2 .account-label{display:none}.shell-v2 .account-logout{padding:7px;font-size:10px}.auth-card{padding:23px}.auth-root{padding:12px}}
+
+
+/* B3.3: audit trail and independently checkable GIS raster downloads */
+.terrain-qa{margin:14px 0;padding:15px;border:1px solid #507a78;border-radius:12px;background:linear-gradient(120deg,rgba(22,69,64,.46),rgba(15,35,49,.4));display:flex;flex-direction:column;gap:12px}
+.terrain-qa-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.terrain-qa-title strong{display:flex;align-items:center;gap:7px;font:800 11px var(--display);letter-spacing:1px;color:#c9e8d1}
+.terrain-qa-title p{margin:5px 0 0;font:500 11px/1.55 var(--display);color:#b5cdc3}
+.terrain-qa-status{white-space:nowrap;border:1px solid #719184;border-radius:6px;color:#f2f2db;font:700 10px var(--display);padding:7px 9px}
+.terrain-qa[data-qa-status="limited"] .terrain-qa-status{color:#ffb7a9;border-color:#a7655e}
+.terrain-qa-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.terrain-qa-metrics>div{background:rgba(0,15,22,.33);border:1px solid #33575b;padding:10px;border-radius:7px;min-width:0}
+.terrain-qa-metrics small{display:block;font:600 10px/1.5 var(--display);color:#b4cdc6}
+.terrain-qa-metrics strong{display:block;margin-top:4px;font:800 14px/1.3 var(--display);color:#e8f4e7}
+.terrain-qa-method,.terrain-qa-pending{font:500 11px/1.6 var(--display);color:#bbd4c9;margin:0}
+.terrain-qa-pending{color:#efcda3}
+.terrain-qa-flags{display:grid;gap:5px}
+.terrain-qa-flags p{font:500 11px/1.5 var(--display);color:#f3cdbc;display:flex;align-items:flex-start;gap:7px;margin:0}
+.terrain-qa-flags svg{flex-shrink:0;margin-top:2px}
+.terrain-qa-provenance{min-width:0;display:flex;flex-direction:column;gap:4px}
+.terrain-qa-provenance small{font:700 10px var(--display);color:#b2d4c2}
+.terrain-qa-provenance code{font-size:10px;color:#dcebcf;overflow-wrap:anywhere}
+.terrain-qa-downloads{display:flex;flex-wrap:wrap;gap:7px}
+.terrain-qa-downloads .btn{font-size:10px;min-height:35px}
+@media(max-width:800px){.terrain-qa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.terrain-qa-title{flex-direction:column}.terrain-qa-downloads .btn{flex:1 1 150px}}
