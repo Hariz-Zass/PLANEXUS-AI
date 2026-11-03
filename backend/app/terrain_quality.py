@@ -63,6 +63,7 @@ def source_file_evidence(path: Path, *, input_crs: str, input_nodata: float | No
 
 def assess_gis_quality(*, site_cells: int, elevation_cells: int, slope_cells: int,
                        raster_type: str, source_pixel_m: float | None,
+                       source_id: str, vertical_datum: str | None,
                        analysed_pixel_m: float, site_area_ha: float,
                        pixel_area_m2: float, contour_count: int,
                        overlay_truncated: bool) -> dict[str, Any]:
@@ -87,6 +88,10 @@ def assess_gis_quality(*, site_cells: int, elevation_cells: int, slope_cells: in
         flags.append("Pixel-centre area differs by over 10% from geodesic site area.")
     if "DSM" in raster_type.upper():
         flags.append("DSM includes trees/buildings; it is NOT a bare-earth DTM or site survey.")
+    if source_id == "user-upload":
+        flags.append("Uploaded raster provenance and DTM/DSM declaration are user-supplied, not independently authenticated.")
+    if not vertical_datum or vertical_datum.strip().casefold() in ("unknown","not known","", "not supplied"):
+        flags.append("Vertical height datum is not declared; elevation comparisons need a verified common vertical datum.")
     if raster_type in ("DEM-unknown", "unknown", ""):
         flags.append("Elevation surface type is not independently confirmed.")
     if overlay_truncated:
@@ -136,9 +141,11 @@ def validate_raster_metadata(src: rasterio.io.DatasetReader, source: dict[str, A
     if not all(math.isfinite(x) and x > 0 for x in map(abs, src.res)):
         raise HTTPException(422, "Resolusi/transform geospatial tidak sah.")
     declared_unit = src.units[0] if src.units else None
-    if declared_unit and declared_unit.strip().lower() in (
-        "ft", "foot", "feet", "us survey foot", "us-ft", "international foot"
-    ):
-        raise HTTPException(422, "Raster menyatakan unit kaki sedangkan PLANEXUS V1 mengira dalam meter. Tukar unit ketinggian terlebih dahulu.")
+    if declared_unit:
+        unit = declared_unit.strip().lower()
+        if unit in ("ft", "foot", "feet", "us survey foot", "us-ft", "international foot"):
+            raise HTTPException(422, "Raster menyatakan unit kaki sedangkan PLANEXUS V1 mengira dalam meter. Tukar unit ketinggian terlebih dahulu.")
+        if unit not in ("m", "metre", "metres", "meter", "meters"):
+            raise HTTPException(422, "Unit menegak GeoTIFF bukan meter atau tidak dikenali. Sahkan dan tukar unit sebelum analisis.")
     if not isinstance(source.get("data_type"), str):
         raise HTTPException(422, "Jenis DEM/DSM/DTM mesti dinyatakan sebagai metadata.")

@@ -124,6 +124,8 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         site_cells=site_center_count,
         elevation_cells=int(valid.sum()), slope_cells=int(slope_valid.sum()),
         raster_type=str(source_metadata.get("data_type", "unknown")),
+        source_id=str(source_metadata.get("id", "")),
+        vertical_datum=str(source_metadata.get("vertical_datum", "")),
         source_pixel_m=float(source_metadata["nominal_resolution_m"])
         if source_metadata.get("nominal_resolution_m") else None,
         analysed_pixel_m=float((resolution_x + resolution_y) / 2),
