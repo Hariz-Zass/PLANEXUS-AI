@@ -108,7 +108,10 @@ def test_invite_only_registration_single_use_and_account_isolation(monkeypatch,t
         project_a=site.json()["id"]
         assert other.post("/api/auth/register",json={
             "email":"bravo@example.test","display_name":"Other Planner",
-            "password":PLANNER_PASSWORD,"invite_token":"invalid"}).status_code==403
+            "password":PLANNER_PASSWORD,"invite_token":"invalid"}).status_code==422
+        assert other.post("/api/auth/register",json={
+            "email":"bravo@example.test","display_name":"Other Planner",
+            "password":PLANNER_PASSWORD,"invite_token":"not-a-real-invitation-token"}).status_code==403
         invite=auth.create_invite(data,"admin@example.test")
         reg=other.post("/api/auth/register",json={
             "email":"bravo@example.test","display_name":"Other Planner",
