@@ -82,9 +82,13 @@ export default function SiteContextPanel({
         <h3>Tempat bernama ditemui <small>(maks. 30, jarak garis lurus)</small></h3>
         {result.context.named_places.length?
           <div className="site-evidence-places">{result.context.named_places.map(p=>
-            <a key={p.osm_feature_id} href={p.osm_url} target="_blank" rel="noopener noreferrer">
-              <span><strong>{p.name}</strong><small>{labels[p.category]??p.category} · kira-kira {p.distance_from_reference_point_m.toLocaleString("ms-MY")} m</small></span>
-              <ExternalLink size={13}/></a>)}</div>
+            p.osm_feature_id.startsWith("geofabrik:")
+              ? <div key={p.osm_feature_id} className="site-evidence-snapshot">
+                  <span><strong>{p.name}</strong><small>{labels[p.category]??p.category} · kira-kira {p.distance_from_reference_point_m.toLocaleString("ms-MY")} m · snapshot OSM, pautan objek individu tidak tersedia</small></span>
+                </div>
+              : <a key={p.osm_feature_id} href={p.osm_url} target="_blank" rel="noopener noreferrer">
+                  <span><strong>{p.name}</strong><small>{labels[p.category]??p.category} · kira-kira {p.distance_from_reference_point_m.toLocaleString("ms-MY")} m</small></span>
+                  <ExternalLink size={13}/></a>)}</div>
           :<p className="site-evidence-notice">Tiada nama tempat direkod dalam respons OSM. Ini TIDAK membuktikan tiada kemudahan.</p>}
         <p className="site-evidence-notice">© OpenStreetMap contributors · ODbL. Sumber komuniti yang mungkin tidak lengkap. Bilangan jalan ialah segmen peta, bukan pengesahan akses tapak. Sungai/parit dalam OSM bukan peta bahaya banjir JPS.</p>
       </>
