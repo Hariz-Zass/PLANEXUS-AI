@@ -245,6 +245,16 @@ def data_capabilities():
     return source_coverage_manifest()
 
 
+@app.get("/api/osm/status")
+def osm_source_status():
+    """Authenticated availability check; never returns credentials or paths."""
+    from .postgis_context import readiness
+    return {"primary":"self_hosted_postgis_when_ready",
+            "postgis":readiness(),
+            "fallbacks":["live_overpass","optional_geofabrik_gpkg","project_cache"],
+            "official_zoning":False}
+
+
 @app.get("/api/sources")
 def sources():
     return {"sources": SOURCE_CATALOG, "note": "Sumber data tidak sama dengan ketepatan ukur tapak. Tiada kelulusan pembangunan dinilai."}
