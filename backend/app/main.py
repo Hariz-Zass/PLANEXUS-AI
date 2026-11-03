@@ -86,7 +86,13 @@ def load_report(analysis_id: str) -> dict[str, Any]:
     path = job_dir(analysis_id) / "result.json"
     if not path.is_file():
         raise HTTPException(404, "Analisis tidak ditemui.")
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(503, "Laporan GIS disimpan tetapi tidak dapat dibaca. Semak integriti storan dan pulihkan daripada backup yang disahkan.") from exc
+    if not isinstance(report, dict) or report.get("analysis_id") != analysis_id:
+        raise HTTPException(503, "ID laporan GIS tidak sepadan dengan fail simpanan. Data ini tidak digunakan.")
+    return report
 
 
 @app.get("/api/health")

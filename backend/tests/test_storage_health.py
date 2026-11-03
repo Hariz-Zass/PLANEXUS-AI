@@ -88,3 +88,21 @@ def test_saved_report_restores_real_field_names_for_both_map_layers(monkeypatch,
     assert actual.json()["slope_geojson"]["features"]
     assert actual.json()["elevation_geojson"]["features"]
     assert json.loads((directory/"result.json").read_text()) == report
+
+
+
+def test_corrupted_or_swapped_gis_report_is_refused_not_rendered(monkeypatch, tmp_path):
+    monkeypatch.setattr(main, "DATA_DIR", tmp_path)
+    aid = "59c1440c-624a-4731-bd88-6d17a6638256"
+    directory = main.job_dir(aid)
+    directory.mkdir(parents=True)
+    report = directory / "result.json"
+    report.write_text('{"analysis_id":"00000000-0000-4000-8000-000000000000"}')
+    with TestClient(main.app) as client:
+        wrong = client.get(f"/api/analyses/{aid}")
+        assert wrong.status_code == 503
+        assert "tidak sepadan" in wrong.json()["detail"]
+        report.write_text("{BROKEN JSON")
+        corrupted = client.get(f"/api/analyses/{aid}")
+        assert corrupted.status_code == 503
+        assert "integriti storan" in corrupted.json()["detail"]

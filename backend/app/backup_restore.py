@@ -135,6 +135,8 @@ def verify_backup(archive_path: Path) -> dict[str, Any]:
                 raise RuntimeError("Backup exceeds safety limits.")
             if DB_NAME not in names or MANIFEST_NAME not in names:
                 raise RuntimeError("Backup requires SQLite and a manifest.")
+            if bundle.getinfo(MANIFEST_NAME).file_size > 4 * 1024 * 1024:
+                raise RuntimeError("Backup manifest exceeds 4 MiB inspection limit.")
             manifest = json.loads(bundle.read(MANIFEST_NAME))
             if not isinstance(manifest, dict) or manifest.get("format_version") != FORMAT_VERSION:
                 raise RuntimeError("Legacy/unknown archive format: only checksummed v2 can be restored.")
