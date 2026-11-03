@@ -186,5 +186,41 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
-  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000  // Regression: a delayed saved-context GET must not overwrite a newer
+  // live source scan, even when both belong to exactly the same project.
+  let releaseOldGet=()=>{};
+  let sawOldGet=false;
+  const heldGet=new Promise<void>(resolve=>{releaseOldGet=()=>resolve();});
+  const contextFixture=(name:string,osmId:string)=>({
+    status:"retrieved",source_id:"openstreetmap-overpass-community",
+    source_name:"OpenStreetMap test fixture, not official",
+    source_url:"https://www.openstreetmap.org/copyright",licence:"ODbL",
+    retrieved_at_utc:now,source_quality:"community_unverified_not_official",
+    radius_m:1500,counts:{healthcare:1},
+    named_places:[{name,category:"healthcare",distance_from_reference_point_m:200,
+      osm_url:"https://www.openstreetmap.org/node/"+osmId,osm_feature_id:"node/"+osmId}],
+    returned_feature_count:1,warnings:[]
+  });
+  await page.route("**/api/projects/*/context",async route=>{
+    sawOldGet=true;
+    await heldGet;
+    await route.fulfill({status:200,headers,json:{
+      exists:true,context:contextFixture("Old cached clinic","123")
+    }});
+  });
+  await page.route("**/api/projects/*/context/refresh",async route=>{
+    await route.fulfill({status:200,headers,json:{
+      exists:true,stale_cache:false,source_refresh_failed:false,
+      context:contextFixture("Fresh community clinic","456")
+    }});
+  });
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"})
+    .getByRole("button",{name:/Site Context/}).click();
+  await expect.poll(()=>sawOldGet).toBe(true);
+  await page.getByRole("button",{name:"Imbas sekitar 1.5 km"}).click();
+  await expect(page.getByText("Fresh community clinic")).toBeVisible({timeout:20000});
+  releaseOldGet();
+  await expect(page.getByText("Fresh community clinic")).toBeVisible();
+  await expect(page.getByText("Old cached clinic")).toHaveCount(0);
+});
 });
