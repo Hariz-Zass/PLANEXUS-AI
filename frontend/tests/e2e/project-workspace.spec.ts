@@ -52,13 +52,15 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   let counter=0;
   const headers={
     "access-control-allow-origin":"http://127.0.0.1:3000",
+    "access-control-allow-credentials":"true",
     "access-control-allow-methods":"GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers":"Content-Type"
+    "access-control-allow-headers":"Content-Type,X-CSRF-Token"
   };
   await page.route("http://localhost:8000/api/**",async route=>{
     const req=route.request(), method=req.method(), path=new URL(req.url()).pathname;
     const reply=async(status:number,body:unknown)=>route.fulfill({status,headers,json:body});
     if(method==="OPTIONS"){await route.fulfill({status:204,headers});return;}
+    if(path==="/api/auth/me"){await reply(200,{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"});return;}
     if(path==="/api/health"){await reply(200,{status:"ok"});return;}
     if(path==="/api/copilot/capabilities"){await reply(200,{generative_ai_configured:false});return;}
     if(path==="/api/analyses"){await reply(200,{analyses:[]});return;}

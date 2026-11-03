@@ -7,6 +7,10 @@ const geometry = {
 };
 
 test("restores the actual MapLibre site source after refresh and menu switch", async ({ page }) => {
+  await page.route("http://localhost:8000/api/auth/me",async route=>route.fulfill({
+    status:200,headers:{"access-control-allow-origin":"http://127.0.0.1:3000","access-control-allow-credentials":"true"},
+    json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}
+  }));
   await page.goto("/");
   await page.evaluate(({key,polygon})=>localStorage.setItem(key,JSON.stringify({
     version:1,savedAt:"2026-11-02T00:00:00.000Z",origin:"map-drawing",geometry:polygon
@@ -27,6 +31,10 @@ test("restores the actual MapLibre site source after refresh and menu switch", a
   await expect(page.getByText("SITE AUTOSAVED")).toBeVisible();
 });
 test("saved geometry remains safe when a replacement drawing is cancelled", async ({ page }) => {
+  await page.route("http://localhost:8000/api/auth/me",async route=>route.fulfill({
+    status:200,headers:{"access-control-allow-origin":"http://127.0.0.1:3000","access-control-allow-credentials":"true"},
+    json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}
+  }));
   await page.goto("/");
   await page.evaluate(({key,polygon})=>localStorage.setItem(key,JSON.stringify({
     version:1,savedAt:"2026-11-02T00:00:00.000Z",origin:"map-drawing",geometry:polygon
@@ -54,7 +62,16 @@ test("never shows stale standalone browser boundary as a saved project when API 
       ]]}
     }));
   });
-  await page.route("http://localhost:8000/api/**",async route=>route.abort("failed"));
+  await page.route("http://localhost:8000/api/**",async route=>{
+    if(new URL(route.request().url()).pathname==="/api/auth/me"){
+      await route.fulfill({status:200,headers:{
+        "access-control-allow-origin":"http://127.0.0.1:3000",
+        "access-control-allow-credentials":"true"
+      },json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}});
+    }else{
+      await route.abort("failed");
+    }
+  });
   await page.goto("/");
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.locator(".terrain-map[data-site-polygon='absent']")).toBeVisible({timeout:30000});

@@ -16,8 +16,9 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
   let changed=false;
   const cors={
     "access-control-allow-origin":"http://127.0.0.1:3000",
+    "access-control-allow-credentials":"true",
     "access-control-allow-methods":"GET,POST,PUT,DELETE,PATCH,OPTIONS",
-    "access-control-allow-headers":"Content-Type",
+    "access-control-allow-headers":"Content-Type,X-CSRF-Token",
   };
 
   function calculation(input:ProposalInputs):ProposalCalculation{
@@ -139,6 +140,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     const path=new URL(request.url()).pathname;
     const respond=async(status:number,data:unknown)=>route.fulfill({status,headers:cors,json:data});
     if(method==="OPTIONS"){await route.fulfill({status:204,headers:cors});return;}
+    if(path==="/api/auth/me"){await respond(200,{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"});return;}
     if(path==="/api/health"){await respond(200,{status:"ok"});return;}
     if(path==="/api/policy/catalog"&&method==="GET"){await respond(200,policyCatalog);return;}
     if(path==="/api/policy/assess"&&method==="POST"){

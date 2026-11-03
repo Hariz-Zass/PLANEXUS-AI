@@ -91,8 +91,9 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
   let stale=false;
   const cors={
     "access-control-allow-origin":"http://127.0.0.1:3000",
+    "access-control-allow-credentials":"true",
     "access-control-allow-methods":"GET,POST,PATCH,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers":"Content-Type",
+    "access-control-allow-headers":"Content-Type,X-CSRF-Token",
   };
   await page.addInitScript(id=>localStorage.setItem("planexus:active-project:v1",id),ID);
   await page.route("http://localhost:8000/api/**",async route=>{
@@ -100,6 +101,7 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
     const path=new URL(request.url()).pathname;
     const respond=async(status:number,data:unknown)=>route.fulfill({status,headers:cors,json:data});
     if(method==="OPTIONS"){await route.fulfill({status:204,headers:cors});return;}
+    if(path==="/api/auth/me"){await respond(200,{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"});return;}
     if(path==="/api/health"){await respond(200,{status:"ok"});return;}
     if(path==="/api/copilot/capabilities"){await respond(200,{generative_ai_configured:false});return;}
     if(path==="/api/analyses"){await respond(200,{analyses:[]});return;}

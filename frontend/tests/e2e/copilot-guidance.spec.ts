@@ -3,8 +3,9 @@ import { test, expect } from "@playwright/test";
 test("Copilot gives honest workflow help before DEM analysis when GIS is connected", async ({ page }) => {
   const cors = {
     "access-control-allow-origin": "http://127.0.0.1:3000",
+    "access-control-allow-credentials":"true",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "Content-Type",
+    "access-control-allow-headers":"Content-Type,X-CSRF-Token",
   };
   await page.route("http://localhost:8000/api/**", async (route) => {
     const request = route.request();
@@ -13,7 +14,9 @@ test("Copilot gives honest workflow help before DEM analysis when GIS is connect
       return;
     }
     const path = new URL(request.url()).pathname;
-    if (path === "/api/health") {
+    if (path === "/api/auth/me") {
+      await route.fulfill({status:200,headers:cors,json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}});
+    } else if (path === "/api/health") {
       await route.fulfill({status:200,headers:cors,json:{status:"ok",production_ready:false}});
     } else if (path === "/api/copilot/capabilities") {
       await route.fulfill({status:200,headers:cors,json:{available:true,generative_ai_configured:false,guidance_without_analysis:true}});
