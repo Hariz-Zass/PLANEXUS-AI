@@ -201,6 +201,38 @@ jobs:
           path: backend/b3.3_malaysia_live_report.json
           if-no-files-found: warn
 
+  postgis-osm-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Start a private PostGIS instance for OSM acceptance
+        run: |
+          docker run -d --name planexus-ci-postgis \
+            -e POSTGRES_USER=planexus -e POSTGRES_PASSWORD=synthetic-ci-not-production \
+            -e POSTGRES_DB=planexus_osm \
+            -p 127.0.0.1:15432:5432 postgis/postgis:16-3.4
+          for n in $(seq 1 50); do
+            if docker exec planexus-ci-postgis pg_isready -U planexus -d planexus_osm >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs planexus-ci-postgis
+          exit 1
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Verify real GeoPackage import, spatial SQL, atomic refresh and fallback
+        working-directory: backend
+        env:
+          PLANEXUS_OSM_POSTGIS_DSN: postgresql://planexus:synthetic-ci-not-production@127.0.0.1:15432/planexus_osm
+        run: python -m tests.postgis_integration_smoke
+      - name: Clean up isolated CI database
+        if: always()
+        run: docker rm -f planexus-ci-postgis 2>/dev/null || true
+
   live-public-osm-context:
     runs-on: ubuntu-latest
     # Required real-source acceptance check; a provider outage must fail CI.
