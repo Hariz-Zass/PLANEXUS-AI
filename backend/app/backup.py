@@ -13,6 +13,8 @@ import sqlite3
 import tempfile
 import zipfile
 from .backup_restore import FORMAT_VERSION, DB_NAME, sha256_file, verify_backup
+from .gis_lock import data_lock
+from .storage_health import check_storage, require_persistent_volume
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +22,16 @@ from .settings import DATA_DIR
 
 
 def create_backup(data_dir: Path, output_dir: Path) -> Path:
+    """Verified, atomic private snapshot coordinated with API GIS writes."""
+    data_dir = data_dir.expanduser().resolve()
+    if require_persistent_volume() and not check_storage(data_dir)["ready"]:
+        raise RuntimeError("Persistent data volume missing. Automatic backup refused.")
+    # Covers the entire SQLite snapshot AND all raster/file reads.
+    with data_lock(data_dir, timeout_s=300):
+        return _create_locked_backup(data_dir, output_dir)
+
+
+def _create_locked_backup(data_dir: Path, output_dir: Path) -> Path:
     data_dir = data_dir.expanduser().resolve()
     database = data_dir / "planexus-workspace.sqlite3"
     if not database.is_file():
@@ -33,6 +45,7 @@ def create_backup(data_dir: Path, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     name = "PLANEXUS-backup-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f") + ".zip"
     output = output_dir / name
+    partial = output.with_suffix(".partial")
     jobs_dir = data_dir / "jobs"
 
     with tempfile.TemporaryDirectory(prefix="planexus-sqlite-snapshot-") as tmp:
@@ -47,56 +60,61 @@ def create_backup(data_dir: Path, output_dir: Path) -> Path:
             project_count = verify.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
 
         try:
-            with zipfile.ZipFile(output, mode="x", compression=zipfile.ZIP_DEFLATED,
-                                 compresslevel=5, allowZip64=True) as archive:
-                archive.write(snapshot, arcname=DB_NAME)
-                count, digest = sha256_file(snapshot)
-                recorded_files = {DB_NAME: {"size": count, "sha256": digest}}
-                archived_jobs = 0
-                root = jobs_dir.resolve()
-                if jobs_dir.is_dir():
-                    for file in sorted(jobs_dir.rglob("*")):
-                        if not file.is_file() or file.is_symlink():
-                            continue
-                        if root not in file.resolve().parents:
-                            continue
-                        if file.suffix.lower() not in (".tif", ".tiff", ".json"):
-                            continue
-                        relative = file.relative_to(jobs_dir)
-                        # Only flat, canonical UUID job folders may be restored.
-                        try:
-                            import uuid
-                            if len(relative.parts) != 2 or str(uuid.UUID(relative.parts[0])) != relative.parts[0]:
+            # Restrict permissions from creation (no world-readable private
+            # site snapshots) and never expose an incomplete *.zip archive.
+            fd = os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as target:
+                with zipfile.ZipFile(target, mode="w", compression=zipfile.ZIP_DEFLATED,
+                                     compresslevel=5, allowZip64=True) as archive:
+                    archive.write(snapshot, arcname=DB_NAME)
+                    count, digest = sha256_file(snapshot)
+                    recorded_files = {DB_NAME: {"size": count, "sha256": digest}}
+                    archived_jobs = 0
+                    root = jobs_dir.resolve()
+                    if jobs_dir.is_dir():
+                        for file in sorted(jobs_dir.rglob("*")):
+                            if not file.is_file() or file.is_symlink():
                                 continue
-                        except ValueError:
-                            continue
-                        arcname = (Path("jobs") / relative).as_posix()
-                        if relative.name.startswith("."):
-                            continue
-                        size, sha = sha256_file(file)
-                        archive.write(file, arcname=arcname)
-                        recorded_files[arcname] = {"size": size, "sha256": sha}
-                        archived_jobs += 1
-                manifest = {
-                    "product": "PLANEXUS AI local workspace backup",
-                    "format_version": FORMAT_VERSION,
-                    "files": recorded_files,
-                    "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                    "project_count": project_count,
-                    "gis_files_archived": archived_jobs,
-                    "contains_sensitive_site_data": True,
-                    "instructions": "Offline restore only: python -m app.backup_restore restore --archive PATH --destination NEW_EMPTY_PATH. Never overwrite a live volume.",
-                    "limits": "Unencrypted private snapshot. No user accounts or cloud sync. Shut down backend GIS mutations for a consistent raster+SQLite snapshot.",
-                }
-                archive.writestr("BACKUP-MANIFEST.json", json.dumps(manifest, indent=2))
-            # Reject partial, corrupted or cross-referenced archive before
-            # treating the backup as created. Running GIS jobs can change
-            # artifacts concurrently: fail instead of making a false promise.
-            verify_backup(output)
+                            if root not in file.resolve().parents:
+                                continue
+                            if file.suffix.lower() not in (".tif", ".tiff", ".json"):
+                                continue
+                            relative = file.relative_to(jobs_dir)
+                            # Only flat, canonical UUID job folders may be restored.
+                            try:
+                                import uuid
+                                if len(relative.parts) != 2 or str(uuid.UUID(relative.parts[0])) != relative.parts[0]:
+                                    continue
+                            except ValueError:
+                                continue
+                            arcname = (Path("jobs") / relative).as_posix()
+                            if relative.name.startswith("."):
+                                continue
+                            size, sha = sha256_file(file)
+                            archive.write(file, arcname=arcname)
+                            recorded_files[arcname] = {"size": size, "sha256": sha}
+                            archived_jobs += 1
+                    manifest = {
+                        "product": "PLANEXUS AI local workspace backup",
+                        "format_version": FORMAT_VERSION,
+                        "files": recorded_files,
+                        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+                        "project_count": project_count,
+                        "gis_files_archived": archived_jobs,
+                        "contains_sensitive_site_data": True,
+                        "instructions": "Offline restore only: python -m app.backup_restore restore --archive PATH --destination NEW_EMPTY_PATH. Never overwrite a live volume.",
+                        "limits": "UNENCRYPTED private copy of users, password hashes, projects and GIS data. Only cooperating API writers use the shared lock. No cloud/off-site sync.",
+                    }
+                    archive.writestr("BACKUP-MANIFEST.json", json.dumps(manifest, indent=2))
+                target.flush()
+                os.fsync(target.fileno())
+            # Only a fully verified archive receives the final *.zip name.
+            verify_backup(partial)
+            os.replace(partial, output)
             if os.name == "posix":
                 os.chmod(output, 0o600)
-        except Exception:
-            output.unlink(missing_ok=True)
+        except BaseException:
+            partial.unlink(missing_ok=True)
             raise
     return output
 
