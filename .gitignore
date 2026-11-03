@@ -39,3 +39,7 @@ backups/
 
 # Only generated in live-backend browser CI; synthetic, never source evidence.
 frontend/tests/fixtures/generated/
+
+# B3.1 private backup and offline restore data
+private-backups/
+recovered-planexus-data/

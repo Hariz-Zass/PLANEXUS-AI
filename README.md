@@ -348,3 +348,17 @@ respond. This is a **read-only connection diagnostic**, not proof of a real
 DEM run or planning approval. For full verification, create a project, upload
 a documented GeoTIFF or run auto DEM, display both map layers, and reopen the
 project. Existing site data are not modified by this diagnostic.
+
+
+### B3.1 — GIS database backup and safe restore (GitHub-only)
+
+Saved SQLite projects, GIS raster evidence, scenarios and Smart Layout data
+can be archived in one verified ZIP and restored **offline into a new data
+directory**, without overwriting a live project. Includes a Windows launcher
+`BACKUP-PLANEXUS.bat`, SHA-256 integrity checks, and a Python
+`app.backup_restore` verify/restore CLI. Follow
+[the recovery runbook](docs/PERSISTENT_GIS_BACKEND.md).
+
+This is not a deployed online GIS backend or a multi-user database. Private
+single-instance durable storage and authentication are still prerequisites
+for any online release. No Vercel deployment.
