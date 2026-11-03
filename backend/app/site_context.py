@@ -105,7 +105,10 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     data=None
     used_endpoint=None
     problems=[]
-    with httpx.Client(timeout=httpx.Timeout(20.0,connect=6.0),
+    # Server-side Overpass QL allows 24 seconds of execution. A 20-second
+    # client read timeout made slow-but-successful queries fail prematurely.
+    # Keep DNS/connect short; allow enough time for the declared query limit.
+    with httpx.Client(timeout=httpx.Timeout(36.0,connect=6.0),
                       follow_redirects=False) as client:
         for endpoint,provider_headers in _providers():
             try:
