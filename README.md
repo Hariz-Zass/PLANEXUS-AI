@@ -389,3 +389,18 @@ public Copernicus DSM sample areas in Malaysia. A full QGIS desktop manual
 review and ground-truthed survey accuracy check remain outstanding.
 See docs/TERRAIN_VALIDATION_B3_3.md for repeatable QA methodology.
 No Vercel deployment is part of this work.
+
+
+### B3.4 — Verified scheduled backup, offline recovery and GIS export
+
+The repository now contains an **opt-in** Windows daily backup scheduler
+(INSTALL-PLANEXUS-AUTO-BACKUP.bat), a separate optional Docker backup worker
+(profile: backup), cross-process GIS write coordination, retention/mirror
+verification, and an offline full-restore drill. Private site GIS export
+provides genuine multi-layer GeoPackage, WGS84 GeoJSON, full-resolution UTM
+GeoTIFFs when available, and a checksummed manifest. Map-rendered vectors
+may be truncated and are NOT represented as full site analysis raster output.
+
+See docs/B3_4_BACKUP_RECOVERY_EXPORT.md for setup, security, test coverage,
+off-host requirements and scope limits. Push to GitHub only — no Vercel
+deployment or user Task Scheduler installation was done automatically.
