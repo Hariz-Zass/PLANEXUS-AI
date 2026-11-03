@@ -14,6 +14,10 @@ from pathlib import Path
 
 BASE = "http://127.0.0.1:18000"
 MARKER = Path("/tmp/planexus_ci_project_record.json")
+EMAIL = "ci-volume@planexus.test"
+PASSWORD = "Synthetic-Docker-CI-2026!"
+SESSION_COOKIE = ""
+CSRF_TOKEN = ""
 
 # Executed INSIDE the actual built GIS container. The raster, report and
 # SQLite association are written on the named /data volume and re-read after
@@ -60,11 +64,27 @@ print(json.dumps({"analysis_id":analysis_id,"revision":project["revision"]}))
 
 
 def get(path: str) -> tuple[int, dict]:
+    headers = {"Cookie": SESSION_COOKIE} if SESSION_COOKIE else {}
+    request = urllib.request.Request(BASE + path, headers=headers)
     try:
-        with urllib.request.urlopen(BASE + path, timeout=3) as response:
+        with urllib.request.urlopen(request, timeout=3) as response:
             return response.status, json.load(response)
     except urllib.error.HTTPError as exc:
         return exc.code, json.load(exc)
+
+
+def login() -> None:
+    global SESSION_COOKIE, CSRF_TOKEN
+    request = urllib.request.Request(
+        BASE+"/api/auth/login",method="POST",
+        headers={"Content-Type":"application/json"},
+        data=json.dumps({"email":EMAIL,"password":PASSWORD}).encode(),
+    )
+    with urllib.request.urlopen(request,timeout=10) as response:
+        assert response.status == 200
+        SESSION_COOKIE = response.headers["Set-Cookie"].split(";",1)[0]
+        CSRF_TOKEN = json.load(response)["csrf_token"]
+    assert SESSION_COOKIE.startswith("planexus_session=") and CSRF_TOKEN
 
 
 def mode_wait() -> None:
@@ -89,9 +109,20 @@ def mode_wait() -> None:
 def mode_create() -> None:
     status, health = get("/api/health")
     assert status == 200 and health["persistent"] is True, health
+    # Create the identity through the REAL backend API's account library;
+    # login uses the actual Cookie + CSRF, with no authorization bypass.
+    seed = subprocess.run([
+        "docker","exec","planexus-ci-api","python","-c",
+        "from app.auth import create_user; from app.settings import DATA_DIR;"
+        "create_user(DATA_DIR,'ci-volume@planexus.test','Synthetic Volume Planner',"
+        "'Synthetic-Docker-CI-2026!',role='admin')"
+    ],capture_output=True,text=True,timeout=20,check=False)
+    assert seed.returncode == 0, seed.stdout+seed.stderr
+    login()
     request = urllib.request.Request(
         BASE + "/api/projects", method="POST",
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 "Cookie":SESSION_COOKIE,"X-CSRF-Token":CSRF_TOKEN},
         data=json.dumps({"name": "Persist after container replacement"}).encode(),
     )
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -114,6 +145,7 @@ def mode_verify() -> None:
     status, health = get("/api/health")
     assert status == 200 and health["persistent"] is True, health
     expected = json.loads(MARKER.read_text())
+    login()  # Fresh session issued from the persisted users table after restart.
     status, project = get("/api/projects/" + expected["id"])
     assert status == 200, project
     assert project["name"] == "Persist after container replacement"
