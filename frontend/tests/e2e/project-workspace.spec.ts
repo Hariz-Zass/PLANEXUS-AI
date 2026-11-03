@@ -221,7 +221,14 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect.poll(()=>sawOldGet).toBe(true);
   await page.getByRole("button",{name:"Imbas sekitar 1.5 km"}).click();
   await expect(page.getByText("Fresh community clinic")).toBeVisible({timeout:20000});
+  const completedOldGet=page.waitForResponse(response=>
+    response.url().includes("/api/projects/") && response.url().endsWith("/context") &&
+    response.request().method()==="GET",{timeout:20000});
   releaseOldGet();
+  await completedOldGet;
+  // Give the prior async fetch continuation an opportunity to commit a
+  // stale state update; a synchronous absence assertion would miss the race.
+  await page.waitForTimeout(150);
   await expect(page.getByText("Fresh community clinic")).toBeVisible();
   await expect(page.getByText("Old cached clinic")).toHaveCount(0);
 });
