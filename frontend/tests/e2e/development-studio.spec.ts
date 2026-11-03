@@ -134,7 +134,7 @@ test("development scenarios are user-defined, saved, restored and visibly stale 
     };
   }
   await page.addInitScript(id=>localStorage.setItem("planexus:active-project:v1",id),PROJECT_ID);
-  await page.route("http://localhost:8000/api/**",async route=>{
+  await page.route("**/api/**",async route=>{
     const request=route.request();
     const method=request.method();
     const path=new URL(request.url()).pathname;

@@ -7,7 +7,7 @@ const geometry = {
 };
 
 test("restores the actual MapLibre site source after refresh and menu switch", async ({ page }) => {
-  await page.route("http://localhost:8000/api/auth/me",async route=>route.fulfill({
+  await page.route("**/api/auth/me",async route=>route.fulfill({
     status:200,headers:{"access-control-allow-origin":"http://127.0.0.1:3000","access-control-allow-credentials":"true"},
     json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}
   }));
@@ -31,7 +31,7 @@ test("restores the actual MapLibre site source after refresh and menu switch", a
   await expect(page.getByText("SITE AUTOSAVED")).toBeVisible();
 });
 test("saved geometry remains safe when a replacement drawing is cancelled", async ({ page }) => {
-  await page.route("http://localhost:8000/api/auth/me",async route=>route.fulfill({
+  await page.route("**/api/auth/me",async route=>route.fulfill({
     status:200,headers:{"access-control-allow-origin":"http://127.0.0.1:3000","access-control-allow-credentials":"true"},
     json:{user:{id:"fixture-user",email:"fixture@planexus.test",display_name:"Fixture Planner",role:"planner"},csrf_token:"synthetic-ci-csrf"}
   }));
@@ -62,7 +62,7 @@ test("never shows stale standalone browser boundary as a saved project when API 
       ]]}
     }));
   });
-  await page.route("http://localhost:8000/api/**",async route=>{
+  await page.route("**/api/**",async route=>{
     if(new URL(route.request().url()).pathname==="/api/auth/me"){
       await route.fulfill({status:200,headers:{
         "access-control-allow-origin":"http://127.0.0.1:3000",

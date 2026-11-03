@@ -56,7 +56,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
     "access-control-allow-methods":"GET,POST,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers":"Content-Type,X-CSRF-Token"
   };
-  await page.route("http://localhost:8000/api/**",async route=>{
+  await page.route("**/api/**",async route=>{
     const req=route.request(), method=req.method(), path=new URL(req.url()).pathname;
     const reply=async(status:number,body:unknown)=>route.fulfill({status,headers,json:body});
     if(method==="OPTIONS"){await route.fulfill({status:204,headers});return;}

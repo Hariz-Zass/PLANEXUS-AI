@@ -7,7 +7,7 @@ test("Copilot gives honest workflow help before DEM analysis when GIS is connect
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":"Content-Type,X-CSRF-Token",
   };
-  await page.route("http://localhost:8000/api/**", async (route) => {
+  await page.route("**/api/**", async (route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") {
       await route.fulfill({status: 204, headers: cors});

@@ -313,8 +313,20 @@ let csrfToken:string|null = null;
 
 export function setAuthCsrf(value:string|null):void { csrfToken=value; }
 
+function browserApiBase():string {
+  // Same-site cookies are mandatory on local HTTP: localhost:3000 and
+  // 127.0.0.1:8000 are different cookie sites. Match whichever loopback
+  // hostname the planner used to open the dashboard.
+  if(process.env.NODE_ENV==="development" && !process.env.NEXT_PUBLIC_API_BASE_URL && typeof window!=="undefined"){
+    const host=window.location.hostname;
+    if(host==="localhost" || host==="127.0.0.1")return "http://"+host+":8000";
+  }
+  return API_BASE;
+}
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  if (!API_BASE) throw new Error("GIS backend belum disambungkan pada Vercel. Analisis topografi belum tersedia secara online.");
+  const origin=browserApiBase();
+  if (!origin) throw new Error("GIS backend belum disambungkan pada Vercel. Analisis topografi belum tersedia secara online.");
   let response: Response;
   const method=(options?.method??"GET").toUpperCase();
   const headers=new Headers(options?.headers);
@@ -322,7 +334,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     headers.set("X-CSRF-Token",csrfToken);
   }
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await fetch(`${origin}${path}`, {
       cache:"no-store",...options,credentials:"include",headers
     });
   } catch {

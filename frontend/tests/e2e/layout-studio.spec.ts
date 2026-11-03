@@ -96,7 +96,7 @@ test("Smart Layout saves imported road sketch, restores after refresh, and flags
     "access-control-allow-headers":"Content-Type,X-CSRF-Token",
   };
   await page.addInitScript(id=>localStorage.setItem("planexus:active-project:v1",id),ID);
-  await page.route("http://localhost:8000/api/**",async route=>{
+  await page.route("**/api/**",async route=>{
     const request=route.request(),method=request.method();
     const path=new URL(request.url()).pathname;
     const respond=async(status:number,data:unknown)=>route.fulfill({status,headers:cors,json:data});
