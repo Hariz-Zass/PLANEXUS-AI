@@ -83,6 +83,7 @@ jobs:
       - name: Verify durable project data survives container replacement
         run: |
           set -euo pipefail
+          trap 'docker ps -a; docker logs --tail 90 planexus-ci-api 2>/dev/null || true; docker logs --tail 90 planexus-ci-unmounted 2>/dev/null || true' ERR
           docker volume create planexus-ci-data
           docker run -d --name planexus-ci-api -p 127.0.0.1:18000:8000 -v planexus-ci-data:/data planexus-gis:ci
           python3 backend/tests/container_persistence_smoke.py wait
