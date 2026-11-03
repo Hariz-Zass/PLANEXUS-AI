@@ -375,3 +375,17 @@ invites created offline by an admin.
 Old projects are preserved but **not assigned automatically** to a new
 account. Follow [B3.2 security setup and migration](docs/PERSISTENT_GIS_BACKEND.md).
 No default password, no public signup, and no Vercel deployment.
+
+
+### B3.3 — Independent terrain QA and QGIS-compatible raster comparison
+
+The source-only GIS engine now uses a NoData-aware Horn 3x3 slope kernel
+(the default GDAL/QGIS gdal:slope approach) on a metre-based UTM grid.
+Each report separates elevation/slope data coverage and records input raster
+SHA-256, processing CRS, metadata/quality warnings and exact derived GeoTIFF
+grids to download privately. CI validates actual slope pixels against the
+GDAL CLI, checks contour elevation levels, and separately attempts three
+public Copernicus DSM sample areas in Malaysia. A full QGIS desktop manual
+review and ground-truthed survey accuracy check remain outstanding.
+See docs/TERRAIN_VALIDATION_B3_3.md for repeatable QA methodology.
+No Vercel deployment is part of this work.
