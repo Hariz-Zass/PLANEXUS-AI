@@ -19,6 +19,7 @@ from rasterio.errors import RasterioError
 from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
+from .data_coverage import manifest as source_coverage_manifest
 from .proposal_engine import ProposalInput
 from .layout_engine import LayoutInput, screen_layout
 from .layout_store import get_layout, save_layout
@@ -236,6 +237,11 @@ def gpp_catalog():
 def gpp_assess(payload: ProposalInput):
     """Dry-run numeric checks, no project save and NO approval determination."""
     return evaluate_policy(payload)
+
+
+@app.get("/api/capabilities/data")
+def data_capabilities():
+    return source_coverage_manifest()
 
 
 @app.get("/api/sources")
