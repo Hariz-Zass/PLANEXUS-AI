@@ -18,6 +18,15 @@ import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,valid
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
 type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy" | "layout";
+const PAGE_LABELS:Record<SidebarTab,string>={
+  projects:"Project Workspace",
+  workspace:"Terrain Intelligence",
+  sources:"Data Registry",
+  history:"Saved Analyses",
+  proposals:"Development Studio",
+  policy:"GPP Knowledge Registry",
+  layout:"Smart Layout Studio",
+};
 const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
 function preferredTerrainLayer(value:TerrainReport|null):"slope"|"elevation"|"suitability" {
   if(value?.suitability_geojson?.features?.length)return "suitability";
@@ -125,6 +134,7 @@ export default function Home() {
   const [saveMessage,setSaveMessage]=useState("");
   const [report, setReport] = useState<TerrainReport | null>(null);
   const [gisStatus, setGisStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [persistentBackend, setPersistentBackend] = useState(false);
   const [llmConfigured, setLlmConfigured] = useState(false);
   const [terrainLayer,setTerrainLayer] = useState<"slope"|"elevation"|"suitability">("slope");
   const [showContours,setShowContours] = useState(true);
@@ -176,9 +186,12 @@ export default function Home() {
     let active = true;
     const probe = async () => {
       try {
-        const health = await api<{ status: string }>("/api/health");
-        if (active) setGisStatus(health.status === "ok" ? "online" : "offline");
-      } catch { if (active) setGisStatus("offline"); }
+        const health = await api<{ status: string; persistent?: boolean }>("/api/health");
+        if (active) {
+          setGisStatus(health.status === "ok" ? "online" : "offline");
+          setPersistentBackend(health.persistent === true);
+        }
+      } catch { if (active) { setGisStatus("offline"); setPersistentBackend(false); } }
       try {
         const capabilities = await api<{ generative_ai_configured: boolean }>("/api/copilot/capabilities");
         if (active) setLlmConfigured(Boolean(capabilities.generative_ai_configured));
@@ -491,7 +504,7 @@ export default function Home() {
           <div className="brand-icon"><NexusMark /></div>
           <div className="brand-text"><span className="brand-name">PLANEXUS <em>AI</em></span><span className="brand-sub">GEOSPATIAL INTELLIGENCE SYSTEM</span></div>
         </div>
-        <div className="topbar-middle"><span className="topbar-separator" /><span className="crumb"><Crosshair size={13}/> COMMAND CENTER</span><ChevronRight size={13} className="crumb-chevron"/><span className="crumb-active">Terrain / Workspace</span></div>
+        <div className="topbar-middle"><span className="topbar-separator" /><span className="crumb"><Crosshair size={13}/> COMMAND CENTER</span><ChevronRight size={13} className="crumb-chevron"/><span className="crumb-active">{PAGE_LABELS[tab]}</span></div>
         <div className="topbar-right">
           <span className={"system-indicator "+(gisStatus === "online" ? "system-online" : "system-offline")}><i /> {gisStatus === "online" ? "GIS ENGINE CONNECTED" : gisStatus === "checking" ? "CHECKING GIS ENGINE" : "GIS ENGINE OFFLINE"}</span>
           <span className="version-pill">DESIGN 02 <span>/</span> TERRAIN V1</span>
@@ -529,7 +542,7 @@ export default function Home() {
           {tab === "workspace" && <>
             <div className="page-head page-head-v2">
               <div className="hero-copy">
-                <div className="eyebrow"><span className="eyebrow-dot"/> INTELLIGENCE WORKSPACE <span className="eyebrow-slash">//</span> MODULE 001</div>
+                <div className="eyebrow"><span className="eyebrow-dot"/> INTELLIGENCE WORKSPACE <span className="eyebrow-slash">//</span> MODULE 002</div>
                 <h1>Terrain <span className="h1-accent">Intelligence</span><span className="hero-title-mark">/</span></h1>
                 <p>The terrain tells a story. <span>Understand the site, question the evidence, plan with clarity.</span></p>
               </div>
@@ -550,6 +563,7 @@ export default function Home() {
               </button>
             </div>
             {projectError && <div className="project-error" role="alert">{projectError}</div>}
+            {gisStatus==="online"&&!persistentBackend&&<div className="project-error" role="alert">GIS API connected, but permanent storage is NOT verified by its health check. Back up project and raster data; do not assume the site will survive a server replacement.</div>}
             <section className="site-ribbon" aria-label="Snapshot geospatial tapak">
               <div className="ribbon-context"><span className="ribbon-context-icon"><Radar size={24}/></span><div><small>PROJECT TELEMETRY</small><strong>{activeProject ? activeProject.name : geometry ? "Browser draft / Active boundary" : "Awaiting site definition"}</strong><span>{geometry ? activeProject ? "Project boundary · WGS84" : "Browser backup · WGS84" : "Start by drawing a real site polygon"}</span></div></div>
               <div className="ribbon-data featured"><small>01 / SITE AREA</small><div className="ribbon-value">{geometry && !report ? "≈ " : ""}{footprintDisplay}<em>ha</em></div><span>{report ? "GIS-calculated" : geometry ? "Spherical estimate · not surveyed" : "No boundary selected"}</span></div>
@@ -564,7 +578,7 @@ export default function Home() {
                     <div className="card-title-row"><span className="card-icon"><Layers3 size={18}/></span><div className="map-heading"><strong>Geospatial Canvas <span> / 01</span></strong><small>EXPLORE & DEFINE YOUR SITE</small></div></div>
                     <div className="map-topline-right"><span className="card-meta">EPSG:4326 · WGS 84</span><span className="map-status"><i className={report ? "active" : ""}/>{report ? "TERRAIN ANALYSED" : drawing ? "DEFINING BOUNDARY" : geometry ? "SITE SELECTED" : "NO ACTIVE SITE"}</span></div>
                   </div>
-                  <div className="map-layer-controls" aria-label="Terrain data layers"><button className={terrainLayer==="slope"?"active":""} type="button" disabled={!report?.slope_geojson?.features?.length} onClick={()=>setTerrainLayer("slope")} aria-pressed={terrainLayer==="slope"}>Slope</button><button className={terrainLayer==="elevation"?"active":""} type="button" disabled={!report?.elevation_geojson?.features?.length} onClick={()=>setTerrainLayer("elevation")} aria-pressed={terrainLayer==="elevation"}>Elevation</button><button className={terrainLayer==="suitability"?"active":""} type="button" disabled={!report?.suitability_geojson?.features?.length} aria-pressed={terrainLayer==="suitability"} onClick={()=>setTerrainLayer("suitability")}>Suitability</button><label><input type="checkbox" checked={showContours} onChange={event=>setShowContours(event.target.checked)} /> Contours</label></div>{!report&&<div role="status" className="inline-notice notice-error"><CircleAlert size={16}/><span>Slope dan Elevation memerlukan analisis DEM sebenar. Sempadan tapak bukan peta cerun. {gisStatus!=="online"?"GIS backend offline: paparan terrain belum tersedia secara online.":geometry?"Jalankan DEM dalam projek aktif.":"Sediakan projek dan sempadan tapak dahulu."}</span></div>}<div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} terrainLayer={terrainLayer} showContours={showContours} />
+                  <div className="map-layer-controls" aria-label="Terrain data layers"><button className={terrainLayer==="slope"?"active":""} type="button" disabled={!report?.slope_geojson?.features?.length} onClick={()=>setTerrainLayer("slope")} aria-pressed={terrainLayer==="slope"}>Slope</button><button className={terrainLayer==="elevation"?"active":""} type="button" disabled={!report?.elevation_geojson?.features?.length} onClick={()=>setTerrainLayer("elevation")} aria-pressed={terrainLayer==="elevation"}>Elevation</button><button className={terrainLayer==="suitability"?"active":""} type="button" disabled={!report?.suitability_geojson?.features?.length} aria-pressed={terrainLayer==="suitability"} onClick={()=>setTerrainLayer("suitability")}>Suitability</button><label><input type="checkbox" checked={showContours&&Boolean(report?.contours_geojson?.features?.length)} disabled={!report?.contours_geojson?.features?.length} onChange={event=>setShowContours(event.target.checked)} /> Contours</label></div>{!report&&<div role="status" className="inline-notice notice-error"><CircleAlert size={16}/><span>Slope dan Elevation memerlukan analisis DEM sebenar. Sempadan tapak bukan peta cerun. {gisStatus!=="online"?"GIS backend offline: paparan terrain belum tersedia secara online.":geometry?"Jalankan DEM dalam projek aktif.":"Sediakan projek dan sempadan tapak dahulu."}</span></div>}<div className="map-wrapper"><TerrainMap geometry={geometry} report={report} drawing={drawing} onSiteDrawn={onSiteDrawn} onPointCount={setDrawPoints} resetCounter={resetCounter} terrainLayer={terrainLayer} showContours={showContours} />
                     {!geometry && !drawing && <div className="map-empty"><div className="map-empty-icon"><ScanSearch size={26}/></div><strong>Start with your site boundary</strong><span>Draw a polygon on the map or import a GeoJSON file. No sample data is invented.</span><button className="btn btn-accent" onClick={startDraw}><Plus size={15} /> Draw site polygon</button></div>}
                     {drawing && <div className="drawing-notice"><MapPin size={16} /><span>Click vertices · Double-click to finish · <strong>{drawPoints} points</strong></span><button onClick={() => { setDrawing(false); setResetCounter(n=>n+1); setStatus(""); }}>Cancel</button></div>}
                     <div className="map-corner-badge"><CircleDot size={14}/><span>{report ? "TERRAIN LAYERS" : "VECTOR BASEMAP"}</span><i/></div>
@@ -677,10 +691,10 @@ export default function Home() {
             onOpenTerrain={()=>setTab("workspace")} />}
           {tab === "policy" && <GppLibrary backendConnected={gisStatus==="online"} onOpenStudio={()=>setTab("proposals")}/>}
           {tab === "proposals" && <ProposalStudio key={activeProject?.id??"no-project"} project={activeProject} backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}/>}
-          {tab === "projects" && <>{gisStatus!=="online"&&<div className="project-error" role="alert">GIS backend offline. Project creation, server storage, and project retrieval are unavailable on this deployment. Browser boundary backups are not saved projects.</div>}<ProjectWorkspace projects={projects} backendConnected={gisStatus==="online"} activeId={activeProject?.id??null}
+          {tab === "projects" && <>{gisStatus!=="online"&&<div className="project-error" role="alert">GIS backend offline. Project creation, server storage, and project retrieval are unavailable on this deployment. Browser boundary backups are not saved projects.</div>}{gisStatus==="online"&&!persistentBackend&&<div className="project-error" role="alert">GIS API connected, but durable storage has not been verified. Do not rely on this server for cloud persistence until a mounted volume is confirmed.</div>}<ProjectWorkspace projects={projects} backendConnected={gisStatus==="online"} activeId={activeProject?.id??null}
             geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
             onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/></>}
-          {tab === "sources" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> SOURCE TRANSPARENCY</div><h1>Data Source Registry <span className="h1-accent">.</span></h1><p>Setiap sumber mempunyai identiti, keupayaan dan had penggunaan. Tiada dataset geospatial yang direka oleh AI.</p><div className="info-panel"><div className="info-panel-head"><span className="info-icon"><Database size={22}/></span><div><strong>Copernicus DEM GLO-30 Public</strong><span>Primary automatic retrieval source · Public Cloud Optimized GeoTIFF</span></div><span className="registry-state">ACTIVE ADAPTER</span></div><div className="detail-table"><div><span>Publisher</span><strong>Copernicus Programme / ESA</strong></div><div><span>Approx. spatial resolution</span><strong>30 m</strong></div><div><span>Raster type</span><strong>DSM (buildings and vegetation included)</strong></div><div><span>Acquisition</span><strong>Direct public AWS COG tiles, no API key</strong></div><div><span>Primary purpose</span><strong>Preliminary terrain screening</strong></div></div><a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer" className="source-link">Official dataset documentation <ArrowRight size={16}/></a></div><div className="quality-panel"><CircleAlert size={19}/><div><strong>Important boundary</strong><p>Satellite-derived DSM is not equivalent to surveyed bare-earth DTM. Analysis outcomes do not certify zoning, flood safety, land title, slope stability or development approval. Public coverage may differ by country and tile availability.</p></div></div><div className="workflow-card"><h2>Additional data paths</h2><p>Users can upload GeoTIFF from authorized survey providers. PLANEXUS will inspect raster CRS and available cells but cannot independently authenticate the original survey or vertical datum without its documentation.</p></div></div>}
+          {tab === "sources" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> SOURCE TRANSPARENCY</div><h1>Data Source Registry <span className="h1-accent">.</span></h1><p>Setiap sumber mempunyai identiti, keupayaan dan had penggunaan. Tiada dataset geospatial yang direka oleh AI.</p><div className="info-panel"><div className="info-panel-head"><span className="info-icon"><Database size={22}/></span><div><strong>Copernicus DEM GLO-30 Public</strong><span>Primary automatic retrieval source · Public Cloud Optimized GeoTIFF</span></div><span className="registry-state">{gisStatus==="online"?"GIS ADAPTER CONNECTED":"SOURCE REFERENCE ONLY"}</span></div><div className="detail-table"><div><span>Publisher</span><strong>Copernicus Programme / ESA</strong></div><div><span>Approx. spatial resolution</span><strong>30 m</strong></div><div><span>Raster type</span><strong>DSM (buildings and vegetation included)</strong></div><div><span>Acquisition</span><strong>Direct public AWS COG tiles, no API key</strong></div><div><span>Primary purpose</span><strong>Preliminary terrain screening</strong></div></div><a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer" className="source-link">Official dataset documentation <ArrowRight size={16}/></a></div><div className="quality-panel"><CircleAlert size={19}/><div><strong>Important boundary</strong><p>Satellite-derived DSM is not equivalent to surveyed bare-earth DTM. Analysis outcomes do not certify zoning, flood safety, land title, slope stability or development approval. Public coverage may differ by country and tile availability.</p></div></div><div className="workflow-card"><h2>Additional data paths</h2><p>Users can upload GeoTIFF from authorized survey providers. PLANEXUS will inspect raster CRS and available cells but cannot independently authenticate the original survey or vertical datum without its documentation.</p></div></div>}
           {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / ACTIVE WORKSPACE</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"?"Saved on this device":"Not backed up"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Analisis aktif dipautkan kepada projek dipilih. Fail laporan/GeoTIFF berada pada storan backend lokal; cloud sync belum tersedia.</p><div className="history-list">{displayedAnalyses.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : displayedAnalyses.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
         </main>
       </div>
