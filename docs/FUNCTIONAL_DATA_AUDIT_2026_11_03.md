@@ -115,3 +115,22 @@ show its genuine retrieval failure without fabricating the missing fact.
 - https://www.planmalaysia.gov.my/main/garis-panduan-perancangan
 
 All work is GitHub source only. Vercel has not been deployed.
+
+
+### Operator configuration for repeatable OSM retrieval
+
+For a trusted/private pilot, a single backend operator can provision a hosted
+Overpass-compatible provider key once through the backend-only environment
+variable PLANEXUS_OVERPASS_CH_API_KEY. A planner then uses the same one-click
+context scan for every project; no need to manually search every school,
+clinic, road or mall on a separate map. Data remains community OSM and should
+be checked for completeness and local agency authority.
+
+If no key is configured, PLANEXUS uses documented public best-effort sources
+in turn. The live availability diagnostic on 3 November initially failed on
+two public servers. Do not promise uninterrupted operation from public APIs.
+A dedicated regional OSM extract or commercial managed provider with an SLA
+is recommended before using the site-context module commercially at scale.
+
+Backups preserve successfully cached context, but cached results retain their
+original capture time and community-unverified status after restoration.
