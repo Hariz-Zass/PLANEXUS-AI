@@ -26,6 +26,21 @@ from shapely.geometry import shape
 # licensed/self-hosted provider after explicit operator configuration.
 OVERPASS_ENDPOINT="https://overpass.private.coffee/api/interpreter"
 OVERPASS_FALLBACK="https://overpass-api.de/api/interpreter"
+OVERPASS_FAST_MIRROR="https://lz4.overpass-api.de/api/interpreter"
+OVERPASS_CH_KEY_ENDPOINT="https://api.overpass.ch/v1/interpreter"
+
+
+def _providers() -> list[tuple[str, dict[str, str]]]:
+    # A free/paid API key, if explicitly configured by the operator, gives
+    # priority access to a managed hosted provider. Never expose the key in
+    # endpoint URLs, diagnostics or browser responses.
+    key=os.getenv("PLANEXUS_OVERPASS_CH_API_KEY","").strip()
+    choices: list[tuple[str,dict[str,str]]]=[]
+    if key:
+        choices.append((OVERPASS_CH_KEY_ENDPOINT,{"X-API-Key":key}))
+    choices.extend((endpoint,{}) for endpoint in
+                   (OVERPASS_ENDPOINT,OVERPASS_FAST_MIRROR,OVERPASS_FALLBACK))
+    return choices
 OSM_LICENSE="https://www.openstreetmap.org/copyright"
 CATEGORIES=("education","healthcare","transport","retail","parks","civic","roads","waterways")
 MAX_RESULTS=6500
@@ -88,13 +103,13 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     data=None
     used_endpoint=None
     problems=[]
-    with httpx.Client(timeout=httpx.Timeout(30.0,connect=8.0),
+    with httpx.Client(timeout=httpx.Timeout(20.0,connect=6.0),
                       follow_redirects=False) as client:
-        for endpoint in (OVERPASS_ENDPOINT, OVERPASS_FALLBACK):
+        for endpoint,provider_headers in _providers():
             try:
                 response=client.post(endpoint,data={"data":query},
                                      headers={"User-Agent":"PLANEXUS-AI-private-site-screening/1.0",
-                                              "Accept":"application/json"})
+                                              "Accept":"application/json",**provider_headers})
                 response.raise_for_status()
                 if len(response.content)>MAX_RESPONSE_BYTES:
                     raise ValueError("OSM response exceeds bounded payload.")
@@ -110,7 +125,7 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
                                  "type":type(exc).__name__,"http_status":status})
     if data is None:
         raise HTTPException(503,
-            "Sumber OpenStreetMap/Overpass belum tersedia selepas dua pelayan dicuba; "
+            "Sumber OpenStreetMap/Overpass tidak tersedia pada pelayan yang dikonfigurasi; "
             "tiada jalan atau kemudahan direka. Status: "+json.dumps(problems))
     elements=data.get("elements") if isinstance(data,dict) else None
     if not isinstance(elements,list) or len(elements)>MAX_RESULTS:
@@ -162,6 +177,7 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
         "source_name":"© OpenStreetMap contributors / Overpass",
         "source_url":OSM_LICENSE,"api_endpoint":used_endpoint,
         "provider_failures_before_success":problems,
+        "retrieval_service_reliability":"third_party_best_effort_unless_hosted_plan_configured",
         "licence":"ODbL; https://www.openstreetmap.org/copyright",
         "retrieved_at_utc":datetime.now(timezone.utc).isoformat(),
         "source_quality":"community_unverified_not_official",
