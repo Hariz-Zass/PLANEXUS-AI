@@ -202,3 +202,54 @@ def test_osm_provider_key_is_only_sent_as_header_not_placed_in_url(monkeypatch):
     assert providers[0][1]=={"X-API-Key":"SYNTHETIC-NOT-A-REAL-KEY"}
     assert all("SYNTHETIC-NOT-A-REAL-KEY" not in url for url,_ in providers)
     assert len(providers)>=3
+
+
+def test_osm_http_200_timeout_remark_triggers_real_provider_failover(monkeypatch):
+    """A successful HTTP status with Overpass 'remark' is NOT a valid scan."""
+    calls=[]
+    class Response:
+        def __init__(self, payload):
+            self.payload=payload
+            self.content=json.dumps(payload).encode("utf-8")
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return self.payload
+    class ProviderStub:
+        def __init__(self, **kwargs):pass
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def post(self,url,**kwargs):
+            calls.append(url)
+            if url==site_context.OVERPASS_ENDPOINT:
+                return Response({"elements":[],"remark":"runtime error: Query timed out"})
+            return Response({"elements":[{
+                "type":"node","id":371,"lat":4.665,"lon":101.075,
+                "tags":{"name":"Sekolah Ujian Sah OSM","amenity":"school"}
+            }]})
+    monkeypatch.delenv("PLANEXUS_OVERPASS_CH_API_KEY",raising=False)
+    monkeypatch.setattr(site_context.httpx,"Client",ProviderStub)
+    result=site_context.fetch_context(SITE,radius_m=1500)
+    assert calls==[site_context.OVERPASS_ENDPOINT,site_context.OVERPASS_VK_GLOBAL]
+    assert result["api_endpoint"]==site_context.OVERPASS_VK_GLOBAL
+    assert result["provider_failures_before_success"][0]["type"]=="ValueError"
+    assert result["counts"]["education"]==1
+    assert result["source_quality"]=="community_unverified_not_official"
+
+
+def test_osm_all_http_200_remarks_never_claim_empty_valid_inventory(monkeypatch):
+    class Response:
+        content=b'{"elements":[],"remark":"runtime error: Query timed out"}'
+        def raise_for_status(self):pass
+        def json(self):return {"elements":[],"remark":"runtime error: Query timed out"}
+    class ProviderStub:
+        def __init__(self, **kwargs):pass
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def post(self,url,**kwargs):return Response()
+    monkeypatch.delenv("PLANEXUS_OVERPASS_CH_API_KEY",raising=False)
+    monkeypatch.setattr(site_context.httpx,"Client",ProviderStub)
+    with pytest.raises(HTTPException) as err:
+        site_context.fetch_context(SITE)
+    assert err.value.status_code==503
+    assert "tiada jalan atau kemudahan direka" in err.value.detail
