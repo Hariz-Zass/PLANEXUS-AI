@@ -144,8 +144,9 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:15000});
   await expect(page.getByText("4.20°")).toBeVisible();
   await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
-  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toHaveAttribute("aria-pressed","true");
-  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
+  // A completed DEM starts on measured slope; suitability is opt-in.
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Slope",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
   // A real, non-empty raster report is required: the map changes the actual
   // MapLibre visibility state, not just the highlighted toolbar button.
   await page.locator(".map-layer-controls").getByRole("button",{name:"Slope",exact:true}).click();
@@ -162,7 +163,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
-  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Saved Analyses/}).click();
   await expect(page.getByText("E2E test DEM (mock, not real terrain)")).toBeVisible();
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
@@ -185,5 +186,5 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
-  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
 });
