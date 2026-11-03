@@ -254,3 +254,46 @@ def test_osm_all_http_200_remarks_never_claim_empty_valid_inventory(monkeypatch)
         site_context.fetch_context(SITE)
     assert err.value.status_code==503
     assert "tiada jalan atau kemudahan direka" in err.value.detail
+
+
+def test_geofabrik_offline_gpkg_is_used_when_public_overpass_is_down(monkeypatch,tmp_path):
+    """Real locally written GeoPackage, no fake HTTP success and no server dependency."""
+    import fiona
+    from fiona.crs import CRS
+    from shapely.geometry import mapping,Point,LineString
+    offline=tmp_path/"regional-test.gpkg"
+    with fiona.open(offline,"w",driver="GPKG",layer="gis_osm_pois_free_1",
+                    crs=CRS.from_epsg(4326),schema={
+                      "geometry":"Point",
+                      "properties":{"osm_id":"str","fclass":"str","name":"str"}}) as sink:
+        sink.write({"geometry":mapping(Point(101.075,4.665)),
+                    "properties":{"osm_id":"101","fclass":"school","name":"Sekolah Ujian Snapshot"}})
+        sink.write({"geometry":mapping(Point(105.0,5.0)),
+                    "properties":{"osm_id":"102","fclass":"hospital","name":"Outside 1.5km"}})
+    with fiona.open(offline,"w",driver="GPKG",layer="gis_osm_roads_free_1",
+                    crs=CRS.from_epsg(4326),schema={
+                      "geometry":"LineString",
+                      "properties":{"osm_id":"str","fclass":"str","name":"str"}}) as sink:
+        sink.write({"geometry":mapping(LineString([(101.074,4.665),(101.075,4.665)])),
+                    "properties":{"osm_id":"202","fclass":"residential","name":"Jalan Ujian"}})
+    class Failure:
+        def __init__(self,**kwargs):pass
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def post(self,*args,**kwargs):
+            import httpx
+            raise httpx.ConnectError("public provider unavailable")
+    monkeypatch.setattr(site_context.httpx,"Client",Failure)
+    monkeypatch.setenv("PLANEXUS_OSM_GEOFABRIK_GPKG",str(offline))
+    monkeypatch.setenv("PLANEXUS_OSM_EXTRACT_DATE","2026-11-02T00:00:00Z")
+    result=site_context.fetch_context(SITE,radius_m=1500)
+    assert result["source_id"]=="geofabrik-osm-gpkg-snapshot"
+    assert result["source_quality"]=="community_unverified_not_official"
+    assert result["dataset_timestamp_utc"]=="2026-11-02T00:00:00Z"
+    assert result["counts"]["education"]==1
+    assert result["counts"]["roads"]==1
+    assert result["counts"]["healthcare"]==0
+    assert len(result["named_places"])==1
+    assert result["named_places"][0]["name"]=="Sekolah Ujian Snapshot"
+    assert result["provider_failures_before_success"]
+    assert result["geometry_sha256"]==site_context.geometry_digest(SITE)
