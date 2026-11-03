@@ -11,7 +11,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import PlainTextResponse, JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from rasterio.errors import RasterioError
 from shapely.geometry import shape
@@ -478,6 +478,31 @@ def copilot(payload: CopilotPayload, request: Request):
         return {"analysis_id": None, **workflow_guidance(payload.question)}
     report = load_report(payload.analysis_id)
     return {"analysis_id": payload.analysis_id, **assess(report, payload.question)}
+
+
+@app.get("/api/analyses/{analysis_id}/elevation-utm.tif")
+def download_projected_elevation(analysis_id: str):
+    # Ownership enforced by protect_private_api before this route runs.
+    report = load_report(analysis_id)
+    raster = job_dir(analysis_id) / "elevation_utm.tif"
+    if not report.get("qa_artifacts") or not raster.is_file():
+        raise HTTPException(404, "Grid elevasi UTM belum tersedia bagi analisis ini.")
+    return FileResponse(
+        raster,media_type="image/tiff",
+        filename=f"planexus-elevation-utm-{analysis_id[:8]}.tif",
+    )
+
+
+@app.get("/api/analyses/{analysis_id}/slope-utm.tif")
+def download_projected_slope(analysis_id: str):
+    report = load_report(analysis_id)
+    raster = job_dir(analysis_id) / "slope_degrees_utm.tif"
+    if not report.get("qa_artifacts") or not raster.is_file():
+        raise HTTPException(404, "Grid cerun UTM belum tersedia bagi analisis ini.")
+    return FileResponse(
+        raster,media_type="image/tiff",
+        filename=f"planexus-slope-degrees-utm-{analysis_id[:8]}.tif",
+    )
 
 
 @app.get("/api/analyses/{analysis_id}/verification.md", response_class=PlainTextResponse)
