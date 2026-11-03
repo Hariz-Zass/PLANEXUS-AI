@@ -38,7 +38,7 @@ export default function SiteContextPanel({
     let active=true;
     const requestedKey=activeContextKey;
     const sequence=++requestSequence.current;
-    setResult(null);setError("");
+    setResult(null);setError("");setBusy(false);
     if(!identifier||!project?.geometry||!backendConnected)return;
     void api<Response>("/api/projects/"+identifier+"/context").then(value=>{
       if(active&&activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setResult(value);
@@ -58,8 +58,8 @@ export default function SiteContextPanel({
     }catch(e){
       if(activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setError(e instanceof Error?e.message:"OSM tidak dapat diakses. Tiada hasil contoh dipaparkan.");
     }finally{
-      // Always unlock controls, including after a switch to another project.
-      setBusy(false);
+      // Never unlock a newer request in a different project.
+      if(activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setBusy(false);
     }
   }
 
