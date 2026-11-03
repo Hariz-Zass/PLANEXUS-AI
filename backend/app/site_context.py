@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import psycopg
 from fastapi import HTTPException
 from pyproj import Geod
 from shapely.geometry import shape
@@ -98,13 +99,27 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     # unlike the geometric centroid which can be outside it.
     centre=shape(geometry).representative_point()
     lat,lon=round(float(centre.y),5),round(float(centre.x),5)
+    # Validate the request BEFORE querying any configured data provider.
     query=build_query(lat,lon,radius_m)
+    # Indexed self-hosted PostGIS snapshot is the preferred source; it removes
+    # public Overpass uptime from the critical user path.
+    postgis_issue=None
+    from .postgis_context import configured, fetch_postgis_context
+    if configured():
+        try:
+            return fetch_postgis_context(
+                geometry,radius_m=radius_m,
+                geometry_sha256=geometry_digest(geometry))
+        except (psycopg.Error,ValueError,OSError) as exc:
+            # Never include credentials or raw SQL errors in API diagnostics.
+            postgis_issue={"provider":"local_postgis",
+                           "type":type(exc).__name__,"http_status":None}
     # Public Overpass instances are frequently rate-limited (429/504);
     # try at most one documented alternative, without inventing a 0-count
     # dataset. Do not follow redirects into arbitrary hosts.
     data=None
     used_endpoint=None
-    problems=[]
+    problems=([postgis_issue] if postgis_issue else [])
     # With no local source, allow Overpass its full 24s server query budget.
     # When a preinstalled local extract exists, cap remote waiting so planners
     # can use that real snapshot quickly instead of waiting for three 36s stalls.
