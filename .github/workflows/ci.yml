@@ -200,3 +200,43 @@ jobs:
           name: b3-3-malaysia-three-site-gis
           path: backend/b3.3_malaysia_live_report.json
           if-no-files-found: warn
+
+  live-public-osm-context:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Verify real OSM source on public Malaysian reference square
+        working-directory: backend
+        run: python -m tests.live_site_context_smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-osm-source-diagnostic
+          path: backend/source_osm_live_evidence.json
+          if-no-files-found: warn
+
+  official-document-url-diagnostic:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Probe official GPP URL reachability only (NOT numeric rule verification)
+        working-directory: backend
+        run: python -m tests.official_source_reachability
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-gpp-url-diagnostic
+          path: backend/official_source_reachability.json
+          if-no-files-found: warn
