@@ -97,7 +97,7 @@ def test_osm_network_failure_must_not_become_zero_nearby_features(monkeypatch):
     with pytest.raises(HTTPException) as err:
         site_context.fetch_context(SITE)
     assert err.value.status_code==503
-    assert "tiada kemudahan" in err.value.detail
+    assert "tiada jalan atau kemudahan direka" in err.value.detail
 
 
 def test_context_is_real_project_scoped_persistent_and_invalidated(monkeypatch,tmp_path):
