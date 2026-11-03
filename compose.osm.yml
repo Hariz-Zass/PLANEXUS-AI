@@ -39,5 +39,22 @@ services:
     depends_on:
       osm-db:
         condition: service_healthy
+  # Optional recurring operator refresh; runs independently from user requests.
+  # On network/import failures the previous complete PostGIS snapshot remains.
+  osm-updater:
+    profiles: ["osm-refresh"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "while true; do python -m app.osm_update --workdir /osm-work || echo 'WARNING: OSM source refresh failed; last good snapshot retained'; sleep 604800; done"]
+    environment:
+      PLANEXUS_OSM_POSTGIS_DSN: "postgresql://planexus:${PLANEXUS_POSTGIS_PASSWORD:?Set PLANEXUS_POSTGIS_PASSWORD}@osm-db:5432/planexus_osm"
+    volumes:
+      - planexus-osm-work:/osm-work
+    depends_on:
+      osm-db:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   planexus-osm-db:
+  planexus-osm-work:
