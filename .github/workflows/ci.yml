@@ -206,6 +206,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Validate actual private Compose overlay and scheduled updater wiring
+        env:
+          PLANEXUS_POSTGIS_PASSWORD: synthetic-ci-not-production
+        run: docker compose -f compose.gis.yml -f compose.osm.yml --profile osm-import --profile osm-refresh config --quiet
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
