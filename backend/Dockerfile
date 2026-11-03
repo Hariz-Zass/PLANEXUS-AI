@@ -7,6 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PLANEXUS_REQUIRE_PERSISTENT_VOLUME=1
 
 WORKDIR /srv/planexus
+# Rasterio/GDAL wheels require these native runtime libraries on slim Debian.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libexpat1 libgomp1 libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir -r requirements.txt \
     && groupadd --system --gid 10001 planexus \
