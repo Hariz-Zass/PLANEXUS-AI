@@ -42,7 +42,9 @@ def manifest():
           {"id":"geofabrik_osm_gpkg","source":"Geofabrik / OpenStreetMap",
            "url":"https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
            "license":"ODbL","configured":bool(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","").strip()
-             and Path(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","")).is_file()),
+             and (Path(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","")).is_file()
+                  or (Path(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","")).is_dir()
+                      and any(Path(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","")).glob("*.gpkg"))))),
            "mode":"backend_offline_snapshot_after_overpass_error",
            "note":"Operator must provision a regularly refreshed local GeoPackage. Not authoritative."},
           {"id":"overture_maps","source":"Overture Maps Foundation",
