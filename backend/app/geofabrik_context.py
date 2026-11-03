@@ -61,8 +61,12 @@ def fetch_geofabrik_context(geometry:dict[str,Any], *, radius_m:int=1500,
     if not 250 <= radius_m <= 2000:
         raise ValueError("Unsupported local context radius.")
     path=gpkg_path.resolve()
-    if not path.is_file() or path.suffix.lower()!=".gpkg":
-        raise FileNotFoundError("Configured offline Geofabrik GeoPackage is not available.")
+    # Accept a single multi-layer GPKG or a folder of Geofabrik layer GPKGs,
+    # because upstream archives may be unpacked into multiple files.
+    sources=([path] if path.is_file() and path.suffix.lower()==".gpkg"
+             else sorted(path.glob("*.gpkg")) if path.is_dir() else [])
+    if not sources or len(sources)>40:
+        raise FileNotFoundError("Configured offline Geofabrik GeoPackage file/folder is not available.")
     centre=shape(geometry).representative_point()
     lat,lon=round(float(centre.y),5),round(float(centre.x),5)
     # Conservative bbox for indexed Fiona spatial filters; exact distance is
@@ -74,12 +78,12 @@ def fetch_geofabrik_context(geometry:dict[str,Any], *, radius_m:int=1500,
     names=[]
     seen=set()
     scanned=0
-    layers=fiona.listlayers(str(path))
-    candidates=[layer for layer in layers if _layer_relevant(layer)]
+    candidates=[(file,layer) for file in sources
+                for layer in fiona.listlayers(str(file)) if _layer_relevant(layer)]
     if not candidates:
         raise ValueError("GeoPackage has no supported Geofabrik OSM feature layers.")
-    for layer in candidates:
-        with fiona.open(str(path),layer=layer) as src:
+    for file,layer in candidates:
+        with fiona.open(str(file),layer=layer) as src:
             if not src.crs:
                 raise ValueError("Offline OSM layer missing CRS.")
             crs=CRS.from_user_input(src.crs)
