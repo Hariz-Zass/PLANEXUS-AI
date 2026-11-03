@@ -27,21 +27,110 @@ from .project_store import (create_project, list_projects, get_project, update_p
                             attach_analysis, activate_analysis)
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .storage_health import check_storage
+from . import auth
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
 
-app = FastAPI(title="PLANEXUS AI Terrain API", version="0.8.0", description="Evidence-first GIS. Single trusted operator, volume-enforced persistence; no public-user authentication.")
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Content-Type"])
+app = FastAPI(title="PLANEXUS AI Terrain API", version="0.9.0", description="Evidence-first GIS. Invite-only private workspace with authenticated project ownership; NOT a public multi-tenant production service.")
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True,
+                   allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+                   allow_headers=["Content-Type", "X-CSRF-Token"])
 
 
 @app.middleware("http")
-async def block_writes_without_storage(request: Request, call_next):
-    # Reject writes to ephemeral containers rather than silently losing projects.
-    if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
+async def protect_private_api(request: Request, call_next):
+    """Fail closed for all project and GIS operations, including direct URLs.
+
+    Authentication checks happen BEFORE routing or reading a GIS upload; this
+    prevents cross-user project and analysis IDs being used in any module.
+    """
+    path = request.url.path
+    if not path.startswith("/api/") or request.method == "OPTIONS":
+        return await call_next(request)
+    if request.method in auth.MUTATION_METHODS:
         state = check_storage(DATA_DIR)
         if not state["ready"]:
-            return JSONResponse(status_code=503, content={"detail": state["detail"], "storage": state["type"]})
+            return JSONResponse(status_code=503, content={
+                "detail": state["detail"], "storage": state["type"]
+            })
+        origin = request.headers.get("origin")
+        if origin and origin.rstrip("/") not in CORS_ORIGINS:
+            return JSONResponse(status_code=403,content={"detail":"Origin tidak dibenarkan."})
+    if path in ("/api/health","/api/auth/login","/api/auth/register"):
+        return await call_next(request)
+    try:
+        identity = auth.request_user(request, DATA_DIR)
+        request.state.user = identity
+        parts = path.split("/")
+        if len(parts) >= 4 and parts[2] == "projects":
+            auth.require_project(DATA_DIR, parts[3], identity["id"])
+        if len(parts) >= 4 and parts[2] == "analyses":
+            auth.require_analysis(DATA_DIR, parts[3], identity["id"])
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail":exc.detail})
     return await call_next(request)
+
+
+class LoginPayload(BaseModel):
+    email: str
+    password: str
+
+
+class RegisterPayload(LoginPayload):
+    display_name: str
+    invite_token: str
+
+
+def secure_auth_cookie(request: Request) -> bool:
+    configured = os.getenv("PLANEXUS_COOKIE_SECURE", "").strip().lower()
+    if configured in ("1","true","yes","on"):
+        return True
+    if configured in ("0","false","no","off"):
+        return False
+    # Default Secure for every non-local origin. Under HTTPS proxies set
+    # PLANEXUS_COOKIE_SECURE=1 explicitly in server configuration.
+    return request.url.hostname not in ("localhost","127.0.0.1","::1")
+
+
+@app.post("/api/auth/register",status_code=201)
+def register_account(payload: RegisterPayload):
+    user = auth.register(DATA_DIR,payload.email,payload.display_name,
+                         payload.password,payload.invite_token)
+    return {"user":user,"notice":"Akaun didaftarkan. Login untuk memulakan sesi."}
+
+
+@app.post("/api/auth/login")
+def login_account(payload: LoginPayload, response: Response, request: Request):
+    user, secret, csrf = auth.authenticate(DATA_DIR,payload.email,payload.password)
+    response.set_cookie(
+        auth.COOKIE_NAME,secret,httponly=True,secure=secure_auth_cookie(request),
+        samesite="lax",path="/",max_age=auth.SESSION_HOURS*3600
+    )
+    response.headers["Cache-Control"]="no-store"
+    return {"user":user,"csrf_token":csrf}
+
+
+@app.get("/api/auth/me")
+def current_account(request: Request, response: Response):
+    # Middleware has already checked the session. Re-read the matching CSRF
+    # token, returned only to an authorized browser origin.
+    identity = request.state.user
+    current = auth.session(DATA_DIR, request.cookies.get(auth.COOKIE_NAME))
+    if current is None:
+        raise HTTPException(401,"Sesi telah tamat.")
+    response.headers["Cache-Control"]="no-store"
+    return {"user":identity,"csrf_token":current[1]}
+
+
+@app.post("/api/auth/logout",status_code=204)
+def logout_account(request: Request, response: Response):
+    auth.revoke(DATA_DIR,request.cookies.get(auth.COOKIE_NAME))
+    response.delete_cookie(auth.COOKIE_NAME,path="/")
+    response.headers["Cache-Control"]="no-store"
+    return Response(status_code=204, headers={
+        "Set-Cookie":f"{auth.COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+        "Cache-Control":"no-store"
+    })
 
 
 class SitePayload(BaseModel):
@@ -147,13 +236,15 @@ class ActivateAnalysisPayload(BaseModel):
 
 
 @app.get("/api/projects")
-def projects_list():
-    return {"projects": list_projects(DATA_DIR), "storage": "local-sqlite; no cloud sync; single trusted user only"}
+def projects_list(request: Request):
+    return {"projects": list_projects(DATA_DIR,owner_id=request.state.user["id"]),
+            "storage": "private-sqlite; server-side project ownership; cloud durability requires mounted volume"}
 
 
 @app.post("/api/projects", status_code=201)
-def projects_create(payload: NewProjectPayload):
-    return create_project(DATA_DIR, payload.name, payload.description, payload.geometry)
+def projects_create(payload: NewProjectPayload, request: Request):
+    return create_project(DATA_DIR,payload.name,payload.description,payload.geometry,
+                          owner_id=request.state.user["id"])
 
 
 @app.get("/api/projects/{project_id}")
@@ -267,18 +358,19 @@ def inspect_site(payload: SitePayload):
     return {"geometry": geometry, "area_ha": round(area_km2(geometry) * 100, 3), "bounds": list(shape(geometry).bounds), "message": "Sempadan tapak sah dari segi geometri; status hak milik dan zoning belum disemak."}
 
 
-def verify_project_for_analysis(project_id: str | None, geometry: dict[str, Any]) -> None:
+def verify_project_for_analysis(project_id: str | None, geometry: dict[str, Any], user_id: str) -> None:
     if project_id is None:
-        return
+        raise HTTPException(422,"Simpan analisis kepada projek milik akaun anda terlebih dahulu.")
+    auth.require_project(DATA_DIR,project_id,user_id)
     project = get_project(DATA_DIR, project_id)
     if project["geometry"] is not None and not shape(project["geometry"]).equals(shape(geometry)):
         raise HTTPException(409, "Sempadan projek tidak sama dengan tapak analisis. Buka semula projek.")
 
 
 @app.post("/api/terrain/auto")
-def terrain_auto(payload: SitePayload):
+def terrain_auto(payload: SitePayload, request: Request):
     geometry = validate_site(payload.geometry)
-    verify_project_for_analysis(payload.project_id, geometry)
+    verify_project_for_analysis(payload.project_id, geometry, request.state.user["id"])
     analysis_id = str(uuid.uuid4())
     directory = job_dir(analysis_id)
     try:
@@ -295,13 +387,14 @@ def terrain_auto(payload: SitePayload):
 
 @app.post("/api/terrain/upload")
 def terrain_upload(
+    request: Request,
     geometry: str = Form(...),
     file: UploadFile = File(...),
     source_name: str = Form(...),
     vertical_unit: str = Form(...),
     height_model: str = Form(...),
     vertical_datum: str = Form("unknown"),
-    project_id: str | None = Form(None),
+    project_id: str = Form(...),
 ):
     if vertical_unit != "metres":
         raise HTTPException(422, "V1 menerima ketinggian dalam unit meter sahaja; sila sahkan unit fail ukur.")
@@ -316,7 +409,7 @@ def terrain_upload(
     except json.JSONDecodeError as ex:
         raise HTTPException(422, "Geometri JSON tidak sah.") from ex
     geom = validate_site(geometry_value)
-    verify_project_for_analysis(project_id, geom)
+    verify_project_for_analysis(project_id, geom, request.state.user["id"])
     analysis_id = str(uuid.uuid4())
     directory = job_dir(analysis_id)
     directory.mkdir(parents=True, exist_ok=True)
@@ -351,20 +444,10 @@ def terrain_upload(
 
 
 @app.get("/api/analyses")
-def list_analyses():
-    directory = DATA_DIR / "jobs"
-    if not directory.exists():
-        return {"analyses": []}
-    results = []
-    for path in directory.iterdir():
-        if not path.is_dir() or not (path / "result.json").exists():
-            continue
-        try:
-            item = json.loads((path / "result.json").read_text(encoding="utf-8"))
-            results.append({"analysis_id": item["analysis_id"], "created_at_utc": item["created_at_utc"], "site_area_ha": item["metrics"]["site_area_ha"], "source_name": item["source"]["name"]})
-        except (OSError, ValueError, KeyError):
-            continue
-    return {"analyses": sorted(results, key=lambda r: r["created_at_utc"], reverse=True)[:50]}
+def list_analyses(request: Request):
+    # Only project-linked reports belonging to this account; never scan the
+    # global jobs directory and disclose other users' raster metadata.
+    return {"analyses":auth.owned_analyses(DATA_DIR,request.state.user["id"])}
 
 
 @app.get("/api/analyses/{analysis_id}")
@@ -378,7 +461,11 @@ def copilot_capabilities():
 
 
 @app.post("/api/copilot/assess")
-def copilot(payload: CopilotPayload):
+def copilot(payload: CopilotPayload, request: Request):
+    # Even if the prompt routes to generic GPP rules, a supplied analysis_id
+    # must belong to the requesting user; never allow ID probing.
+    if payload.analysis_id is not None:
+        auth.require_analysis(DATA_DIR,payload.analysis_id,request.state.user["id"])
     # Operational/workflow guidance can be used before terrain analysis.
     # Site-specific answers MUST be bound to an existing, saved GIS report.
     if any(token in payload.question.casefold() for token in ("gpp", "garis panduan perancangan", "saiz minimum rumah", "saiz lot minimum", "piawaian perumahan")):
