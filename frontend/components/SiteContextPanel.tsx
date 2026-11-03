@@ -9,7 +9,7 @@ type NamedPlace={
 };
 type SiteContext={
   status:"retrieved";source_id:string;source_name:string;source_url:string;licence:string;
-  retrieved_at_utc:string;source_quality:string;radius_m:number;
+  retrieved_at_utc:string;dataset_timestamp_utc?:string|null;source_quality:string;radius_m:number;
   counts:Record<string,number>;named_places:NamedPlace[];
   returned_feature_count:number;warnings:string[];
 };
@@ -74,6 +74,7 @@ export default function SiteContextPanel({
         <p className="site-evidence-provenance"><ShieldCheck size={14}/>
           Sumber: <a href={result.context.source_url} target="_blank" rel="noopener noreferrer">{result.context.source_name}</a>
           {" · "}Diperoleh {new Date(result.context.retrieved_at_utc).toLocaleString("ms-MY")}
+          {result.context.dataset_timestamp_utc && <>{" · "}Dataset OSM sehingga {new Date(result.context.dataset_timestamp_utc).toLocaleString("ms-MY")}</>}
           {" · "}Radius {result.context.radius_m.toLocaleString("ms-MY")} m
         </p>
         <div className="site-evidence-counts">{values.map(([key,n])=>
