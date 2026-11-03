@@ -13,6 +13,8 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
     && useradd --system --uid 10001 --gid 10001 --home-dir /nonexistent planexus \
     && mkdir /data && chown 10001:10001 /data
 COPY app ./app
+# Surface missing native GIS dependencies at image-build time, not after deploy.
+RUN python -c "from app.main import app; print(app.title)"
 USER 10001:10001
 EXPOSE 8000
 # Single SQLite writer / persistent volume. No public-user authentication.
