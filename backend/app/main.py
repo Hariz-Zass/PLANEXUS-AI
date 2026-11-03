@@ -47,12 +47,16 @@ async def protect_private_api(request: Request, call_next):
     path = request.url.path
     if not path.startswith("/api/") or request.method == "OPTIONS":
         return await call_next(request)
-    if request.method in auth.MUTATION_METHODS:
+    # The auth resolver itself uses SQLite. Check the mounted data store for
+    # READS too, otherwise GET to a private API could create an ephemeral DB
+    # on an unmounted Docker layer while searching for a session.
+    if path != "/api/health":
         state = check_storage(DATA_DIR)
         if not state["ready"]:
             return JSONResponse(status_code=503, content={
                 "detail": state["detail"], "storage": state["type"]
             })
+    if request.method in auth.MUTATION_METHODS:
         origin = request.headers.get("origin")
         if origin and origin.rstrip("/") not in CORS_ORIGINS:
             return JSONResponse(status_code=403,content={"detail":"Origin tidak dibenarkan."})
