@@ -313,9 +313,24 @@ def refresh_site_context(project_id: str):
     project=get_project(DATA_DIR,project_id)
     if not project["geometry"]:
         raise HTTPException(422,"Simpan sempadan projek sebelum mencari maklumat sekitar.")
-    result=fetch_context(project["geometry"],radius_m=1500)
+    try:
+        result=fetch_context(project["geometry"],radius_m=1500)
+    except HTTPException as exc:
+        # Do not turn a source outage into a fictional zero-amenity report.
+        # A previous verified response for this exact project boundary may
+        # remain useful, but MUST be labelled as stale (never fresh).
+        if exc.status_code != 503:
+            raise
+        cached=get_cached_context(DATA_DIR,project_id,project["geometry"])
+        if not cached.get("exists"):
+            raise
+        return {"exists":True,"context":cached["context"],
+                "stale_cache":True,
+                "source_refresh_failed":True,
+                "source_refresh_status":503}
     save_context(DATA_DIR,project_id,result)
-    return {"exists":True,"context":result}
+    return {"exists":True,"context":result,"stale_cache":False,
+            "source_refresh_failed":False}
 
 
 @app.post("/api/projects/{project_id}/activate-analysis")
