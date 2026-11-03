@@ -44,7 +44,7 @@ export default function ProjectWorkspace({projects,activeId,geometry,busy,error,
   }
 
   return <section className="project-directory" aria-label="Manage PLANEXUS projects">
-    <div className="eyebrow"><span className="eyebrow-dot"/> LOCAL PROJECT REGISTRY <span className="eyebrow-slash">//</span> WORKSPACE 004</div>
+    <div className="eyebrow"><span className="eyebrow-dot"/> PROJECT FIRST <span className="eyebrow-slash">//</span> WORKSPACE 001</div>
     <div className="project-directory-heading">
       <div><h1>Project <span className="h1-accent">Workspace</span><span className="hero-title-mark">/</span></h1>
         <p>One boundary, multiple analyses. Reopen your work without drawing the same site twice.</p></div>
