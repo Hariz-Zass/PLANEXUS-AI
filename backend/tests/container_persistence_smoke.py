@@ -5,6 +5,7 @@ No external DEM is downloaded and no Vercel deployment is performed.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 import urllib.error
@@ -24,7 +25,14 @@ def get(path: str) -> tuple[int, dict]:
 
 
 def mode_wait() -> None:
-    for _ in range(90):
+    for attempt in range(45):
+        if attempt >= 3:
+            probe=subprocess.run(["docker","inspect","--format","{{.State.Running}}","planexus-ci-api"],
+                                 capture_output=True, text=True, check=False)
+            if probe.returncode == 0 and probe.stdout.strip() == "false":
+                logs=subprocess.run(["docker","logs","--tail","100","planexus-ci-api"],
+                                    capture_output=True,text=True,check=False)
+                raise AssertionError("FastAPI container exited on startup: " + logs.stdout + logs.stderr)
         try:
             status, result = get("/api/health")
             if status in (200, 503):
