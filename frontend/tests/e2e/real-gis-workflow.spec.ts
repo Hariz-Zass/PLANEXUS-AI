@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 
 // @live-api is excluded from mock-only Playwright suite.
 // All requests hit a real FastAPI + Rasterio + SQLite backend.
@@ -123,4 +124,61 @@ test("project-first navigation fits a phone @live-api",async({page})=>{
   await openNav.click();
   await page.getByRole("button",{name:/GPP Knowledge Registry/}).click();
   await expect(page.locator(".gpp-library-source").first()).toBeVisible({timeout:30000});
+});
+
+
+test("invite registration, logout and different accounts cannot view each other's projects @live-api",async({page},testInfo)=>{
+  test.setTimeout(90000);
+  const fixture=path.resolve(process.cwd(),"tests/fixtures/generated");
+  const invitations=readFileSync(path.join(fixture,"ci-invites.txt"),"utf8").trim().split(/\r?\n/);
+  const invite=invitations[Math.min(testInfo.retry,invitations.length-1)];
+  const invitedEmail="ci-invited-"+testInfo.retry+"@planexus.test";
+  const invitedPassword="Invited-Private-CI-2026-Password!";
+  const projectName="Private invited planner site "+testInfo.retry;
+  await page.goto("/");
+  await expect(page.getByRole("button",{name:"Login ke Workspace"})).toBeVisible();
+  await page.getByRole("button",{name:"Daftar dengan jemputan"}).click();
+  await page.getByLabel("Nama paparan").fill("Invited Browser Planner");
+  await page.getByLabel("E-mel").fill(invitedEmail);
+  await page.getByLabel("Kata laluan").fill(invitedPassword);
+  await page.getByLabel("Kod jemputan sekali guna").fill(invite);
+  await page.getByRole("button",{name:"Daftar & Login"}).click();
+  await expect(page.getByRole("button",{name:"New project"})).toBeEnabled({timeout:30000});
+  await page.getByRole("button",{name:"New project"}).click();
+  await page.getByPlaceholder("e.g. Meru Raya — Development Site A").fill(projectName);
+  await page.getByRole("button",{name:"Create & open"}).click();
+  await expect(page.locator(".active-project-text strong")).toHaveText(projectName,{timeout:20000});
+
+  // Use real cookie-authenticated API to retrieve test project's UUID.
+  const owned=await page.evaluate(async()=>{
+    const response=await fetch("http://127.0.0.1:8000/api/projects",{credentials:"include"});
+    if(!response.ok)throw Error("Cannot list my own private projects");
+    return response.json() as Promise<{projects:{id:string;name:string}[]}>;
+  });
+  const privateProject=owned.projects.find(p=>p.name===projectName);
+  expect(privateProject).toBeTruthy();
+  await page.getByRole("button",{name:"Logout"}).click();
+  await expect(page.getByRole("button",{name:"Login ke Workspace"})).toBeVisible({timeout:20000});
+  await page.reload();
+  await expect(page.getByRole("button",{name:"Login ke Workspace"})).toBeVisible();
+  await expect(page.locator(".project-entry")).toHaveCount(0);
+
+  // A second account must see neither the private project nor its direct ID.
+  await page.getByLabel("E-mel").fill("ci-planner@planexus.test");
+  await page.getByLabel("Kata laluan").fill("Synthetic-CI-2026-Private!");
+  await page.getByRole("button",{name:"Login ke Workspace"}).click();
+  await expect(page.getByRole("button",{name:"New project"})).toBeEnabled({timeout:30000});
+  const unauthorized=await page.evaluate(async id=>{
+    const result=await fetch("http://127.0.0.1:8000/api/projects/"+id,{credentials:"include"});
+    return result.status;
+  },privateProject!.id);
+  expect(unauthorized).toBe(404);
+  await expect(page.locator(".project-entry").filter({hasText:projectName})).toHaveCount(0);
+  await page.getByRole("button",{name:"Logout"}).click();
+
+  // Original invited owner can login again and restore the project.
+  await page.getByLabel("E-mel").fill(invitedEmail);
+  await page.getByLabel("Kata laluan").fill(invitedPassword);
+  await page.getByRole("button",{name:"Login ke Workspace"}).click();
+  await expect(page.locator(".project-entry").filter({hasText:projectName})).toBeVisible({timeout:25000});
 });

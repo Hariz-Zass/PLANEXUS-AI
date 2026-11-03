@@ -130,6 +130,7 @@ jobs:
           cd backend
           # CI-only identity. Created through real auth service, no server bypass.
           python -c "from app.auth import create_user; from app.settings import DATA_DIR; create_user(DATA_DIR,'ci-planner@planexus.test','Synthetic GIS CI Planner','Synthetic-CI-2026-Private!',role='planner')"
+          python -c "from app.auth import create_user,create_invite; from app.settings import DATA_DIR; from pathlib import Path; u=create_user(DATA_DIR,'ci-admin@planexus.test','Synthetic Invite Admin','Synthetic-Admin-CI-Private-2026!',role='admin'); Path('../frontend/tests/fixtures/generated/ci-invites.txt').write_text(chr(10).join(create_invite(DATA_DIR,u['email']) for _ in range(2)),encoding='utf-8')"
           nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/planexus-fastapi.log" 2>&1 &
           for n in $(seq 1 75); do
             if curl --fail --silent http://127.0.0.1:8000/api/health > /dev/null; then
