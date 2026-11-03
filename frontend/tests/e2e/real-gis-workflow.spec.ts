@@ -43,6 +43,11 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.getByRole("checkbox",{name:/Saya sahkan nilai ketinggian raster/}).check();
   await page.getByRole("button",{name:"Analyse Uploaded GeoTIFF"}).click();
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:60000});
+  // On successful GIS calculation the first visible map layer must be the
+  // measured slope; suitability is optional and must never silently replace it.
+  await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Slope",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
+
   await expect(page.locator(".results-card")).toContainText("SYNTHETIC CI - NOT A SURVEY");
   // Site-level computation QA, SHA-256 and actual downloadable UTM rasters.
   await expect(page.getByRole("region",{name:"GIS Data Quality Review"})).toBeVisible();
