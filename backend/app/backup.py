@@ -94,6 +94,33 @@ def _create_locked_backup(data_dir: Path, output_dir: Path) -> Path:
                             archive.write(file, arcname=arcname)
                             recorded_files[arcname] = {"size": size, "sha256": sha}
                             archived_jobs += 1
+                    # A verified community surroundings scan saves the
+                    # operator re-querying OSM after disaster recovery.
+                    # It remains user-unverified, and cache freshness is not
+                    # upgraded by restoring the file.
+                    context_dir = data_dir / "site_context"
+                    if context_dir.is_dir():
+                        import uuid
+                        for cached in sorted(context_dir.glob("*.json")):
+                            if cached.is_symlink() or not cached.is_file():
+                                continue
+                            try:
+                                if str(uuid.UUID(cached.stem)) != cached.stem:
+                                    continue
+                            except ValueError:
+                                continue
+                            with sqlite3.connect(snapshot) as known:
+                                project_exists = known.execute(
+                                    "SELECT EXISTS(SELECT 1 FROM projects WHERE id=?)",
+                                    (cached.stem,)
+                                ).fetchone()[0]
+                            if not project_exists:
+                                continue
+                            arcname = "site_context/" + cached.name
+                            size, sha = sha256_file(cached)
+                            archive.write(cached, arcname=arcname)
+                            recorded_files[arcname] = {"size": size, "sha256": sha}
+                            archived_jobs += 1
                     manifest = {
                         "product": "PLANEXUS AI local workspace backup",
                         "format_version": FORMAT_VERSION,

@@ -48,6 +48,11 @@ def _archive_name(value: str) -> bool:
         return False
     if value in (DB_NAME, MANIFEST_NAME):
         return True
+    if len(path.parts) == 2 and path.parts[0] == "site_context" and path.suffix == ".json":
+        try:
+            return str(uuid.UUID(path.stem)) == path.stem
+        except (ValueError, TypeError):
+            return False
     if len(path.parts) != 3 or path.parts[0] != "jobs":
         return False
     try:
