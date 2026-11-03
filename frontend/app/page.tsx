@@ -19,11 +19,12 @@ import LayoutStudio from "@/components/LayoutStudio";
 import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,validateSiteBoundary,SITE_STORAGE_KEY,type SiteOrigin} from "@/lib/site-storage";
 
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
-type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy" | "layout";
+type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy" | "layout" | "context";
 const PAGE_LABELS:Record<SidebarTab,string>={
   projects:"Project Workspace",
   workspace:"Terrain Intelligence",
   sources:"Data Registry",
+  context:"Site Context (OpenStreetMap)",
   history:"Saved Analyses",
   proposals:"Development Studio",
   policy:"GPP Knowledge Registry",
@@ -538,7 +539,7 @@ function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
       <div className="layout">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="sidebar-inner-title"><span className="sidebar-studio-icon"><NexusMark size={18}/></span><div><strong>Planner Studio</strong><small>GEOSPATIAL WORKSPACE</small></div></div>
-          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 07</span></div>
+          <div className="sidebar-section-title">OPERATIONAL MODULES <span>01 — 08</span></div>
           <nav className="nav-list" aria-label="Modul PLANEXUS">
             <button className={"nav-item "+(tab === "projects" ? "selected" : "")} onClick={() => { setTab("projects"); setMobileNav(false); }}><span className="nav-index">01</span><Database size={18}/><span>Project Workspace</span>{projects.length > 0 && <span className="nav-count">{projects.length}</span>}</button>
             <button className={"nav-item "+(tab === "workspace" ? "selected" : "")} onClick={() => { setTab("workspace"); setMobileNav(false); }}><span className="nav-index">02</span><Mountain size={18}/><span>Terrain Intelligence</span><span className="nav-on-dot"/></button>
@@ -547,17 +548,12 @@ function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
             <button className={"nav-item "+(tab === "proposals" ? "selected" : "")} onClick={() => { setTab("proposals"); setMobileNav(false); }}><span className="nav-index">05</span><BarChart3 size={18}/><span>Development Studio</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "policy" ? "selected" : "")} onClick={() => { setTab("policy"); setMobileNav(false); }}><span className="nav-index">06</span><FileText size={18}/><span>GPP Knowledge Registry</span><span className="nav-on-dot"/></button>
             <button className={"nav-item "+(tab === "layout" ? "selected" : "")} onClick={() => { setTab("layout"); setMobileNav(false); }}><span className="nav-index">07</span><Route size={18}/><span>Smart Layout Studio</span><span className="nav-on-dot"/></button>
+            <button className={"nav-item "+(tab === "context" ? "selected" : "")} onClick={() => { setTab("context"); setMobileNav(false); }}><span className="nav-index">08</span><Globe2 size={18}/><span>Site Context · OSM</span></button>
           </nav>
-          <div className="sidebar-section-title secondary-title">FUTURE INTELLIGENCE <span>ROADMAP</span></div>
-          <div className="nav-list locked-modules">
-            <div className="nav-item locked"><Globe2 size={17}/><span>Site Context</span><span>SOON</span></div>
-            <div className="nav-item locked"><FileText size={17}/><span>Planning Policy</span><span>SOON</span></div>
-            <div className="nav-item locked"><Orbit size={17}/><span>Scenario Studio</span><span>SOON</span></div>
-          </div>
           <div className="sidebar-rule-graphic" aria-hidden="true"><span>PX</span><i/><i/><i/></div>
           <div className="sidebar-bottom">
             <div className="sidebar-principle"><ShieldCheck size={18} /><div><strong>Evidence-first analysis</strong><span>No verified data, no unsupported conclusion.</span></div></div>
-            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>0.6.0 LOCAL</span></div>
+            <div className="sidebar-version"><span>PLANEXUS · TERRAIN ENGINE</span><span>PRIVATE GIS · SOURCE AUDIT</span></div>
           </div>
         </aside>
 
@@ -662,7 +658,7 @@ function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
                   </div>}
                 </div>
                 {(status || error) && <div role="status" className={`inline-notice ${error ? "notice-error" : ""}`}>{error ? <CircleAlert size={16}/> : <CheckCircle2 size={16}/>}<span>{error || status}</span>{error && <button onClick={() => setError("")} aria-label="Tutup ralat"><X size={15}/></button>}</div>}
-                {report && <div className="results-card"><div className="section-line"><div><h2>Verified Terrain Outputs</h2><p>Calculated from raster data · {shortDate(report.created_at_utc)}</p></div><span className="verified-chip"><Check size={13}/> GIS CALCULATED</span></div>
+                {report && <div className="results-card"><div className="section-line"><div><h2>Raster-Calculated Terrain Outputs</h2><p>Calculated from raster data · {shortDate(report.created_at_utc)}</p></div><span className="verified-chip"><Check size={13}/> GIS CALCULATED</span></div>
                   <div className="metric-grid"><div className="metric"><span>SITE AREA</span><strong>{formattedNumber(report.metrics.site_area_ha)}</strong><small>hectares</small></div><div className="metric"><span>MEAN ELEVATION</span><strong>{formattedNumber(report.metrics.elevation_mean_m)}</strong><small>metres</small></div><div className="metric"><span>MEAN SLOPE</span><strong>{formattedNumber(report.metrics.slope_mean_deg)}°</strong><small>degrees</small></div><div className="metric"><span>DATA COVERAGE</span><strong>{formattedNumber(report.metrics.coverage_percent_est,1)}%</strong><small>estimated</small></div></div>
                   <div className="subsection-head"><strong>Slope distribution</strong><span>% of valid slope pixels</span></div>
                   <div className="slope-bar">{report.metrics.slope_classes.map(c => <div key={c.id} style={{ width: `${c.percent_of_valid_slope}%`, background: c.color }} title={`${c.name}: ${c.percent_of_valid_slope}%`} />)}</div>
@@ -747,9 +743,10 @@ function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
             <a href={`${browserApiBase()}/api/projects/${activeProject.id}/exports/site_boundary.geojson`} className="btn btn-outline"><ArrowDownToLine size={14}/> Site Boundary (.geojson)</a>
           </div>}<ProjectWorkspace projects={projects} backendConnected={gisStatus==="online"} activeId={activeProject?.id??null}
             geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
-            onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/><SiteContextPanel project={activeProject} backendConnected={gisStatus==="online"}/></>}
+            onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/></>}
+          {tab === "context" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> LIVE COMMUNITY GEODATA / DATA TRANSPARENCY</div><h1>Site <span className="h1-accent">Context</span></h1><p>Imbas kemudahan, jaringan jalan dan aliran air sebenar daripada OpenStreetMap. Ini bukan carian rasmi lot, zoning, akses sah atau risiko banjir.</p><SiteContextPanel project={activeProject} backendConnected={gisStatus==="online"}/></div>}
           {tab === "sources" && <DataCoveragePanel backendConnected={gisStatus==="online"}/>}
-          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / ACTIVE WORKSPACE</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"?"Saved on this device":"Not backed up"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Analisis aktif dipautkan kepada projek dipilih. Fail laporan/GeoTIFF berada pada storan backend lokal; cloud sync belum tersedia.</p><div className="history-list">{displayedAnalyses.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : displayedAnalyses.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
+          {tab === "history" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> REPRODUCIBLE OUTPUTS</div><h1>Saved Analyses <span className="h1-accent">.</span></h1><div className="saved-site-history"><div className="saved-site-history-icon"><MapPin size={22}/></div><div><span className="section-overline">SAVED SITE / ACTIVE WORKSPACE</span><strong>{geometry?"Active site boundary":"No saved site"}</strong><small>{geometry?"≈ "+footprintDisplay+" ha · "+(saveState==="saved"&&activeProject?"Saved in connected project":"Not confirmed saved to project"):"Draw or import a site first."}</small></div><button className="btn btn-outline" onClick={()=>setTab("workspace")}>Open map</button>{geometry&&<button className="btn btn-outline" onClick={()=>downloadSiteGeoJSON(geometry)}>Export</button>}</div><p>Analisis aktif dipautkan kepada projek dipilih. Fail laporan/GeoTIFF berada pada storan backend lokal; cloud sync belum tersedia.</p><div className="history-list">{displayedAnalyses.length === 0 ? <div className="history-empty"><FolderOpen size={29}/><strong>No analyses saved yet</strong><span>Jalankan analisis pertama di Terrain Workspace.</span><button className="btn btn-primary" onClick={()=>setTab("workspace")}>Open workspace <ArrowRight size={15}/></button></div> : displayedAnalyses.map(item=><button key={item.analysis_id} className="history-item" onClick={()=>void reopenAnalysis(item.analysis_id)}><div className="history-icon"><BarChart3 size={19}/></div><div><strong>{item.source_name}</strong><span>{formattedNumber(item.site_area_ha,3)} ha · {shortDate(item.created_at_utc)}</span><small>{item.analysis_id}</small></div><ArrowRight size={18}/></button>)}</div></div>}
         </main>
       </div>
       <input ref={geojsonInput} hidden type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={event=>void loadGeoJson(event.target.files?.[0])} />
