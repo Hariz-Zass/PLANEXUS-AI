@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {CircleAlert, Compass, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck} from "lucide-react";
 import {api, type ProjectDetail} from "@/lib/api";
 
@@ -28,26 +28,36 @@ export default function SiteContextPanel({
   const [busy,setBusy]=useState(false);
   const identifier=project?.id??null;
   const boundaryRevision=project?.revision??0;
+  // Reject asynchronous results from a previous project/boundary, even if the
+  // old server request completes after a project switch or a fresh rescan.
+  const activeContextKey=identifier+"::"+String(boundaryRevision);
+  const activeKeyRef=useRef(activeContextKey);
+  activeKeyRef.current=activeContextKey;
   useEffect(()=>{
     let active=true;
+    const requestedKey=activeContextKey;
     setResult(null);setError("");
     if(!identifier||!project?.geometry||!backendConnected)return;
     void api<Response>("/api/projects/"+identifier+"/context").then(value=>{
-      if(active)setResult(value);
-    }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Gagal membaca carian sekitar yang disimpan.");});
+      if(active&&activeKeyRef.current===requestedKey)setResult(value);
+    }).catch(e=>{if(active&&activeKeyRef.current===requestedKey)setError(e instanceof Error?e.message:"Gagal membaca carian sekitar yang disimpan.");});
     return()=>{active=false;};
   },[identifier,boundaryRevision,Boolean(project?.geometry),backendConnected]);
 
   const values=useMemo(()=>Object.entries(result?.context?.counts??{}),[result]);
   async function refresh(){
     if(!identifier||!project?.geometry||busy)return;
+    const requestedKey=activeContextKey;
     setBusy(true);setError("");
     try{
       const data=await api<Response>("/api/projects/"+identifier+"/context/refresh",{method:"POST"});
-      setResult(data);
+      if(activeKeyRef.current===requestedKey)setResult(data);
     }catch(e){
-      setError(e instanceof Error?e.message:"OSM tidak dapat diakses. Tiada hasil contoh dipaparkan.");
-    }finally{setBusy(false);}
+      if(activeKeyRef.current===requestedKey)setError(e instanceof Error?e.message:"OSM tidak dapat diakses. Tiada hasil contoh dipaparkan.");
+    }finally{
+      // Always unlock controls, including after a switch to another project.
+      setBusy(false);
+    }
   }
 
   return <section className="site-evidence-panel" role="region" aria-label="Automatically sourced nearby site evidence">
