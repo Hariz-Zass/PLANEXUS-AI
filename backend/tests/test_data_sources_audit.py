@@ -223,7 +223,7 @@ def test_osm_http_200_timeout_remark_triggers_real_provider_failover(monkeypatch
             calls.append(url)
             if url==site_context.OVERPASS_ENDPOINT:
                 return Response({"elements":[],"remark":"runtime error: Query timed out"})
-            return Response({"elements":[{
+            return Response({"osm3s":{"timestamp_osm_base":"2026-11-02T23:59:00Z"},"elements":[{
                 "type":"node","id":371,"lat":4.665,"lon":101.075,
                 "tags":{"name":"Sekolah Ujian Sah OSM","amenity":"school"}
             }]})
@@ -234,6 +234,7 @@ def test_osm_http_200_timeout_remark_triggers_real_provider_failover(monkeypatch
     assert result["api_endpoint"]==site_context.OVERPASS_VK_GLOBAL
     assert result["provider_failures_before_success"][0]["type"]=="ValueError"
     assert result["counts"]["education"]==1
+    assert result["dataset_timestamp_utc"]=="2026-11-02T23:59:00Z"
     assert result["source_quality"]=="community_unverified_not_official"
 
 
