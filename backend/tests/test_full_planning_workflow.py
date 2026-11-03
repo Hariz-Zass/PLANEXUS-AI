@@ -157,7 +157,7 @@ def test_complete_single_project_gis_workflow_survives_restart(monkeypatch, tmp_
         reproject = restored.get(f"/api/projects/{pid}")
         assert reproject.status_code == 200
         assert reproject.json()["active_analysis_id"] == aid
-        assert reproject.json()["geometry"] == geometry
+        assert shape(reproject.json()["geometry"]).equals(shape(geometry))
         reanalysis = restored.get(f"/api/analyses/{aid}").json()
         assert reanalysis["slope_geojson"]["features"]
         assert reanalysis["elevation_geojson"]["features"]
