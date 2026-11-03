@@ -183,6 +183,10 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
             "osm_feature_id":f"{e['type']}/{osm_id}",
         })
     named.sort(key=lambda v:(v["distance_from_reference_point_m"],v["name"]))
+    osm_meta=data.get("osm3s") if isinstance(data,dict) else None
+    dataset_timestamp=(osm_meta.get("timestamp_osm_base") if isinstance(osm_meta,dict) else None)
+    if not isinstance(dataset_timestamp,str) or not dataset_timestamp.strip():
+        dataset_timestamp=None
     return {
         "status":"retrieved","source_id":"openstreetmap-overpass-community",
         "source_name":"© OpenStreetMap contributors / Overpass",
@@ -191,6 +195,7 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
         "retrieval_service_reliability":"third_party_best_effort_unless_hosted_plan_configured",
         "licence":"ODbL; https://www.openstreetmap.org/copyright",
         "retrieved_at_utc":datetime.now(timezone.utc).isoformat(),
+        "dataset_timestamp_utc":dataset_timestamp,
         "source_quality":"community_unverified_not_official",
         "reference_point_wgs84":{"latitude":lat,"longitude":lon},
         "radius_m":radius_m,"counts":grouped,"named_places":named[:30],
