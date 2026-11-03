@@ -404,3 +404,16 @@ may be truncated and are NOT represented as full site analysis raster output.
 See docs/B3_4_BACKUP_RECOVERY_EXPORT.md for setup, security, test coverage,
 off-host requirements and scope limits. Push to GitHub only — no Vercel
 deployment or user Task Scheduler installation was done automatically.
+
+
+### November 2026 — End-to-end functional and data-source audit
+
+See [Functional and Source Audit](docs/FUNCTIONAL_DATA_AUDIT_2026_11_03.md).
+There are working GIS computation and project modules, but PLANEXUS must NOT
+claim all Malaysian PBT zoning, official flood or legal-road datasets are
+integrated. The previously decorative Site Context module now calls real
+OpenStreetMap/Overpass with explicit attribution and no invented records,
+but public Overpass hosts are unreliable in CI. An optional managed hosted
+source can be configured via server-only PLANEXUS_OVERPASS_CH_API_KEY.
+The Data Registry now reports the actual maturity of each data source,
+including GPP documents with no machine-readable rules. No Vercel deployment.
