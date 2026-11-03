@@ -96,7 +96,7 @@ export default function SiteContextPanel({
         <h3>Tempat bernama ditemui <small>(maks. 30, jarak garis lurus)</small></h3>
         {result.context.named_places.length?
           <div className="site-evidence-places">{result.context.named_places.map(p=>
-            p.osm_feature_id.startsWith("geofabrik:")
+            (p.osm_feature_id.startsWith("geofabrik:")||p.osm_feature_id.startsWith("postgis:"))
               ? <div key={p.osm_feature_id} className="site-evidence-snapshot">
                   <span><strong>{p.name}</strong><small>{labels[p.category]??p.category} · kira-kira {p.distance_from_reference_point_m.toLocaleString("ms-MY")} m · snapshot OSM, pautan objek individu tidak tersedia</small></span>
                 </div>
