@@ -204,6 +204,13 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         "elevation_geojson": overlays["elevation_geojson"],
         "contours_geojson": overlays["contours_geojson"],
         "quality": quality,
+        "overlay_status": {
+            "slope_geojson_truncated": bool(truncated_overlay),
+            "elevation_geojson_truncated": bool(overlays["elevation_overlay_truncated"]),
+            "contours_geojson_truncated": bool(overlays["contours_truncated"]),
+            "suitability_geojson_truncated": bool(suitability["summary"]["class_overlay_truncated"]),
+            "note": "Vector layers are cartographic renderings; full-resolution evidence is the projected GeoTIFF raster."
+        },
         "source_file": provenance,
         "qa_artifacts": {"projected_elevation": "elevation_utm.tif",
                          "projected_slope": "slope_degrees_utm.tif",
