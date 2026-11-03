@@ -31,6 +31,20 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.getByRole("button",{name:"Analyse Uploaded GeoTIFF"}).click();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:60000});
   await expect(page.locator(".results-card")).toContainText("SYNTHETIC CI - NOT A SURVEY");
+  // Site-level computation QA, SHA-256 and actual downloadable UTM rasters.
+  await expect(page.getByRole("region",{name:"GIS Data Quality Review"})).toBeVisible();
+  await expect(page.locator(".terrain-qa")).toContainText("Slope coverage (Horn 3×3)");
+  await expect(page.locator(".terrain-qa")).toContainText("NOT YET VERIFIED");
+  await expect(page.locator(".terrain-qa-provenance code")).toHaveText(/^[a-f0-9]{64}$/);
+  for(const label of ["GIS QA Report (.md)","Elevation UTM (.tif)","Slope UTM (.tif)"]){
+    await expect(page.getByRole("link",{name:label})).toBeVisible();
+  }
+  const storedQualityHref=await page.getByRole("link",{name:"GIS QA Report (.md)"}).getAttribute("href");
+  expect(storedQualityHref).toContain("/api/analyses/");
+  const apiResponse=await page.request.get(storedQualityHref!);
+  expect(apiResponse.status()).toBe(200);
+  expect(await apiResponse.text()).toContain("NOT performed");
+  await expect(page.locator(".terrain-map[data-slope-features]")).toBeVisible();
   // Copilot must read the saved, actual GIS result; without an AI key it must
   // label its deterministic fallback, never fabricate measured values.
   const composer=page.locator(".copilot-compose textarea");
@@ -53,8 +67,10 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await expect(page.locator(".terrain-map[data-contours-rendered='true']")).toBeVisible({timeout:30000});
   await layers.getByRole("button",{name:"Slope",exact:true}).click();
   await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
+  expect(Number(await page.locator(".terrain-map").getAttribute("data-slope-features"))).toBeGreaterThan(0);
   await layers.getByRole("button",{name:"Elevation",exact:true}).click();
   await expect(page.locator(".terrain-map[data-elevation-rendered='true']")).toBeVisible({timeout:30000});
+  expect(Number(await page.locator(".terrain-map").getAttribute("data-elevation-features"))).toBeGreaterThan(0);
   await expect(page.locator(".terrain-map[data-slope-rendered='false']")).toBeVisible();
   await layers.getByRole("button",{name:"Suitability",exact:true}).click();
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
