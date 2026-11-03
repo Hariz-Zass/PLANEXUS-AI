@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, JSONResponse, FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
 from rasterio.errors import RasterioError
 from shapely.geometry import shape
@@ -29,6 +30,7 @@ from .project_store import (create_project, list_projects, get_project, update_p
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .storage_health import check_storage
 from .gis_lock import acquire_data_lock, release_data_lock, LockBusy
+from .gis_export import vector_layers, create_geopackage, create_export_bundle
 from . import auth
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
@@ -372,6 +374,63 @@ def proposals_update(project_id: str, proposal_id: str, payload: ProposalUpdateP
 def proposals_delete(project_id: str, proposal_id: str):
     delete_proposal(DATA_DIR, project_id, proposal_id)
     return Response(status_code=204)
+
+
+def _export_context(project_id: str, request: Request) -> tuple[dict[str, Any], dict[str, Any] | None, Path | None]:
+    # Middleware protects project ownership; the report must also belong to
+    # this account before we read private GIS file bytes.
+    project = get_project(DATA_DIR, project_id)
+    analysis_id = project.get("active_analysis_id")
+    if not analysis_id:
+        return project, None, None
+    auth.require_analysis(DATA_DIR, analysis_id, request.state.user["id"])
+    return project, load_report(analysis_id), job_dir(analysis_id)
+
+
+@app.get("/api/projects/{project_id}/exports/{layer_name}.geojson")
+def export_project_geojson(project_id: str, layer_name: str, request: Request):
+    # Only these public vector-layer names are allowed; never a file path.
+    project, report, _ = _export_context(project_id, request)
+    layers = vector_layers(project, report)
+    if layer_name not in layers:
+        raise HTTPException(404, "Lapisan GeoJSON tidak tersedia untuk projek ini.")
+    return JSONResponse(layers[layer_name],media_type="application/geo+json",
+                        headers={"Content-Disposition":f'attachment; filename="planexus-{layer_name}.geojson"',
+                                 "Cache-Control":"private, no-store"})
+
+
+@app.get("/api/projects/{project_id}/exports/layers.gpkg")
+def export_project_gpkg(project_id: str, request: Request):
+    project, report, _ = _export_context(project_id, request)
+    temporary = tempfile.TemporaryDirectory(prefix="planexus-private-gpkg-")
+    try:
+        file = Path(temporary.name) / "planexus-layers.gpkg"
+        create_geopackage(file, project, report)
+        return FileResponse(
+            file,media_type="application/geopackage+sqlite3",
+            filename="planexus-layers.gpkg",
+            background=BackgroundTask(temporary.cleanup),
+            headers={"Cache-Control":"private, no-store"}
+        )
+    except Exception:
+        temporary.cleanup()
+        raise
+
+
+@app.get("/api/projects/{project_id}/exports/gis-package.zip")
+def export_project_package(project_id: str, request: Request):
+    project, report, directory = _export_context(project_id, request)
+    temporary = tempfile.TemporaryDirectory(prefix="planexus-private-export-")
+    try:
+        file = create_export_bundle(Path(temporary.name),project,report,directory)
+        return FileResponse(
+            file,media_type="application/zip",filename="PLANEXUS-GIS-export.zip",
+            background=BackgroundTask(temporary.cleanup),
+            headers={"Cache-Control":"private, no-store"}
+        )
+    except Exception:
+        temporary.cleanup()
+        raise
 
 
 @app.post("/api/site/inspect")
