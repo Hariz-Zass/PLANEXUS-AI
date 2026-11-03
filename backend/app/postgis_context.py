@@ -45,7 +45,7 @@ def fetch_postgis_context(geometry: dict[str, Any], *, radius_m: int,
     params = (lon, lat, radius_m)
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute("SET LOCAL statement_timeout = %s", (QUERY_TIMEOUT_MS,))
+            cur.execute("SELECT set_config('statement_timeout', %s, TRUE)", (str(QUERY_TIMEOUT_MS),))
             cur.execute(
                 "SELECT snapshot_at_utc, row_count FROM planexus_osm.snapshot "
                 "WHERE snapshot_id=1 AND completed=TRUE")
@@ -132,7 +132,7 @@ def readiness() -> dict[str, Any]:
         return {"configured": False, "ready": False, "reason": "not_configured"}
     try:
         with connect() as conn, conn.cursor() as cur:
-            cur.execute("SET LOCAL statement_timeout = %s", (QUERY_TIMEOUT_MS,))
+            cur.execute("SELECT set_config('statement_timeout', %s, TRUE)", (str(QUERY_TIMEOUT_MS),))
             cur.execute(
                 "SELECT snapshot_at_utc, row_count FROM planexus_osm.snapshot "
                 "WHERE snapshot_id=1 AND completed=TRUE")
