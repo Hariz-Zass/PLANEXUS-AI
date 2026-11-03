@@ -64,7 +64,7 @@ export default function GppCheckPanel({inputs,onPatch,backendConnected,savedAsse
   }
 
   return <section className="gpp-check" aria-label="GPP housing reference checks">
-    <div className="gpp-title-row"><div><span className="section-overline"><BookOpen size={13}/> 01B / VERIFIED PLANNING GUIDANCE</span>
+    <div className="gpp-title-row"><div><span className="section-overline"><BookOpen size={13}/> 01B / SOURCE-CITED GPP REFERENCE</span>
       <h3>GPP <em>Knowledge Engine</em></h3>
       <p>Source-cited numerical guidance — not an automatic PBT approval.</p>
     </div><span className="gpp-version">{catalog?"REGISTRY "+catalog.registry_version:"SOURCE REGISTER"}</span></div>
