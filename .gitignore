@@ -36,3 +36,6 @@ backups/
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+
+# Only generated in live-backend browser CI; synthetic, never source evidence.
+frontend/tests/fixtures/generated/

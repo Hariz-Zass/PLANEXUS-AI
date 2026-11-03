@@ -56,7 +56,7 @@ jobs:
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
-      - run: npm run test:e2e
+      - run: npx playwright test --grep-invert @live-api
         working-directory: frontend
 
   live-cog-smoke:
@@ -100,3 +100,47 @@ jobs:
         run: |
           docker rm -f planexus-ci-api planexus-ci-unmounted 2>/dev/null || true
           docker volume rm planexus-ci-data 2>/dev/null || true
+
+  real-gis-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real FastAPI, Rasterio and Next.js
+        run: |
+          python -m pip install -r backend/requirements.txt
+          cd frontend && npm install --no-audit --no-fund
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Generate non-survey GeoTIFF and GeoJSON test fixtures
+        working-directory: backend
+        run: python tests/generate_browser_fixture.py ../frontend/tests/fixtures/generated
+      - name: Start GIS API with isolated SQLite data
+        run: |
+          set -euo pipefail
+          export PLANEXUS_DATA_DIR="$RUNNER_TEMP/planexus-integration-store"
+          export PLANEXUS_REQUIRE_PERSISTENT_VOLUME=0
+          cd backend
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/planexus-fastapi.log" 2>&1 &
+          for n in $(seq 1 75); do
+            if curl --fail --silent http://127.0.0.1:8000/api/health > /dev/null; then
+              echo "FastAPI healthy; real API, isolated synthetic GIS fixture"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/planexus-fastapi.log"
+          exit 1
+      - name: Verify actual browser → API → GIS → SQLite workflow
+        working-directory: frontend
+        run: npx playwright test --grep @live-api
+      - name: Surface API errors on failure
+        if: failure()
+        run: tail -n 150 "$RUNNER_TEMP/planexus-fastapi.log" || true
