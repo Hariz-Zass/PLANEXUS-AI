@@ -186,7 +186,9 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
   await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
-  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000  // Regression: a delayed saved-context GET must not overwrite a newer
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
+
+  // Regression: a delayed saved-context GET must not overwrite a newer
   // live source scan, even when both belong to exactly the same project.
   let releaseOldGet=()=>{};
   let sawOldGet=false;
@@ -222,5 +224,4 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   releaseOldGet();
   await expect(page.getByText("Fresh community clinic")).toBeVisible();
   await expect(page.getByText("Old cached clinic")).toHaveCount(0);
-});
 });
