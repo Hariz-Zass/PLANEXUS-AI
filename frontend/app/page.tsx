@@ -171,7 +171,10 @@ export default function Home() {
     setSaveState(details.geometry?"saved":"empty");
     setSavedAt(details.updated_at_utc);
     setSaveMessage("");
-    window.localStorage.setItem(ACTIVE_PROJECT_KEY,details.id);
+    // Server save succeeded; blocked browser storage must not turn this
+    // successful operation into an apparent project-creation failure.
+    try { window.localStorage.setItem(ACTIVE_PROJECT_KEY,details.id); }
+    catch { setSaveMessage("Project saved on backend. This browser cannot remember the active project automatically."); }
     setStatus("Projek "+details.name+" dibuka. "+
       (analysis?"Layer dan laporan analisis berjaya dipulihkan.":details.geometry?"Sempadan tapak dipulihkan daripada SQLite.":"Cipta atau import sempadan baharu."));
   }, []);
@@ -234,6 +237,20 @@ export default function Home() {
   useEffect(()=>{
     const restore=()=>{
       if(projectRef.current)return;
+      // Stand-alone browser draft is NOT the currently selected server project.
+      // Never render another project's polygon while backend recovery is pending.
+      try {
+        if(window.localStorage.getItem(ACTIVE_PROJECT_KEY)){
+          setGeometry(null);setReport(null);setChat([]);
+          setSaveState("checking");
+          setSaveMessage("Menunggu pengesahan projek aktif daripada GIS backend; local draft tidak digunakan.");
+          return;
+        }
+      }catch{
+        setSaveState("error");
+        setSaveMessage("Browser menyekat project ID; buka semula projek daripada GIS backend.");
+        return;
+      }
       const r=readSavedSite();
       if(r.state==="found"){setGeometry(r.site.geometry);setSaveState("saved");setSavedAt(r.site.savedAt);setSaveMessage("");setReport(null);setChat([]);}
       else if(r.state==="empty"){setGeometry(null);setSaveState("empty");setSavedAt("");setSaveMessage("");setReport(null);setChat([]);}
@@ -256,7 +273,8 @@ export default function Home() {
       }
       applyProject(detail,analysis);
       setTab("workspace");setMobileNav(false);
-      await refreshProjectList();
+      try { await refreshProjectList(); }
+      catch { setProjectError("Projek dibuka, tetapi senarai projek belum dapat dimuat semula."); }
     }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat membuka projek.");throw e;}
     finally{setProjectBusy(false);}
   }
@@ -271,7 +289,8 @@ export default function Home() {
       });
       applyProject(detail,null);
       setTab("workspace");setMobileNav(false);
-      await refreshProjectList();
+      try { await refreshProjectList(); }
+      catch { setProjectError("Projek dicipta, tetapi senarai projek belum dapat dimuat semula."); }
     }catch(e){setProjectError(e instanceof Error?e.message:"Tidak dapat mencipta projek.");throw e;}
     finally{setProjectBusy(false);}
   }
@@ -337,8 +356,9 @@ export default function Home() {
         await refreshProjectList();
       }catch(e){
         const message=e instanceof Error?e.message:"Project save failed";
-        setSaveState("error");
-        setSaveMessage("Simpanan projek gagal: "+message);
+        setSaveState(current.geometry?"saved":"empty");
+        setSaveMessage("Sempadan baharu GAGAL disimpan: "+message+" · Sempadan asal kekal pada projek.");
+        setStatus("Tiada perubahan projek disahkan.");
         setError("Sempadan baharu TIDAK dipakai; tapak asal masih dikekalkan. "+message);
       }finally{setProjectBusy(false);}
     }else{
@@ -385,7 +405,7 @@ export default function Home() {
         setResetCounter(n=>n+1);setSaveState("empty");setSavedAt("");
         setStatus("Sempadan projek telah dipadam daripada rekod aktif. Sejarah analisis dikekalkan.");
         await refreshProjectList();
-      }catch(e){setSaveState("error");setSaveMessage("Gagal padam daripada database.");setError(e instanceof Error?e.message:"Gagal memadam sempadan projek.");}
+      }catch(e){setSaveState(current.geometry?"saved":"empty");setSaveMessage("Gagal padam; sempadan asal masih disimpan pada projek.");setError(e instanceof Error?e.message:"Gagal memadam sempadan projek.");}
       finally{setProjectBusy(false);}
       return;
     }

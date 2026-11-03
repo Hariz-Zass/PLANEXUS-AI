@@ -42,3 +42,22 @@ test("saved geometry remains safe when a replacement drawing is cancelled", asyn
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await expect.poll(()=>page.locator(".terrain-map").evaluate(el=>el.clientHeight)).toBeGreaterThan(100);
 });
+
+
+test("never shows stale standalone browser boundary as a saved project when API is offline",async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem("planexus:active-project:v1","aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    localStorage.setItem("planexus:site-boundary:v1",JSON.stringify({
+      version:1,origin:"geojson-import",savedAt:new Date().toISOString(),
+      geometry:{type:"Polygon",coordinates:[[
+        [101.07,4.66],[101.08,4.66],[101.08,4.67],[101.07,4.67],[101.07,4.66]
+      ]]}
+    }));
+  });
+  await page.route("http://localhost:8000/api/**",async route=>route.abort("failed"));
+  await page.goto("/");
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
+  await expect(page.locator(".terrain-map[data-site-polygon='absent']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-site-rendered='false']")).toBeVisible({timeout:30000});
+  await expect(page.getByText("GIS ENGINE OFFLINE")).toBeVisible({timeout:15000});
+});
