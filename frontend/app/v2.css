@@ -112,3 +112,12 @@
 .terrain-qa-downloads{display:flex;flex-wrap:wrap;gap:7px}
 .terrain-qa-downloads .btn{font-size:10px;min-height:35px}
 @media(max-width:800px){.terrain-qa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.terrain-qa-title{flex-direction:column}.terrain-qa-downloads .btn{flex:1 1 150px}}
+
+
+/* B3.4 — private project GIS export controls */
+.project-gis-export{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:14px;border-radius:10px;border:1px solid #426b65;background:rgba(25,65,60,.4)}
+.project-gis-export>div{flex:1 1 260px;min-width:0}
+.project-gis-export strong{font:800 12px var(--display);color:#d9f1de}
+.project-gis-export p{margin:4px 0 0;font:500 11px/1.55 var(--display);color:#a5c8bb}
+.project-gis-export .btn{font-size:10px;min-height:34px}
+@media(max-width:650px){.project-gis-export .btn{flex:1 1 180px;justify-content:center}}
