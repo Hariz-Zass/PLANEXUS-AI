@@ -13,7 +13,7 @@ type SiteContext={
   counts:Record<string,number>;named_places:NamedPlace[];
   returned_feature_count:number;warnings:string[];
 };
-type Response={exists:boolean;reason?:string;context?:SiteContext};
+type Response={exists:boolean;reason?:string;context?:SiteContext;stale_cache?:boolean;source_refresh_failed?:boolean};
 const labels:Record<string,string>={
   education:"Pendidikan",healthcare:"Kesihatan",transport:"Pengangkutan",
   retail:"Runcit / mall",parks:"Taman / rekreasi",civic:"Perkhidmatan awam",
@@ -64,11 +64,12 @@ export default function SiteContextPanel({
         {busy?<LoaderCircle size={15} className="spin"/>:<RefreshCw size={15}/>}
         {busy?"Mengambil data sumber…":"Imbas sekitar 1.5 km"}
       </button>
-      <p>Imbasan menghantar titik rujukan tapak yang dibundarkan (bukan boundary penuh) kepada pelayan Overpass awam. Data ini tidak membuktikan akses jalan sah, kelulusan atau risiko banjir.</p>
+      <p>Carian menggunakan Overpass dalam talian dan, jika dipasang pengendali sistem, snapshot Geofabrik setempat. Carian online hanya menghantar titik rujukan dibundarkan, bukan boundary penuh. Data tidak membuktikan akses jalan sah, kelulusan atau risiko banjir.</p>
     </div>
     {!backendConnected&&<p className="site-evidence-notice">Backend GIS belum bersambung. Data sekitar tidak dapat diambil.</p>}
     {backendConnected&&!project?.geometry&&<p className="site-evidence-notice">Cipta projek dan simpan boundary dahulu untuk mengimbas kawasan secara automatik.</p>}
     {error&&<p className="site-evidence-error" role="alert"><CircleAlert size={15}/>{error}</p>}
+    {result?.stale_cache&&result.source_refresh_failed&&<p className="site-evidence-error" role="alert"><CircleAlert size={15}/>Sumber live sedang gagal. Memaparkan snapshot lama untuk sempadan projek yang sama. Sila semak tarikh sumber sebelum digunakan; ini BUKAN hasil carian terkini.</p>}
     {result?.exists&&result.context?
       <>
         <p className="site-evidence-provenance"><ShieldCheck size={14}/>
