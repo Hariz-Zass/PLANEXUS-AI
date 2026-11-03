@@ -2,7 +2,7 @@
 
 **Your Geospatial Planning Copilot for Urban & Regional Planning.**
 
-> **Status:** Local-development prototype. The Python terrain engine has automated tests; the Next.js UI is implemented but must be installed and built in an environment with npm registry access. **Not deployed and not production-ready.**
+> **Status:** GitHub development repository. Local GIS tests and a private single-workspace Docker backend template are available. Cloud backend, authentication, and production data persistence are NOT deployed. A frontend-only Vercel build is not a functioning online terrain analysis service.
 >
 > **Brand caution:** PLANEXUS is a working project name; check Malaysia trademark and existing planning-sector usage before external branding or commercial release.
 
