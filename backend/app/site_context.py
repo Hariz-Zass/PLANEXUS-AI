@@ -105,12 +105,16 @@ def fetch_context(geometry: dict[str,Any], *, radius_m: int=1500) -> dict[str,An
     data=None
     used_endpoint=None
     problems=[]
-    # Server-side Overpass QL allows 24 seconds of execution. A 20-second
-    # client read timeout made slow-but-successful queries fail prematurely.
-    # Keep DNS/connect short; allow enough time for the declared query limit.
-    with httpx.Client(timeout=httpx.Timeout(36.0,connect=6.0),
+    # With no local source, allow Overpass its full 24s server query budget.
+    # When a preinstalled local extract exists, cap remote waiting so planners
+    # can use that real snapshot quickly instead of waiting for three 36s stalls.
+    local_extract=os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","").strip()
+    offline_ready=bool(local_extract and Path(local_extract).exists())
+    remote_timeout=12.0 if offline_ready else 36.0
+    providers=_providers()[:2] if offline_ready else _providers()
+    with httpx.Client(timeout=httpx.Timeout(remote_timeout,connect=6.0),
                       follow_redirects=False) as client:
-        for endpoint,provider_headers in _providers():
+        for endpoint,provider_headers in providers:
             try:
                 response=client.post(endpoint,data={"data":query},
                                      headers={"User-Agent":"PLANEXUS-AI-private-site-screening/1.0",
