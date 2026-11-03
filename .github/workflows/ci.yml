@@ -72,3 +72,30 @@ jobs:
       - name: Check real Copernicus public DEM tile and actual raster terrain calculations
         working-directory: backend
         run: python -m tests.live_cog_smoke
+
+  docker-gis-volume-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the actual FastAPI GIS image (no cloud deploy)
+        run: docker build -t planexus-gis:ci ./backend
+      - name: Verify durable project data survives container replacement
+        run: |
+          set -euo pipefail
+          docker volume create planexus-ci-data
+          docker run -d --name planexus-ci-api -p 127.0.0.1:18000:8000 -v planexus-ci-data:/data planexus-gis:ci
+          python3 backend/tests/container_persistence_smoke.py wait
+          python3 backend/tests/container_persistence_smoke.py create
+          docker rm -f planexus-ci-api
+          docker run -d --name planexus-ci-api -p 127.0.0.1:18000:8000 -v planexus-ci-data:/data planexus-gis:ci
+          python3 backend/tests/container_persistence_smoke.py wait
+          python3 backend/tests/container_persistence_smoke.py verify
+          docker rm -f planexus-ci-api
+          docker run -d --name planexus-ci-unmounted -p 127.0.0.1:18000:8000 planexus-gis:ci
+          python3 backend/tests/container_persistence_smoke.py unmounted
+      - name: Clean up isolated test containers and volume
+        if: always()
+        run: |
+          docker rm -f planexus-ci-api planexus-ci-unmounted 2>/dev/null || true
+          docker volume rm planexus-ci-data 2>/dev/null || true
