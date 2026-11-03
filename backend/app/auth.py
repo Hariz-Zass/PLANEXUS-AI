@@ -334,6 +334,25 @@ def disable_user(data_dir: Path, admin_email: str, target_email: str) -> None:
             db.execute("DELETE FROM auth_sessions WHERE user_id=?",(target["id"],))
 
 
+def reset_password(data_dir: Path, admin_email: str,
+                   target_email: str, new_password: str) -> None:
+    """Offline administrator recovery; immediately revoke target sessions."""
+    new_hash = hash_password(new_password)
+    with connection(data_dir) as db:
+        schema(db)
+        operator=db.execute("SELECT id FROM users WHERE email=? AND role='admin' AND disabled=0",
+                            (_email(admin_email),)).fetchone()
+        target=db.execute("SELECT id FROM users WHERE email=? AND disabled=0",
+                          (_email(target_email),)).fetchone()
+        if operator is None or target is None:
+            raise HTTPException(404,"Active admin or target account not found.")
+        with db:
+            db.execute("UPDATE users SET password_hash=? WHERE id=?",
+                       (new_hash,target["id"]))
+            db.execute("DELETE FROM auth_sessions WHERE user_id=?",
+                       (target["id"],))
+
+
 def claim_legacy(data_dir: Path, owner_email: str) -> int:
     """Offline-only claim, preserves every raster and report; never auto-claim."""
     with connection(data_dir) as db:
@@ -362,6 +381,9 @@ def main() -> None:
     disable = cmds.add_parser("disable-user")
     disable.add_argument("--admin-email",required=True)
     disable.add_argument("--email",required=True)
+    reset=cmds.add_parser("reset-password")
+    reset.add_argument("--admin-email",required=True)
+    reset.add_argument("--email",required=True)
     commands_status=cmds.add_parser("status",help="Count active user accounts")
     arguments = parser.parse_args()
     if arguments.command == "create-admin":
@@ -379,6 +401,13 @@ def main() -> None:
     elif arguments.command == "disable-user":
         disable_user(DATA_DIR,arguments.admin_email,arguments.email)
         print("Account disabled and all its login sessions revoked:",arguments.email)
+    elif arguments.command == "reset-password":
+        first=getpass.getpass("New password (12–128 chars): ")
+        again=getpass.getpass("Confirm new password: ")
+        if first != again:
+            parser.error("Passwords do not match.")
+        reset_password(DATA_DIR,arguments.admin_email,arguments.email,first)
+        print("Password reset; all old sessions revoked for:",arguments.email)
     elif arguments.command == "status":
         print("Active PLANEXUS accounts:",account_count(DATA_DIR))
 

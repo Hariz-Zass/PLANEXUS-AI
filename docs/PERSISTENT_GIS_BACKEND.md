@@ -229,3 +229,17 @@ authorization after a disaster recovery. Password hashes and user accounts
 are retained so each authorized planner can login afresh. The original
 backup archive is never modified; the restored database is validated again
 before publication. Do not put private archive files in the repository.
+
+### Offline credential recovery
+
+An offline admin can reset a planner's password without deleting their
+project ownership or GIS reports:
+
+```bash
+python -m app.auth reset-password --admin-email admin@example.com --email staff@example.com
+```
+
+The CLI prompts for the new password **without printing it**. Every existing
+session for the affected user is revoked immediately. This is an
+administrator-operated recovery, NOT an email-based password reset or
+automated identity verification.

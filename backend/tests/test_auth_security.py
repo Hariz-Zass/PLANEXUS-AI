@@ -196,3 +196,25 @@ def test_login_attempt_limit(monkeypatch,tmp_path):
                 "email":"admin@example.test","password":"wrong-password"}).status_code==401
         assert client.post("/api/auth/login",json={
             "email":"admin@example.test","password":ADMIN_PASSWORD}).status_code==429
+
+
+
+def test_offline_password_reset_and_account_revocation(monkeypatch,tmp_path):
+    data,admin=bootstrap(monkeypatch,tmp_path)
+    staff=auth.create_user(data,"revoked@example.test","Revoked Planner",
+                           PLANNER_PASSWORD,role="planner")
+    with TestClient(main.app,base_url="https://testserver") as client:
+        sign_in(client,"revoked@example.test",PLANNER_PASSWORD)
+        assert client.get("/api/projects").status_code == 200
+        auth.reset_password(data,"admin@example.test","revoked@example.test",
+                            "Updated-Private-Password-2026!")
+        assert client.get("/api/projects").status_code == 401
+        assert client.post("/api/auth/login",json={
+            "email":"revoked@example.test","password":PLANNER_PASSWORD}).status_code==401
+        sign_in(client,"revoked@example.test","Updated-Private-Password-2026!")
+        assert client.get("/api/projects").status_code==200
+        auth.disable_user(data,"admin@example.test","revoked@example.test")
+        assert client.get("/api/projects").status_code==401
+        assert client.post("/api/auth/login",json={
+            "email":"revoked@example.test",
+            "password":"Updated-Private-Password-2026!"}).status_code==401

@@ -72,13 +72,13 @@ async def protect_private_api(request: Request, call_next):
 
 
 class LoginPayload(BaseModel):
-    email: str
-    password: str
+    email: str = Field(min_length=3,max_length=254)
+    password: str = Field(min_length=1,max_length=128)
 
 
 class RegisterPayload(LoginPayload):
-    display_name: str
-    invite_token: str
+    display_name: str = Field(min_length=2,max_length=100)
+    invite_token: str = Field(min_length=16,max_length=256)
 
 
 def secure_auth_cookie(request: Request) -> bool:
