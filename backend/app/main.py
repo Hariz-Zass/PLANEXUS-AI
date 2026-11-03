@@ -20,6 +20,7 @@ from shapely.geometry import shape
 
 from .copilot import assess, capabilities, workflow_guidance
 from .data_coverage import manifest as source_coverage_manifest
+from .site_context import fetch_context, get_cached_context, save_context
 from .proposal_engine import ProposalInput
 from .layout_engine import LayoutInput, screen_layout
 from .layout_store import get_layout, save_layout
@@ -298,6 +299,23 @@ def projects_update(project_id: str, payload: UpdateProjectPayload):
 def projects_delete(project_id: str):
     remove_project(DATA_DIR, project_id)
     return Response(status_code=204)
+
+
+@app.get("/api/projects/{project_id}/context")
+def project_site_context(project_id: str):
+    project=get_project(DATA_DIR,project_id)
+    return get_cached_context(DATA_DIR,project_id,project["geometry"])
+
+
+@app.post("/api/projects/{project_id}/context/refresh")
+def refresh_site_context(project_id: str):
+    """User-opted-in external geodata lookup; no fabricated offline data."""
+    project=get_project(DATA_DIR,project_id)
+    if not project["geometry"]:
+        raise HTTPException(422,"Simpan sempadan projek sebelum mencari maklumat sekitar.")
+    result=fetch_context(project["geometry"],radius_m=1500)
+    save_context(DATA_DIR,project_id,result)
+    return {"exists":True,"context":result}
 
 
 @app.post("/api/projects/{project_id}/activate-analysis")
