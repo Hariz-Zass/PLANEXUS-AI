@@ -128,6 +128,8 @@ jobs:
           export PLANEXUS_DATA_DIR="$RUNNER_TEMP/planexus-integration-store"
           export PLANEXUS_REQUIRE_PERSISTENT_VOLUME=0
           cd backend
+          # CI-only identity. Created through real auth service, no server bypass.
+          python -c "from app.auth import create_user; from app.settings import DATA_DIR; create_user(DATA_DIR,'ci-planner@planexus.test','Synthetic GIS CI Planner','Synthetic-CI-2026-Private!',role='planner')"
           nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/planexus-fastapi.log" 2>&1 &
           for n in $(seq 1 75); do
             if curl --fail --silent http://127.0.0.1:8000/api/health > /dev/null; then
