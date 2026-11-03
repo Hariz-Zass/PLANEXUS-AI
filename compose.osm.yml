@@ -1,0 +1,43 @@
+# Opt-in self-hosted OSM database. NEVER starts in basic compose.gis.yml.
+# Usage: docker compose -f compose.gis.yml -f compose.osm.yml up -d --build gis osm-db
+# Do not publish PostgreSQL ports to the public Internet.
+services:
+  osm-db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: planexus
+      POSTGRES_DB: planexus_osm
+      POSTGRES_PASSWORD: ${PLANEXUS_POSTGIS_PASSWORD:?Set a long URL-safe PLANEXUS_POSTGIS_PASSWORD}
+    volumes:
+      - planexus-osm-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planexus -d planexus_osm"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 25s
+    restart: unless-stopped
+  gis:
+    environment:
+      PLANEXUS_OSM_POSTGIS_DSN: "postgresql://planexus:${PLANEXUS_POSTGIS_PASSWORD:?Set PLANEXUS_POSTGIS_PASSWORD}@osm-db:5432/planexus_osm"
+    depends_on:
+      osm-db:
+        condition: service_healthy
+  # Explicit one-time/periodic job. The API itself never downloads an entire
+  # regional extract while a user is waiting for a site analysis.
+  osm-import:
+    profiles: ["osm-import"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "python -m app.osm_import --source /osm --snapshot-date \"$$PLANEXUS_OSM_SNAPSHOT_DATE\""]
+    environment:
+      PLANEXUS_OSM_POSTGIS_DSN: "postgresql://planexus:${PLANEXUS_POSTGIS_PASSWORD:?Set PLANEXUS_POSTGIS_PASSWORD}@osm-db:5432/planexus_osm"
+      PLANEXUS_OSM_SNAPSHOT_DATE: ${PLANEXUS_OSM_SNAPSHOT_DATE:-}
+    volumes:
+      - ${PLANEXUS_OSM_EXTRACT_DIR:-./data/osm}:/osm:ro
+    depends_on:
+      osm-db:
+        condition: service_healthy
+volumes:
+  planexus-osm-db:
