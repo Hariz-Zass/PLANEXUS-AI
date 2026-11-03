@@ -176,7 +176,7 @@ export type PolicyAssessment = {
 
 export type PolicySource = {
   id:string;title:string;year:number|null;issuer:string;
-  jurisdiction:string;url:string;evidence:string;scope:string;
+  jurisdiction:string;url:string;alternate_official_url?:string|null;evidence:string;scope:string;
   status:"curated_rules"|"catalog_only";
 };
 

@@ -56,6 +56,7 @@ export default function GppLibrary({backendConnected,onOpenStudio}:{backendConne
           <p>{source.scope}</p>
           <small>Evidence locator: {source.evidence}</small>
           <div><a href={source.url} target="_blank" rel="noopener noreferrer"><FileSearch size={14}/> Open official document/source <ArrowUpRight size={14}/></a></div>
+          {source.alternate_official_url&&<div><a href={source.alternate_official_url} target="_blank" rel="noopener noreferrer"><FileSearch size={14}/> Alternative official document link <ArrowUpRight size={14}/></a></div>}
         </div>
       </article>)}
       <section className="gpp-reference-examples" aria-label="Three common terrace proposal starting sizes">
