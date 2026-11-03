@@ -297,3 +297,41 @@ def test_geofabrik_offline_gpkg_is_used_when_public_overpass_is_down(monkeypatch
     assert result["named_places"][0]["name"]=="Sekolah Ujian Snapshot"
     assert result["provider_failures_before_success"]
     assert result["geometry_sha256"]==site_context.geometry_digest(SITE)
+
+
+def test_live_source_failure_reuses_only_same_boundary_cached_evidence(monkeypatch,tmp_path):
+    """Real API: label fallback stale, never invent zero or cross a site revision."""
+    monkeypatch.setattr(main,"DATA_DIR",tmp_path/"data")
+    sample={
+        "status":"retrieved","geometry_sha256":site_context.geometry_digest(SITE),
+        "source_id":"openstreetmap-overpass-community",
+        "source_name":"OpenStreetMap / Overpass",
+        "retrieved_at_utc":"2026-11-02T00:00:00+00:00",
+        "source_quality":"community_unverified_not_official",
+        "counts":{"education":1,"roads":2},"named_places":[]
+    }
+    monkeypatch.setattr(main,"fetch_context",lambda geometry,radius_m=1500:sample)
+    with TestClient(main.app) as api:
+        project=api.post("/api/projects",json={"name":"Offline fallback","geometry":SITE}).json()
+        pid=project["id"]
+        first=api.post(f"/api/projects/{pid}/context/refresh")
+        assert first.status_code==200
+        assert first.json()["stale_cache"] is False
+        from fastapi import HTTPException as _HTTPException
+        def unavailable(geometry,radius_m=1500):
+            raise _HTTPException(status_code=503,detail="All providers offline")
+        monkeypatch.setattr(main,"fetch_context",unavailable)
+        recovered=api.post(f"/api/projects/{pid}/context/refresh")
+        assert recovered.status_code==200
+        body=recovered.json()
+        assert body["stale_cache"] is True
+        assert body["source_refresh_failed"] is True
+        assert body["context"]["retrieved_at_utc"]=="2026-11-02T00:00:00+00:00"
+        assert body["context"]["counts"]["education"]==1
+        # Boundary changes invalidate the cached evidence.
+        changed=api.patch(f"/api/projects/{pid}",json={
+            "expected_revision":project["revision"],"geometry":SITE2
+        })
+        assert changed.status_code==200
+        offline=api.post(f"/api/projects/{pid}/context/refresh")
+        assert offline.status_code==503
