@@ -53,10 +53,13 @@ as successful. Check the status and independently monitor backup age.
 The INSTALL file only installs a Windows task when a user explicitly runs it;
 GitHub pushes do not create local tasks.
 
-The existing BACKUP-PLANEXUS.bat remains the MANUAL archive workflow and is
-not subject to automatic retention. You can run a manual archive during
-ordinary API use only if all mutations go through the PLANEXUS write lock.
-For large analyses, backup may wait and fail with a clear message; retry later.
+The existing BACKUP-PLANEXUS.bat remains the MANUAL archive workflow and
+is not subject to automatic retention. That older launcher deliberately
+requires you to STOP the backend before use. The new scheduled backup worker
+can run while the API is online because it coordinates with PLANEXUS' shared
+write lock. Direct file/database writers outside that lock must still stop.
+For large analyses, an automatic backup may wait or fail with a clear message;
+retry later.
 
 ## 3. Docker private pilot (opt-in profile)
 
