@@ -159,6 +159,10 @@ def test_invite_only_registration_single_use_and_account_isolation(monkeypatch,t
         assert other.get("/api/analyses").json()["analyses"]==[]
         assert other.get(f"/api/analyses/{aid}").status_code==404
         assert other.get(f"/api/analyses/{aid}/report.md").status_code==404
+        # B3.3 protected raster/verification downloads must enforce the same
+        # analysis-owner check, even for someone who knows the exact UUID.
+        for suffix in ("verification.md","elevation-utm.tif","slope-utm.tif"):
+            assert other.get(f"/api/analyses/{aid}/{suffix}").status_code==404
         assert other.post("/api/copilot/assess",json={
             "analysis_id":aid,"question":"GPP minimum rumah teres"}).status_code==404
         assert other.post(f"/api/projects/{project_b}/activate-analysis",
