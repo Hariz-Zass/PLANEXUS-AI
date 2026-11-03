@@ -8,8 +8,10 @@ import tempfile
 from pathlib import Path
 
 import rasterio
+from fastapi.testclient import TestClient
 from app.sources import acquire_copernicus
 from app.terrain import analyze_terrain
+import app.main as gis_api
 
 # Public, arbitrary WGS84 test square near Ipoh, not any user's stored site.
 BOUNDS=(101.068,4.660,101.090,4.684)
@@ -37,6 +39,42 @@ def run():
                 "mean_slope":metrics["slope_mean_deg"],
                 "source":source["name"]})
         print("WARNING: DEM is DSM, not surveyed ground truth.")
+
+        # Exercise REAL public COG evidence through the SAME HTTP entry point
+        # used by the Next.js frontend, and verify persisted report + project.
+        # Reuse acquired raster rather than making two external S3 downloads.
+        gis_api.DATA_DIR=Path(directory)/"api-storage"
+        original=gis_api.acquire_copernicus
+        try:
+            gis_api.acquire_copernicus=lambda bounds, target: (path,source)
+            with TestClient(gis_api.app) as api:
+                created=api.post("/api/projects",json={"name":"REAL COG CI SMOKE - not a survey"})
+                assert created.status_code==201,created.text
+                pid=created.json()["id"]
+                response=api.post("/api/terrain/auto",json={
+                    "geometry":SITE,"project_id":pid
+                })
+                assert response.status_code==200,response.text
+                result=response.json()
+                assert result["source"]["id"]==source["id"]
+                assert result["slope_geojson"]["features"]
+                assert result["elevation_geojson"]["features"]
+                analysis_id=result["analysis_id"]
+                project=api.get("/api/projects/"+pid).json()
+                assert project["active_analysis_id"]==analysis_id
+                saved=api.get("/api/analyses/"+analysis_id)
+                assert saved.status_code==200
+                assert saved.json()["slope_geojson"]["features"]
+                assert saved.json()["elevation_geojson"]["features"]
+                assert saved.json()["source"]["id"]==source["id"]
+                print("REAL COG API/PERSISTENCE OK:",{
+                    "project_id":pid,"analysis_id":analysis_id,
+                    "slope_shapes":len(result["slope_geojson"]["features"]),
+                    "elevation_shapes":len(result["elevation_geojson"]["features"]),
+                    "source_id":source["id"],
+                })
+        finally:
+            gis_api.acquire_copernicus=original
 
 
 if __name__=="__main__":
