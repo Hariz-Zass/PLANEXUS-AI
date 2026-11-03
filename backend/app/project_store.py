@@ -109,6 +109,13 @@ def connection(data_dir: Path) -> Iterator[sqlite3.Connection]:
                 updated_at_utc TEXT NOT NULL
             );
             """)
+            # B3.2 migration: preserve old data, never implicitly reveal an
+            # unowned project to the first new account. Offline admin CLI claims
+            # NULL owners explicitly after verifying the rightful operator.
+            project_columns={r["name"] for r in db.execute("PRAGMA table_info(projects)")}
+            if "owner_user_id" not in project_columns:
+                db.execute("ALTER TABLE projects ADD COLUMN owner_user_id TEXT")
+            db.execute("CREATE INDEX IF NOT EXISTS ix_projects_owner ON projects(owner_user_id)")
             # Backward-compatible, additive migration for existing PLANEXUS SQLite files.
             columns={r["name"] for r in db.execute("PRAGMA table_info(project_proposals)")}
             if "policy_registry_version_at_save" not in columns:
@@ -130,9 +137,15 @@ def _summary(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
-def list_projects(data_dir: Path) -> list[dict[str, Any]]:
+def list_projects(data_dir: Path, owner_id: str | None = None) -> list[dict[str, Any]]:
     with connection(data_dir) as db:
-        rows = db.execute("SELECT * FROM projects ORDER BY updated_at_utc DESC, rowid DESC LIMIT ?", (MAX_PROJECTS_LOCAL,)).fetchall()
+        if owner_id is None:
+            rows = db.execute("SELECT * FROM projects ORDER BY updated_at_utc DESC, rowid DESC LIMIT ?",
+                              (MAX_PROJECTS_LOCAL,)).fetchall()
+        else:
+            rows = db.execute("SELECT * FROM projects WHERE owner_user_id=? "
+                              "ORDER BY updated_at_utc DESC, rowid DESC LIMIT ?",
+                              (owner_id, MAX_PROJECTS_LOCAL)).fetchall()
         return [_summary(row) for row in rows]
 
 
@@ -153,7 +166,8 @@ def get_project(data_dir: Path, project_id: str) -> dict[str, Any]:
         return summary
 
 
-def create_project(data_dir: Path, name: str, description: str = "", geometry: dict[str, Any] | None = None) -> dict[str, Any]:
+def create_project(data_dir: Path, name: str, description: str = "", geometry: dict[str, Any] | None = None,
+                   *, owner_id: str | None = None) -> dict[str, Any]:
     value, info, encoded = _label(name), _description(description), _json_geometry(geometry)
     project_id = str(uuid.uuid4())
     now = _now()
@@ -163,9 +177,9 @@ def create_project(data_dir: Path, name: str, description: str = "", geometry: d
             if count >= MAX_PROJECTS_LOCAL:
                 raise HTTPException(422, "Had 200 projek lokal dicapai. Arkib projek lama dahulu.")
             db.execute(
-                "INSERT INTO projects(id,name,description,site_geometry,created_at_utc,updated_at_utc)"
-                " VALUES(?,?,?,?,?,?)",
-                (project_id, value, info, encoded, now, now),
+                "INSERT INTO projects(id,name,description,site_geometry,created_at_utc,updated_at_utc,owner_user_id)"
+                " VALUES(?,?,?,?,?,?,?)",
+                (project_id, value, info, encoded, now, now, owner_id),
             )
     return get_project(data_dir, project_id)
 
