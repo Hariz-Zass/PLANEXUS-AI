@@ -130,3 +130,40 @@ def test_complete_single_project_gis_workflow_survives_restart(monkeypatch, tmp_
         assert prior_layout["preview"]["road_corridor_ha"] > 0
         scenarios = reopened.get(f"/api/projects/{pid}/proposals").json()["proposals"]
         assert any(item["id"] == proposal_id for item in scenarios)
+
+
+    # BACKUP/RESTORE REHEARSAL: snapshot an actual GeoTIFF and ALL project
+    # modules from SQLite; restore into a new directory, then reopen with API.
+    # This simulates replacing the data volume rather than merely restarting
+    # TestClient on its original filesystem.
+    from app.backup import create_backup
+    from app.backup_restore import verify_backup, restore_backup
+
+    backup = create_backup(tmp_path / "gis-store", tmp_path / "safe-archives")
+    proof = verify_backup(backup)
+    assert proof["analysis_count"] == 1
+    assert proof["layout_count"] == 1
+    assert proof["proposal_count"] == 1
+    destination = tmp_path / "restored-new-volume"
+    restore_backup(backup, destination)
+    restored_tif = destination / "jobs" / aid / "uploaded_source.tif"
+    assert restored_tif.is_file()
+    with rasterio.open(restored_tif) as raster:
+        assert raster.crs.to_epsg() == 32647
+        assert raster.width == n and raster.count == 1
+
+    monkeypatch.setattr(main, "DATA_DIR", destination)
+    with TestClient(main.app) as restored:
+        reproject = restored.get(f"/api/projects/{pid}")
+        assert reproject.status_code == 200
+        assert reproject.json()["active_analysis_id"] == aid
+        assert reproject.json()["geometry"] == geometry
+        reanalysis = restored.get(f"/api/analyses/{aid}").json()
+        assert reanalysis["slope_geojson"]["features"]
+        assert reanalysis["elevation_geojson"]["features"]
+        assert reanalysis["contours_geojson"]["features"]
+        saved_scenarios = restored.get(f"/api/projects/{pid}/proposals").json()
+        assert any(item["id"] == proposal_id for item in saved_scenarios["proposals"])
+        persisted_layout = restored.get(f"/api/projects/{pid}/layout").json()
+        assert persisted_layout["exists"] is True
+        assert persisted_layout["inputs"]["road_centerlines"] == [road]
