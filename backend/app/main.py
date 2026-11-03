@@ -99,6 +99,7 @@ def health():
         "persistent": state["persistent"],
         "detail": state["detail"],
         "public_multiuser_ready": False,
+        "production_ready": False,  # backward-compatible explicit caution
     }
     if not state["ready"]:
         return JSONResponse(status_code=503, content=payload)
