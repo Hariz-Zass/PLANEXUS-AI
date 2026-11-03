@@ -104,7 +104,9 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
 test("project-first navigation fits a phone @live-api",async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto("/");
-  await expect(page.getByText("GIS ENGINE CONNECTED")).toBeVisible({timeout:30000});
+  // Mobile hides the desktop status text; actual New Project readiness
+  // verifies that the API health probe has succeeded on this viewport.
+  await expect(page.getByRole("button",{name:"New project"})).toBeEnabled({timeout:30000});
   await expect(page.getByRole("heading",{name:/Project Workspace/})).toBeVisible({timeout:20000});
   const openNav=page.getByRole("button",{name:"Buka navigasi"});
   await expect(openNav).toBeVisible();
