@@ -27,6 +27,17 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.getByRole("button",{name:"Analyse Uploaded GeoTIFF"}).click();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:60000});
   await expect(page.locator(".results-card")).toContainText("SYNTHETIC CI - NOT A SURVEY");
+  // Copilot must read the saved, actual GIS result; without an AI key it must
+  // label its deterministic fallback, never fabricate measured values.
+  const composer=page.locator(".copilot-compose textarea");
+  await composer.fill("Apakah purata cerun tapak ini berdasarkan laporan GIS?");
+  await page.getByRole("button",{name:"Hantar soalan"}).click();
+  await expect(page.locator(".message-assistant").first()).toContainText("Ringkasan GIS",{timeout:20000});
+  await expect(page.locator(".copilot-evidence-line")).toContainText("SYNTHETIC CI");
+  // GPP Q&A is sourced from the real policy registry, not model invention.
+  await composer.fill("Apakah saiz minimum rumah teres kos sederhana mengikut GPP?");
+  await page.getByRole("button",{name:"Hantar soalan"}).click();
+  await expect(page.locator(".gpp-chat-citations a").first()).toBeVisible({timeout:20000});
   const layers=page.locator(".map-layer-controls");
   await layers.getByRole("button",{name:"Slope",exact:true}).click();
   await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
