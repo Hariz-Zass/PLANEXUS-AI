@@ -62,19 +62,36 @@ async def protect_private_api(request: Request, call_next):
         origin = request.headers.get("origin")
         if origin and origin.rstrip("/") not in CORS_ORIGINS:
             return JSONResponse(status_code=403,content={"detail":"Origin tidak dibenarkan."})
-    if path in ("/api/health","/api/auth/login","/api/auth/register"):
+    async def dispatch():
+        if path in ("/api/health","/api/auth/login","/api/auth/register"):
+            return await call_next(request)
+        try:
+            identity = auth.request_user(request, DATA_DIR)
+            request.state.user = identity
+            parts = path.split("/")
+            if len(parts) >= 4 and parts[2] == "projects":
+                auth.require_project(DATA_DIR, parts[3], identity["id"])
+            if len(parts) >= 4 and parts[2] == "analyses":
+                auth.require_analysis(DATA_DIR, parts[3], identity["id"])
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail":exc.detail})
         return await call_next(request)
-    try:
-        identity = auth.request_user(request, DATA_DIR)
-        request.state.user = identity
-        parts = path.split("/")
-        if len(parts) >= 4 and parts[2] == "projects":
-            auth.require_project(DATA_DIR, parts[3], identity["id"])
-        if len(parts) >= 4 and parts[2] == "analyses":
-            auth.require_analysis(DATA_DIR, parts[3], identity["id"])
-    except HTTPException as exc:
-        return JSONResponse(status_code=exc.status_code, content={"detail":exc.detail})
-    return await call_next(request)
+
+    # Backup and ALL mutating API calls coordinate using the SAME OS-level
+    # file lock. Never block an asyncio event loop while waiting for a long
+    # GIS analysis on another thread/process.
+    if request.method in auth.MUTATION_METHODS:
+        try:
+            locked = await asyncio.to_thread(acquire_data_lock, DATA_DIR, timeout_s=180)
+        except (LockBusy, OSError) as exc:
+            return JSONResponse(status_code=503,content={
+                "detail":"GIS sedang menganalisis atau membuat backup. Cuba lagi selepas operasi selesai."
+            })
+        try:
+            return await dispatch()
+        finally:
+            await asyncio.to_thread(release_data_lock, locked)
+    return await dispatch()
 
 
 class LoginPayload(BaseModel):
