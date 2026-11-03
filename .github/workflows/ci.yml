@@ -169,3 +169,26 @@ jobs:
           name: b3-3-gdal-reference
           path: backend/b3.3_gdal_reference_report.json
           if-no-files-found: ignore
+
+  real-three-site-gis-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install independent GDAL CLI reference
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gdal-bin
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Test three REAL Malaysian public Copernicus COG sites, with no fabricated fallback
+        working-directory: backend
+        run: python -m tests.three_site_live_validation
+      - name: Publish actual data-source/QA audit, even on S3 failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-3-malaysia-three-site-gis
+          path: backend/b3.3_malaysia_live_report.json
+          if-no-files-found: warn
