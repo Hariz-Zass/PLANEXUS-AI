@@ -39,6 +39,14 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.getByRole("button",{name:"Hantar soalan"}).click();
   await expect(page.locator(".gpp-chat-citations a").first()).toBeVisible({timeout:20000});
   const layers=page.locator(".map-layer-controls");
+  // Measured synthetic elevation variation produces real contour lines.
+  const contours=page.getByRole("checkbox",{name:"Contours"});
+  await expect(contours).toBeEnabled();
+  await expect(page.locator(".terrain-map[data-contours-rendered='true']")).toBeVisible({timeout:30000});
+  await contours.uncheck();
+  await expect(page.locator(".terrain-map[data-contours-rendered='false']")).toBeVisible({timeout:30000});
+  await contours.check();
+  await expect(page.locator(".terrain-map[data-contours-rendered='true']")).toBeVisible({timeout:30000});
   await layers.getByRole("button",{name:"Slope",exact:true}).click();
   await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
   await layers.getByRole("button",{name:"Elevation",exact:true}).click();
