@@ -311,6 +311,29 @@ def owned_analyses(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
         return [dict(row) for row in rows]
 
 
+def account_count(data_dir: Path) -> int:
+    with connection(data_dir) as db:
+        schema(db)
+        return db.execute("SELECT COUNT(*) FROM users WHERE disabled=0").fetchone()[0]
+
+
+def disable_user(data_dir: Path, admin_email: str, target_email: str) -> None:
+    """Offline revocation: immediately kills every active session for the user."""
+    with connection(data_dir) as db:
+        schema(db)
+        operator=db.execute("SELECT id FROM users WHERE email=? AND role='admin' AND disabled=0",
+                            (_email(admin_email),)).fetchone()
+        target=db.execute("SELECT id FROM users WHERE email=? AND disabled=0",
+                          (_email(target_email),)).fetchone()
+        if operator is None or target is None:
+            raise HTTPException(404, "Active administrator or target account not found.")
+        if operator["id"]==target["id"]:
+            raise HTTPException(422,"Admin cannot disable own account through this command.")
+        with db:
+            db.execute("UPDATE users SET disabled=1 WHERE id=?",(target["id"],))
+            db.execute("DELETE FROM auth_sessions WHERE user_id=?",(target["id"],))
+
+
 def claim_legacy(data_dir: Path, owner_email: str) -> int:
     """Offline-only claim, preserves every raster and report; never auto-claim."""
     with connection(data_dir) as db:
@@ -336,6 +359,10 @@ def main() -> None:
     invite.add_argument("--hours",type=int,default=INVITE_HOURS)
     claim = cmds.add_parser("claim-legacy")
     claim.add_argument("--admin-email",required=True)
+    disable = cmds.add_parser("disable-user")
+    disable.add_argument("--admin-email",required=True)
+    disable.add_argument("--email",required=True)
+    commands_status=cmds.add_parser("status",help="Count active user accounts")
     arguments = parser.parse_args()
     if arguments.command == "create-admin":
         one = getpass.getpass("Password (12–128 chars): ")
@@ -349,6 +376,11 @@ def main() -> None:
               create_invite(DATA_DIR,arguments.admin_email,arguments.hours))
     elif arguments.command == "claim-legacy":
         print("Legacy projects assigned to the named admin:", claim_legacy(DATA_DIR,arguments.admin_email))
+    elif arguments.command == "disable-user":
+        disable_user(DATA_DIR,arguments.admin_email,arguments.email)
+        print("Account disabled and all its login sessions revoked:",arguments.email)
+    elif arguments.command == "status":
+        print("Active PLANEXUS accounts:",account_count(DATA_DIR))
 
 
 if __name__ == "__main__":

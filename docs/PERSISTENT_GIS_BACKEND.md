@@ -169,3 +169,54 @@ cloud PostgreSQL server or remote object store; a single SQLite writer and
 one volume are suitable only for a trusted private pilot. Checksum integrity
 detects accidental corruption, not a malicious party who can rewrite the
 unsigned manifest. B3.2 will address user access control. Vercel unchanged.
+
+## B3.2 — Invite-only accounts and project authorization (GitHub only)
+
+All private `/api/` endpoints except `/api/health`, `/api/auth/login` and
+`/api/auth/register` require a real SQLite session. The browser uses an
+opaque HttpOnly session cookie; only the SHA-256 digest is stored in SQLite.
+Passwords use salted scrypt, not plaintext. Sessions expire after 12 hours.
+POST/PUT/PATCH/DELETE require CSRF token and an allowed origin. The CORS
+allowlist is NOT authentication. Cross-user project/analysis requests return
+404, including direct URLs, exports, AI Copilot evidence, scenarios, terrain
+uploads and Smart Layout. The list endpoints filter by project owner.
+
+**Local Windows first run:** `START-PLANEXUS.bat` prompts for the FIRST
+admin email, display name and password (12–128 characters). Password input
+is hidden. No fixed account or shared default password is provided.
+
+**Offline CLI, from backend directory:**
+
+```bash
+python -m app.auth create-admin --email admin@example.com --name "Admin Planner"
+python -m app.auth create-invite --admin-email admin@example.com --hours 48
+python -m app.auth claim-legacy --admin-email admin@example.com
+python -m app.auth disable-user --admin-email admin@example.com --email staff@example.com
+python -m app.auth status
+```
+
+The one-time invite must be delivered PRIVATELY to an intended planner.
+They select "Daftar dengan jemputan" and register with email and password.
+Invites expire; used invites cannot be reused. Admins do NOT automatically
+see other users' projects. To revoke access, run `disable-user` offline: it
+disables the account and revokes its sessions.
+
+**Existing projects:** on migration, all previous projects remain intact
+with NULL owner. They are HIDDEN to every user until an operator explicitly
+claims them with `claim-legacy`, after checking the rightful owner and
+making a private backup. This offline action assigns ALL unowned legacy
+projects to the nominated admin; it does not delete geometry, scenarios,
+layout, raster files or historical analyses.
+
+**Local browser:** open frontend at http://localhost:3000 or
+http://127.0.0.1:3000. In development, the GIS API automatically follows
+the same loopback hostname on port 8000, avoiding cross-site cookie failures.
+In production, use trusted same-site HTTPS origins, explicit
+`PLANEXUS_CORS_ORIGINS`, and `PLANEXUS_COOKIE_SECURE=1`.
+
+**Security limitations:** no MFA, email verification, password recovery,
+audited invitation delivery, organization/team sharing, managed WAF, or
+horizontally scaled session store yet. OAuth or an audited identity provider
+is recommended before opening access beyond a small trusted pilot. SQL user
+accounts alone do NOT make this a safe internet-facing multi-tenant service.
+No Vercel deployment was made in this phase.

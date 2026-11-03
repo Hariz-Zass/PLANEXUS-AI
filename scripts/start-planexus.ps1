@@ -95,6 +95,24 @@ try {
     } finally { Pop-Location }
   }
 
+  # Bootstrap the FIRST private admin interactively; never hardcode credentials
+  # or auto-claim old unowned projects to a new account.
+  Push-Location $backend
+  try {
+    $adminCount = & $venvPython -c 'from app.auth import account_count; from app.settings import DATA_DIR; print(account_count(DATA_DIR))'
+    Check-Exit 'Tidak dapat menyemak akaun PLANEXUS.'
+    if ([int]("$adminCount").Trim() -eq 0) {
+      Write-Host ''
+      Write-Host 'PERSIAPAN KESELAMATAN PERTAMA KALI: Cipta akaun admin peribadi.' -ForegroundColor Yellow
+      $adminEmail = Read-Host 'E-mel admin'
+      $adminName = Read-Host 'Nama paparan admin'
+      & $venvPython -m app.auth create-admin --email $adminEmail --name $adminName
+      Check-Exit 'Akaun admin belum berjaya dicipta. Startup dihentikan.'
+      Write-Host 'Admin didaftarkan. Projek lama tidak dipindahkan kepada akaun ini secara automatik.' -ForegroundColor Green
+      Write-Host 'Jika projek lama milik anda, gunakan arahan claim-legacy selepas semak backup.' -ForegroundColor Yellow
+    }
+  } finally { Pop-Location }
+
   Step '3/4 - Sediakan dashboard (Next.js)'
   if (-not (Test-Path (Join-Path $frontend '.env.local'))) {
     Copy-Item (Join-Path $frontend '.env.example') (Join-Path $frontend '.env.local')

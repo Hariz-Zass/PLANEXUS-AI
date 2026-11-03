@@ -362,3 +362,16 @@ directory**, without overwriting a live project. Includes a Windows launcher
 This is not a deployed online GIS backend or a multi-user database. Private
 single-instance durable storage and authentication are still prerequisites
 for any online release. No Vercel deployment.
+
+### B3.2 — Login, project ownership, and backend security (GitHub-only)
+
+The entire GIS workspace is gated behind an invite-only login backed by
+SQLite and HttpOnly cookie sessions. Cross-user access to projects, raster
+reports, exports, Copilot evidence, scenarios and Smart Layout is rejected
+by the API even when a project URL is guessed. The first admin is set up
+interactively by `START-PLANEXUS.bat`; other users register with one-time
+invites created offline by an admin.
+
+Old projects are preserved but **not assigned automatically** to a new
+account. Follow [B3.2 security setup and migration](docs/PERSISTENT_GIS_BACKEND.md).
+No default password, no public signup, and no Vercel deployment.
