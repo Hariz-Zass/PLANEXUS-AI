@@ -33,7 +33,7 @@ def synthetic_site(path: Path, *, z: np.ndarray, nodata: float=-9999.,
                        nodata=nodata, transform=from_origin(left,top,cell,cell)) as dst:
         dst.write(z.astype("float32"),1)
         if declared_unit:
-            dst.update_units(1,declared_unit)
+            dst.set_band_unit(1,declared_unit)
     site=Polygon([
         (left+200,top-200),(left+(width-20)*cell,top-200),
         (left+(width-20)*cell,top-(height-20)*cell),(left+200,top-(height-20)*cell)
@@ -168,3 +168,10 @@ def test_qgis_qa_report_is_private_and_persists_with_project(monkeypatch,tmp_pat
         again=client.get(f"/api/analyses/{report['analysis_id']}")
         assert again.status_code==200
         assert again.json()["quality"]==report["quality"]
+        for asset in ("elevation-utm.tif","slope-utm.tif"):
+            downloaded=client.get(f"/api/analyses/{report['analysis_id']}/{asset}")
+            assert downloaded.status_code==200, downloaded.text[:160]
+            assert downloaded.headers["content-type"].startswith("image/tiff")
+            assert len(downloaded.content)>500
+        missing=client.get("/api/analyses/00000000-0000-4000-8000-000000000000/slope-utm.tif")
+        assert missing.status_code==404
