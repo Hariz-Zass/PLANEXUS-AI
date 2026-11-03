@@ -109,9 +109,10 @@ def test_integration_report_persists_suitability_and_markdown(monkeypatch,tmp_pa
     geometry=make_synthetic_raster(path)
     monkeypatch.setattr(main,"DATA_DIR",tmp_path/"data")
     c=TestClient(main.app)
+    project=c.post("/api/projects",json={"name":"Synthetic suitability site","geometry":geometry}).json()
     with path.open("rb") as file:
         result=c.post("/api/terrain/upload",
-            data={"geometry":json.dumps(geometry),"source_name":"Synth terrain suitability fixture",
+            data={"geometry":json.dumps(geometry),"project_id":project["id"],"source_name":"Synth terrain suitability fixture",
                   "height_model":"DTM","vertical_unit":"metres","vertical_datum":"test"},
             files={"file":("synthetic.tif",file,"image/tiff")})
     assert result.status_code==200,result.text

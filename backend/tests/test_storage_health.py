@@ -82,11 +82,11 @@ def test_saved_report_restores_real_field_names_for_both_map_layers(monkeypatch,
               "elevation_geojson":{"type":"FeatureCollection","features":[feature]}}
     directory = main.job_dir(analysis_id)
     main.save_report(directory, report)
-    with TestClient(main.app) as client:
-        actual = client.get(f"/api/analyses/{analysis_id}")
-    assert actual.status_code == 200
-    assert actual.json()["slope_geojson"]["features"]
-    assert actual.json()["elevation_geojson"]["features"]
+    # Storage guard: reports lacking a linked project must not be visible
+    # through the authenticated HTTP API, even if files exist.
+    actual = main.load_report(analysis_id)
+    assert actual["slope_geojson"]["features"]
+    assert actual["elevation_geojson"]["features"]
     assert json.loads((directory/"result.json").read_text()) == report
 
 
@@ -98,11 +98,14 @@ def test_corrupted_or_swapped_gis_report_is_refused_not_rendered(monkeypatch, tm
     directory.mkdir(parents=True)
     report = directory / "result.json"
     report.write_text('{"analysis_id":"00000000-0000-4000-8000-000000000000"}')
-    with TestClient(main.app) as client:
-        wrong = client.get(f"/api/analyses/{aid}")
-        assert wrong.status_code == 503
-        assert "tidak sepadan" in wrong.json()["detail"]
-        report.write_text("{BROKEN JSON")
-        corrupted = client.get(f"/api/analyses/{aid}")
-        assert corrupted.status_code == 503
-        assert "integriti storan" in corrupted.json()["detail"]
+    from fastapi import HTTPException
+    import pytest
+    with pytest.raises(HTTPException) as mismatch:
+        main.load_report(aid)
+    assert mismatch.value.status_code == 503
+    assert "tidak sepadan" in mismatch.value.detail
+    report.write_text("{BROKEN JSON")
+    with pytest.raises(HTTPException) as malformed:
+        main.load_report(aid)
+    assert malformed.value.status_code == 503
+    assert "integriti storan" in malformed.value.detail
