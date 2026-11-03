@@ -147,3 +147,25 @@ jobs:
       - name: Surface API errors on failure
         if: failure()
         run: tail -n 150 "$RUNNER_TEMP/planexus-fastapi.log" || true
+
+  gdal-horn-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install native GDAL slope reference binary
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gdal-bin
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Independent Horn slope and NoData-mask comparison to GDAL
+        working-directory: backend
+        run: python -m tests.gdal_horn_reference
+      - name: Publish audit results (synthetic, no project data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-3-gdal-reference
+          path: backend/b3.3_gdal_reference_report.json
+          if-no-files-found: ignore
