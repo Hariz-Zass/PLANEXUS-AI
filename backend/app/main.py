@@ -379,7 +379,7 @@ def terrain_auto(payload: SitePayload, request: Request):
     directory = job_dir(analysis_id)
     try:
         raster, source = acquire_copernicus(shape(geometry).bounds, directory)
-        report = analyze_terrain(geometry, raster, source, analysis_id)
+        report = analyze_terrain(geometry, raster, source, analysis_id, artifacts_dir=directory)
         saved = save_report(directory, report)
         if payload.project_id is not None:
             attach_analysis(DATA_DIR, payload.project_id, saved)
@@ -437,7 +437,7 @@ def terrain_upload(
             "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
             "verified": "CRS and raster contents inspected; source authenticity and survey accuracy NOT verified",
         }
-        report = analyze_terrain(geom, file_path, metadata, analysis_id)
+        report = analyze_terrain(geom, file_path, metadata, analysis_id, artifacts_dir=directory)
         saved = save_report(directory, report)
         if project_id is not None:
             attach_analysis(DATA_DIR, project_id, saved)
@@ -478,6 +478,70 @@ def copilot(payload: CopilotPayload, request: Request):
         return {"analysis_id": None, **workflow_guidance(payload.question)}
     report = load_report(payload.analysis_id)
     return {"analysis_id": payload.analysis_id, **assess(report, payload.question)}
+
+
+@app.get("/api/analyses/{analysis_id}/verification.md", response_class=PlainTextResponse)
+def download_verification(analysis_id: str):
+    """Account-protected quality/audit report. Does NOT certify QGIS or survey."""
+    report = load_report(analysis_id)
+    metrics = report["metrics"]
+    quality = report.get("quality")
+    source = report.get("source_file")
+    if quality is None or source is None:
+        content = ("# PLANEXUS — Legacy GIS analysis\n\n"
+                   "This analysis predates B3.3. Raster QA and Horn/QGIS "
+                   "comparison are NOT certified. Reprocess the source DEM.\n")
+    else:
+        flags = "\n".join("- " + str(flag) for flag in quality["flags"]) or "- None raised by automated screening."
+        content = f"""# PLANEXUS — GIS Data Verification (B3.3)
+
+**Analysis ID:** {analysis_id}  
+**Source:** {report['source']['name']}  
+**Input raster SHA-256:** `{source['sha256']}`  
+**Input size:** {source['size_bytes']} bytes  
+**Input CRS / pixel size:** {source['input_crs']} / {source['input_pixel_size_in_crs_units']}  
+**Vertical band unit:** {source['input_vertical_band_unit']}  
+**Projected CRS:** {metrics['horizontal_crs']}  
+**Resolution (projected):** {metrics['analysis_resolution_m_est']} metres  
+**Elevation coverage:** {quality['elevation_site_cell_coverage_pct']}%  
+**Slope coverage:** {quality['slope_site_cell_coverage_pct']}%  
+**Total masked site cells:** {quality['site_center_cells']}  
+**QA screening status:** {quality['status'].upper()} — NOT survey/approval validation  
+**External QGIS file comparison:** NOT performed for this saved analysis.
+
+## Reproducible algorithm
+
+{quality['method']}
+
+The job folder stores `elevation_utm.tif` and `slope_degrees_utm.tif`
+as the exact analysis grid, alongside the source and `result.json`.
+To compare, run QGIS Processing > GDAL > Slope on `elevation_utm.tif`,
+band 1, **scale=1, degrees, Horn, compute edges OFF**.
+Compare cell-by-cell on the same UTM grid, with NoData excluded. A separate
+CI job validates the Horn method on three **synthetic** terrain profiles,
+NOT this physical site.
+
+## QA flags
+
+{flags}
+
+## Data provenance
+
+```json
+{json.dumps(report['source'], ensure_ascii=False, indent=2)}
+```
+
+## Limits
+
+- Copernicus GLO-30/90 are DSM, not bare-earth ground surveys.
+- SHA-256 checks file identity and accidental alteration, not source authenticity.
+- GIS processing parity does not prove vertical accuracy at this land parcel.
+- This screening is NOT zoning confirmation, engineering approval or PBT approval.
+"""
+    return PlainTextResponse(
+        content, media_type="text/markdown",
+        headers={"Content-Disposition":f'attachment; filename="planexus-gis-qa-{analysis_id[:8]}.md"'},
+    )
 
 
 @app.get("/api/analyses/{analysis_id}/report.md", response_class=PlainTextResponse)
@@ -522,7 +586,9 @@ def download_report(analysis_id: str):
 - Site area: {m['site_area_ha']} ha
 - Elevation (min/mean/max): {m['elevation_min_m']} / {m['elevation_mean_m']} / {m['elevation_max_m']} metres (assumed per source declaration)
 - Mean slope: {m['slope_mean_deg']}°; maximum slope: {m['slope_max_deg']}°
-- Valid elevation pixel coverage (approx.): {m['coverage_percent_est']}%
+- Valid elevation pixel coverage (site-centre cells): {m['coverage_percent_est']}%
+- Valid slope 3x3 coverage (site-centre cells): {m.get('slope_coverage_percent', 'not available for older reports')}%
+- QA screening status: {(report.get('quality') or {}).get('status', 'legacy not assessed')}
 - Resolution (approx.): {m['analysis_resolution_m_est']} m
 - Projected CRS: {m['horizontal_crs']}
 
