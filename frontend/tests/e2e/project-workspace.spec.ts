@@ -133,6 +133,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByText("PROJECT SAVED")).toBeVisible({timeout:15000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await page.reload();
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha",{timeout:15000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.getByText("PROJECT SAVED")).toBeVisible();
@@ -143,9 +144,20 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
   await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
+  // A real, non-empty raster report is required: the map changes the actual
+  // MapLibre visibility state, not just the highlighted toolbar button.
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Slope",exact:true}).click();
+  await expect(page.locator(".terrain-map[data-slope-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-elevation-rendered='false']")).toBeVisible();
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Elevation",exact:true}).click();
+  await expect(page.locator(".terrain-map[data-elevation-rendered='true']")).toBeVisible({timeout:30000});
+  await expect(page.locator(".terrain-map[data-slope-rendered='false']")).toBeVisible();
+  await page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true}).click();
+  await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible();
   await expect(page.locator(".suitability-panel")).toContainText("Lower terrain constraint");
   await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");
   await page.reload();
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
@@ -163,6 +175,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".suitability-panel")).toContainText("Awaiting verified DEM analysis");
   await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toBeDisabled();
   await page.reload();
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Bravo",{timeout:15000});
   await page.getByRole("button",{name:/Project Workspace/}).click();
   const alpha=page.locator(".project-entry").filter({hasText:"Terrain Site Alpha"});

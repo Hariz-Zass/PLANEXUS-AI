@@ -19,6 +19,12 @@ import {readSavedSite,saveSiteBoundary,removeSavedSite,downloadSiteGeoJSON,valid
 const TerrainMap = dynamic(() => import("@/components/TerrainMap"), { ssr: false });
 type SidebarTab = "workspace" | "sources" | "history" | "projects" | "proposals" | "policy" | "layout";
 const ACTIVE_PROJECT_KEY = "planexus:active-project:v1";
+function preferredTerrainLayer(value:TerrainReport|null):"slope"|"elevation"|"suitability" {
+  if(value?.suitability_geojson?.features?.length)return "suitability";
+  if(value?.slope_geojson?.features?.length)return "slope";
+  if(value?.elevation_geojson?.features?.length)return "elevation";
+  return "slope";
+}
 type CopilotEvidence = { analysis_id:string; source_name:string; data_type:string; nominal_resolution_m:number|null; coverage_percent_est:number; site_area_ha:number; slope_mean_deg:number; slope_max_deg:number; elevation_min_m:number; elevation_max_m:number; warning_count:number };
 type ChatMessage = { role: "user" | "assistant"; text: string; mode?: string; notice?: string; evidence?: CopilotEvidence | null; policy_sources?: {title:string;url:string;evidence:string}[] };
 
@@ -150,7 +156,7 @@ export default function Home() {
   const applyProject = useCallback((details:ProjectDetail, analysis:TerrainReport|null) => {
     projectRef.current=details;setActiveProject(details);
     setGeometry(details.geometry);setReport(analysis);setChat([]);
-    setTerrainLayer(analysis?.suitability?"suitability":"slope");
+    setTerrainLayer(preferredTerrainLayer(analysis));
     setDrawing(false);setResetCounter(n=>n+1);
     setSaveState(details.geometry?"saved":"empty");
     setSavedAt(details.updated_at_utc);
@@ -296,9 +302,10 @@ export default function Home() {
 
   const activateSite=useCallback(async (input:FeatureGeometry,origin:SiteOrigin)=>{
     const valid=validateSiteBoundary(input);
-    const local=saveSiteBoundary(valid,origin);
     const current=projectRef.current;
-    setGeometry(valid);setReport(null);setChat([]);setDrawing(false);setError("");setResetCounter(n=>n+1);
+    // Do not change the active project's map or browser backup before SQLite confirms.
+    // A failed PATCH must leave the previous verified report and site intact.
+    setDrawing(false);setError("");setResetCounter(n=>n+1);
     if(current){
       setProjectBusy(true);setSaveState("checking");
       setStatus("Menyimpan sempadan ke project registry…");
@@ -309,22 +316,28 @@ export default function Home() {
         });
         if(projectRef.current?.id===current.id){
           projectRef.current=updated;setActiveProject(updated);
-          setSaveState("saved");setSavedAt(updated.updated_at_utc);setSaveMessage("");
-          setStatus("Sempadan disimpan dalam projek '"+updated.name+"' (SQLite tempatan).");
+          setGeometry(updated.geometry);setReport(null);setChat([]);
+          const backup=saveSiteBoundary(valid,origin);
+          setSaveState("saved");setSavedAt(updated.updated_at_utc);setSaveMessage(backup.saved?"":"Project saved on server. Local browser backup unavailable.");
+          setStatus("Sempadan projek disimpan dan boleh dibuka semula: '"+updated.name+"'.");
         }
         await refreshProjectList();
       }catch(e){
         const message=e instanceof Error?e.message:"Project save failed";
         setSaveState("error");
-        setSaveMessage("Simpanan projek gagal: "+message+(local.saved?" · Backup polygon hanya di browser.":" · Browser backup juga gagal."));
-        setError("Sempadan belum disimpan ke projek. "+message);
+        setSaveMessage("Simpanan projek gagal: "+message);
+        setError("Sempadan baharu TIDAK dipakai; tapak asal masih dikekalkan. "+message);
       }finally{setProjectBusy(false);}
-    }else if(local.saved){
-      setSaveState("saved");setSavedAt(local.site.savedAt);setSaveMessage("");
-      setStatus("Tapak disimpan dalam browser sahaja. Cipta projek untuk simpan dalam SQLite.");
     }else{
-      setSaveState("error");setSaveMessage(local.message);
-      setStatus("Tapak belum disimpan. Export GeoJSON sebagai backup.");
+      const local=saveSiteBoundary(valid,origin);
+      setGeometry(valid);setReport(null);setChat([]);
+      if(local.saved){
+        setSaveState("saved");setSavedAt(local.site.savedAt);setSaveMessage("");
+        setStatus("Tapak disimpan dalam browser ini sahaja. Cipta projek dan sambungkan GIS backend untuk simpan data projek.");
+      }else{
+        setSaveState("error");setSaveMessage(local.message);
+        setStatus("Tapak belum disimpan. Export GeoJSON sebagai backup.");
+      }
     }
   },[refreshProjectList]);
 
@@ -390,7 +403,7 @@ export default function Home() {
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({geometry,project_id:current?.id??null})
       });
-      setReport(result);setChat([]);setTerrainLayer(result.suitability?"suitability":"slope");
+      setReport(result);setChat([]);setTerrainLayer(preferredTerrainLayer(result));
       setStatus(current?"Analisis selesai dan dipautkan kepada projek aktif.":"Analisis disimpan sebagai laporan lama tanpa pautan projek.");
       if(current){
         try{
@@ -418,7 +431,7 @@ export default function Home() {
       form.append("vertical_datum",datum||"unknown");
       if(current)form.append("project_id",current.id);
       const result=await api<TerrainReport>("/api/terrain/upload",{method:"POST",body:form});
-      setReport(result);setChat([]);
+      setReport(result);setChat([]);setTerrainLayer(preferredTerrainLayer(result));
       setStatus(current?"GeoTIFF dianalisis dan dipautkan ke projek aktif.":"GeoTIFF dianalisis, tetapi belum dipautkan ke projek.");
       if(current){
         try{
@@ -451,7 +464,7 @@ export default function Home() {
       }else{
         await activateSite(report.geometry,"analysis-reopened");
         setReport(report);
-        setTerrainLayer(report.suitability?"suitability":"slope");
+        setTerrainLayer(preferredTerrainLayer(report));
       }
       setStatus("Laporan dan layer GIS dipulihkan daripada analisis tersimpan.");
       setTab("workspace");setMobileNav(false);
@@ -664,7 +677,7 @@ export default function Home() {
             onOpenTerrain={()=>setTab("workspace")} />}
           {tab === "policy" && <GppLibrary backendConnected={gisStatus==="online"} onOpenStudio={()=>setTab("proposals")}/>}
           {tab === "proposals" && <ProposalStudio key={activeProject?.id??"no-project"} project={activeProject} backendConnected={gisStatus==="online"} onOpenProjects={()=>setTab("projects")}/>}
-          {tab === "projects" && <>{gisStatus!=="online"&&<div className="project-error" role="alert">GIS backend offline. Project creation, server storage, and project retrieval are unavailable on this deployment. Browser boundary backups are not saved projects.</div>}<ProjectWorkspace projects={projects} activeId={activeProject?.id??null}
+          {tab === "projects" && <>{gisStatus!=="online"&&<div className="project-error" role="alert">GIS backend offline. Project creation, server storage, and project retrieval are unavailable on this deployment. Browser boundary backups are not saved projects.</div>}<ProjectWorkspace projects={projects} backendConnected={gisStatus==="online"} activeId={activeProject?.id??null}
             geometry={geometry} busy={projectBusy || pending !== null} error={projectError}
             onCreate={createProject} onOpen={openProject} onRename={renameProject} onDelete={deleteProject}/></>}
           {tab === "sources" && <div className="secondary-page"><div className="eyebrow"><span className="eyebrow-dot"/> SOURCE TRANSPARENCY</div><h1>Data Source Registry <span className="h1-accent">.</span></h1><p>Setiap sumber mempunyai identiti, keupayaan dan had penggunaan. Tiada dataset geospatial yang direka oleh AI.</p><div className="info-panel"><div className="info-panel-head"><span className="info-icon"><Database size={22}/></span><div><strong>Copernicus DEM GLO-30 Public</strong><span>Primary automatic retrieval source · Public Cloud Optimized GeoTIFF</span></div><span className="registry-state">ACTIVE ADAPTER</span></div><div className="detail-table"><div><span>Publisher</span><strong>Copernicus Programme / ESA</strong></div><div><span>Approx. spatial resolution</span><strong>30 m</strong></div><div><span>Raster type</span><strong>DSM (buildings and vegetation included)</strong></div><div><span>Acquisition</span><strong>Direct public AWS COG tiles, no API key</strong></div><div><span>Primary purpose</span><strong>Preliminary terrain screening</strong></div></div><a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer" className="source-link">Official dataset documentation <ArrowRight size={16}/></a></div><div className="quality-panel"><CircleAlert size={19}/><div><strong>Important boundary</strong><p>Satellite-derived DSM is not equivalent to surveyed bare-earth DTM. Analysis outcomes do not certify zoning, flood safety, land title, slope stability or development approval. Public coverage may differ by country and tile availability.</p></div></div><div className="workflow-card"><h2>Additional data paths</h2><p>Users can upload GeoTIFF from authorized survey providers. PLANEXUS will inspect raster CRS and available cells but cannot independently authenticate the original survey or vertical datum without its documentation.</p></div></div>}

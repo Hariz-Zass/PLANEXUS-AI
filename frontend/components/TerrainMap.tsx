@@ -188,17 +188,25 @@ export default function TerrainMap({ geometry, report, drawing, onSiteDrawn, onP
       elevationSource?.setData(latestReport.current?.elevation_geojson || EMPTY);
       contourSource?.setData(latestReport.current?.contours_geojson || EMPTY);
       suitabilitySource?.setData(latestReport.current?.suitability_geojson || EMPTY);
-      if(instance.getLayer("slope-fill")) instance.setLayoutProperty("slope-fill","visibility",latestTerrainLayer.current==="slope"?"visible":"none");
-      if(instance.getLayer("elevation-fill")) instance.setLayoutProperty("elevation-fill","visibility",latestTerrainLayer.current==="elevation"?"visible":"none");
+      const slopeVisible=latestTerrainLayer.current==="slope" &&
+        Boolean(latestReport.current?.slope_geojson?.features?.length);
+      const elevationVisible=latestTerrainLayer.current==="elevation" &&
+        Boolean(latestReport.current?.elevation_geojson?.features?.length);
+      if(instance.getLayer("slope-fill")) instance.setLayoutProperty("slope-fill","visibility",slopeVisible?"visible":"none");
+      if(instance.getLayer("elevation-fill")) instance.setLayoutProperty("elevation-fill","visibility",elevationVisible?"visible":"none");
       if(instance.getLayer("suitability-fill")) instance.setLayoutProperty(
         "suitability-fill", "visibility",
         latestTerrainLayer.current === "suitability" && Boolean(latestReport.current?.suitability_geojson?.features?.length)
           ? "visible" : "none",
       );
       if (root.current) {
+        root.current.dataset.slopeRendered=slopeVisible?"true":"false";
+        root.current.dataset.elevationRendered=elevationVisible?"true":"false";
         root.current.dataset.suitabilityRendered =
           latestTerrainLayer.current === "suitability" &&
           Boolean(latestReport.current?.suitability_geojson?.features?.length) ? "true" : "false";
+        root.current.dataset.contoursRendered=
+          latestContours.current && Boolean(latestReport.current?.contours_geojson?.features?.length) ? "true" : "false";
       }
       if(instance.getLayer("contours-line")) instance.setLayoutProperty("contours-line","visibility",latestContours.current && Boolean(latestReport.current?.contours_geojson?.features?.length)?"visible":"none");
       const current = latestGeometry.current;

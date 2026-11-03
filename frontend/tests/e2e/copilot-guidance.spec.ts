@@ -34,6 +34,7 @@ test("Copilot gives honest workflow help before DEM analysis when GIS is connect
   });
 
   await page.goto("/");
+  await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.getByText("GIS ENGINE CONNECTED")).toBeVisible({timeout:15000});
   await expect(page.getByText("Workflow guidance only")).toBeVisible();
   const composer = page.locator(".copilot-compose textarea");
