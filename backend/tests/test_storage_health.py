@@ -34,6 +34,9 @@ def test_require_volume_fails_closed_and_never_creates_ephemeral_data(monkeypatc
         post = client.post("/api/projects", json={"name": "DO NOT WRITE"})
         assert post.status_code == 503
         assert "mounted" in post.json()["detail"]
+        # GET must not create auth/session tables on an unmounted layer.
+        assert client.get("/api/projects").status_code == 503
+        assert client.get("/api/auth/me").status_code == 503
     assert not path.exists()
 
 
