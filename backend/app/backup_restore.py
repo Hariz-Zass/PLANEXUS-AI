@@ -222,6 +222,16 @@ def restore_backup(archive_path: Path, destination: Path) -> dict[str, Any]:
                 os.chmod(target, 0o600)
         # Re-audit on-disk DB before a single atomic directory publication.
         with sqlite3.connect(stage / DB_NAME) as con:
+            # A restored/off-site backup must never bring old browser sessions
+            # or unused invitation links back to life on a replacement host.
+            tables = {row[0] for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )}
+            if "auth_sessions" in tables:
+                con.execute("DELETE FROM auth_sessions")
+            if "registration_invites" in tables:
+                con.execute("DELETE FROM registration_invites WHERE used_by IS NULL")
+            con.commit()
             check = con.execute("PRAGMA integrity_check").fetchone()
             if check is None or check[0] != "ok":
                 raise RuntimeError("Restored SQLite failed post-extraction integrity check.")

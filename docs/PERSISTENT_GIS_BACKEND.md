@@ -220,3 +220,12 @@ horizontally scaled session store yet. OAuth or an audited identity provider
 is recommended before opening access beyond a small trusted pilot. SQL user
 accounts alone do NOT make this a safe internet-facing multi-tenant service.
 No Vercel deployment was made in this phase.
+
+### Session revocation during offline disaster recovery
+
+Restoring a v2 backup deliberately **deletes all prior sessions and unused
+invitation codes** inside the new SQLite copy. No old browser can inherit
+authorization after a disaster recovery. Password hashes and user accounts
+are retained so each authorized planner can login afresh. The original
+backup archive is never modified; the restored database is validated again
+before publication. Do not put private archive files in the repository.

@@ -147,3 +147,25 @@ def test_reject_backup_if_project_links_missing_gis_report(tmp_path):
     with pytest.raises(RuntimeError,match="Linked GIS report missing"):
         create_backup(data,tmp_path/"archives")
     assert not list((tmp_path/"archives").glob("*.zip"))
+
+
+
+def test_restore_revokes_active_auth_sessions_and_unused_invites(tmp_path):
+    from app import auth
+    source=tmp_path/"data"
+    account=auth.create_user(source,"admin-recovery@example.test",
+                             "Recovery Admin","Recovery-Private-Strong-2026",role="admin")
+    token=auth.create_invite(source,account["email"])
+    user,secret,csrf=auth.authenticate(source,account["email"],"Recovery-Private-Strong-2026")
+    assert auth.session(source,secret) is not None
+    create_project(source,"A restored protected project",owner_id=account["id"])
+    bundle=create_backup(source,tmp_path/"backups")
+    restored=tmp_path/"recovered"
+    restore_backup(bundle,restored)
+    assert auth.session(restored,secret) is None
+    with pytest.raises(Exception):
+        auth.register(restored,"other-recovery@example.test","Recovery Invite",
+                      "Another-Private-Strong-2026",token)
+    assert auth.account_count(restored)==1
+    from app.project_store import list_projects
+    assert len(list_projects(restored,owner_id=account["id"]))==1
