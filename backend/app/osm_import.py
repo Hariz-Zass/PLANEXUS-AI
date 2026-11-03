@@ -103,41 +103,39 @@ def import_snapshot(source: Path, snapshot_date: str, *, dsn: str | None=None) -
             if not total:
                 raise ValueError("Zero valid recognised OSM features; prior snapshot retained.")
             cur.execute(
-                "CREATE INDEX planexus_osm_next_geom_idx "
-                "ON planexus_osm.features_next USING gist (geom)")
-            cur.execute(
-                "CREATE INDEX planexus_osm_next_geog_idx "
-                "ON planexus_osm.features_next USING gist ((geom::geography))")
-            cur.execute(
-                "CREATE INDEX planexus_osm_next_category_idx "
-                "ON planexus_osm.features_next (category)")
-            cur.execute("ANALYZE planexus_osm.features_next")
-            cur.execute(
                 "CREATE TABLE IF NOT EXISTS planexus_osm.snapshot ("
                 "snapshot_id INTEGER PRIMARY KEY, "
                 "snapshot_at_utc TIMESTAMPTZ NOT NULL, "
                 "imported_at_utc TIMESTAMPTZ NOT NULL, "
                 "row_count BIGINT NOT NULL, completed BOOLEAN NOT NULL, "
                 "bounds geometry(Polygon,4326) NOT NULL)")
-            cur.execute("SELECT ST_Envelope(ST_Extent(geom)) "
-                        "FROM planexus_osm.features_next")
-            bounds=cur.fetchone()[0]
-            if bounds is None:
-                raise ValueError("No spatial bounds in imported extract.")
+            # Swap tables inside the SAME transaction: existing readers either
+            # see the complete previous version or the complete replacement.
             cur.execute("DROP TABLE IF EXISTS planexus_osm.features_previous")
             cur.execute("ALTER TABLE IF EXISTS planexus_osm.features RENAME TO features_previous")
             cur.execute("ALTER TABLE planexus_osm.features_next RENAME TO features")
             cur.execute("DROP TABLE IF EXISTS planexus_osm.features_previous")
             cur.execute(
+                "CREATE INDEX planexus_osm_geom_idx "
+                "ON planexus_osm.features USING gist (geom)")
+            cur.execute(
+                "CREATE INDEX planexus_osm_geog_idx "
+                "ON planexus_osm.features USING gist ((geom::geography))")
+            cur.execute(
+                "CREATE INDEX planexus_osm_category_idx "
+                "ON planexus_osm.features (category)")
+            cur.execute("ANALYZE planexus_osm.features")
+            cur.execute(
                 "INSERT INTO planexus_osm.snapshot "
                 "(snapshot_id,snapshot_at_utc,imported_at_utc,row_count,completed,bounds) "
-                "VALUES (1,%s,now(),%s,TRUE,%s) "
+                "SELECT 1,%s,now(),%s,TRUE,ST_Envelope(ST_Extent(geom)) "
+                "FROM planexus_osm.features "
                 "ON CONFLICT (snapshot_id) DO UPDATE SET "
                 "snapshot_at_utc=EXCLUDED.snapshot_at_utc, "
                 "imported_at_utc=EXCLUDED.imported_at_utc, "
                 "row_count=EXCLUDED.row_count, completed=TRUE, "
                 "bounds=EXCLUDED.bounds",
-                (date,total,bounds))
+                (date,total))
     return total
 
 
