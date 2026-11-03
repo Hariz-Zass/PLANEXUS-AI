@@ -20,6 +20,10 @@ from .geometry import area_km2, local_utm_crs
 from .overlays import build_terrain_overlays
 from .suitability import build_suitability
 from .settings import MAX_RASTER_PIXELS
+from .terrain_quality import (
+    horn_slope_degrees, assess_gis_quality, save_projected_qa_grids,
+    source_file_evidence, validate_raster_metadata,
+)
 
 SLOPE_CLASSES = [
     {"id": 1, "name": "Class I", "min_deg": 0, "max_deg": 15, "color": "#4cc9a3"},
@@ -29,12 +33,16 @@ SLOPE_CLASSES = [
 ]
 
 
-def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metadata: dict[str, Any], analysis_id: str) -> dict[str, Any]:
+def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metadata: dict[str, Any],
+                    analysis_id: str, artifacts_dir: Path | None = None) -> dict[str, Any]:
     """Returns evidence and WGS84 slope polygons, never a planning approval verdict."""
     try:
         with rasterio.open(raster_path) as src:
-            if src.crs is None or src.count < 1:
-                raise ValueError("GeoTIFF mesti mengandungi CRS dan sekurang-kurangnya satu band ketinggian.")
+            validate_raster_metadata(src, source_metadata)
+            input_crs = src.crs.to_string()
+            input_nodata = src.nodata
+            input_resolution = tuple(src.res)
+            input_units = src.units[0] if src.units else None
             if src.width * src.height > 150_000_000:
                 raise ValueError("Raster input terlalu besar untuk V1.")
             dst_crs = local_utm_crs(geom_wgs84)
@@ -70,10 +78,10 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
     if valid.sum() < 9:
         raise HTTPException(422, "Terlalu sedikit pixel DEM yang sah di dalam tapak (<9). Muat naik data lebih terperinci.")
 
-    # Derivatives are in elevation meters per horizontal meter (local UTM).
-    # Derivative near nodata stays undefined; never silently fill nodata with zero.
-    derivative_y, derivative_x = np.gradient(elevation.astype("float64"), resolution_y, resolution_x)
-    slope = np.degrees(np.arctan(np.hypot(derivative_x, derivative_y)))
+    # QGIS gdal:slope uses GDAL's default Horn 3x3 derivative. Here the
+    # source is FIRST reprojected to UTM metres; no edge interpolation and
+    # no slope at/adjacent to a NoData source cell (no invented zero heights).
+    slope = horn_slope_degrees(elevation, resolution_x, resolution_y)
     slope_valid = valid & np.isfinite(slope)
     if slope_valid.sum() < 9:
         raise HTTPException(422, "Pixel kecerunan sah tidak mencukupi. Semak liputan dan nilai NoData raster.")
@@ -86,7 +94,11 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
     classes[slope_valid & (slope >= 35)] = 4
     pixel_area_m2 = resolution_x * resolution_y
     site_area_km2 = area_km2(geom_wgs84)
-    coverage_pct = min(100.0, valid.sum() * pixel_area_m2 / (site_area_km2 * 1e6) * 100)
+    # Both numerator and denominator use the SAME cell-centre site mask.
+    # Comparing pixel area directly with geodesic polygon area gives >100%
+    # coverage on narrow/angled sites and hides missing cells.
+    site_center_count = int(np.count_nonzero(inside))
+    coverage_pct = min(100.0, float(np.count_nonzero(valid)) / site_center_count * 100)
 
     cls_stats = []
     for item in SLOPE_CLASSES:
@@ -108,10 +120,28 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         pixel_area_m2=pixel_area_m2, site_area_ha=site_area_km2 * 100,
         transform=target_transform, crs=dst_crs, source=source_metadata,
     )
+    quality = assess_gis_quality(
+        site_cells=site_center_count,
+        elevation_cells=int(valid.sum()), slope_cells=int(slope_valid.sum()),
+        raster_type=str(source_metadata.get("data_type", "unknown")),
+        source_pixel_m=float(source_metadata["nominal_resolution_m"])
+        if source_metadata.get("nominal_resolution_m") else None,
+        analysed_pixel_m=float((resolution_x + resolution_y) / 2),
+        site_area_ha=site_area_km2 * 100, pixel_area_m2=pixel_area_m2,
+        contour_count=len(overlays["contours_geojson"]["features"]),
+        overlay_truncated=truncated_overlay or overlays["contours_truncated"]
+                          or overlays["elevation_overlay_truncated"],
+    )
+    provenance = source_file_evidence(
+        raster_path, input_crs=input_crs, input_nodata=input_nodata,
+        source_resolution=input_resolution, input_units=input_units,
+    )
+    if artifacts_dir is not None:
+        save_projected_qa_grids(artifacts_dir, elevation, slope, dst_crs, target_transform)
 
     warnings = [
         "Penilaian ini ialah saringan topografi, BUKAN keputusan keseluruhan kesesuaian pembangunan atau kelulusan PBT.",
-        "Kecerunan diperoleh daripada DEM/DSM menggunakan finite differences selepas unjuran UTM. Batasan resolusi mempengaruhi hasil.",
+        "Kecerunan menggunakan Horn 3x3 pada grid UTM dalam meter, seperti pilihan lalai GDAL/QGIS gdal:slope. NoData dan tepi 3x3 tidak dinilai.",
         "Luas mengikut kelas ialah anggaran berasaskan pixel; kawasan sempadan mungkin mempunyai ralat pengukuran.",
     ]
     if "DSM" in str(source_metadata.get("data_type", "")):
@@ -125,7 +155,10 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
     if source_metadata.get("id") == "user-upload":
         warnings.append("Dataset pengguna belum disahkan sumber, datum menegak, unit ketinggian atau ketepatan ukur. Semak metadata asal sebelum keputusan teknikal.")
     if coverage_pct < 95:
-        warnings.append(f"Liputan data sah dianggarkan {coverage_pct:.1f}% daripada kawasan tapak; kesimpulan perlu mengambil kira bahagian tanpa data.")
+        warnings.append(f"Liputan elevasi bagi sel pusat dalam tapak ialah {coverage_pct:.1f}%; bahagian tanpa data bukan tanah sesuai.")
+    if quality["slope_site_cell_coverage_pct"] < 95:
+        warnings.append("Liputan cerun lebih rendah daripada liputan elevasi kerana semakan kejiranan 3x3; sel tiada cerun tidak boleh dianggap landai.")
+    warnings.extend(f"GIS QA: {flag}" for flag in quality["flags"])
     if valid.sum() < 100:
         warnings.append("Kurang daripada 100 pixel ketinggian sah di tapak; statistik cerun sangat sensitif kepada resolusi.")
     if truncated_overlay:
@@ -145,6 +178,9 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
             "valid_elevation_pixels": int(valid.sum()),
             "valid_slope_pixels": int(slope_valid.sum()),
             "coverage_percent_est": round(coverage_pct, 2),
+            "coverage_method": "valid elevation cells / all site-centre cells in the same UTM grid",
+            "slope_coverage_percent": quality["slope_site_cell_coverage_pct"],
+            "site_mask_pixels": site_center_count,
             "elevation_min_m": round(float(heights.min()), 2),
             "elevation_mean_m": round(float(heights.mean()), 2),
             "elevation_max_m": round(float(heights.max()), 2),
@@ -156,7 +192,7 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
             "contour_features": len(overlays["contours_geojson"]["features"]),
             "elevation_legend": overlays["elevation_legend"],
             "analysis_resolution_m_est": round(float((resolution_x + resolution_y) / 2), 2),
-            "method": "Rasterio bilinear reprojection to local UTM; numpy.gradient z-per-metre; atan(sqrt(dz/dx² + dz/dy²)), degrees; cell-area count. Edge/NoData gradients excluded.",
+            "method": "Rasterio bilinear reprojection to local UTM; GDAL Horn-equivalent 3x3 z-per-metre; atan(hypot(dz/dx,dz/dy)), degrees; no edge/NoData interpolation; cell-area estimates.",
             "horizontal_crs": dst_crs.to_string(),
             "vertical_units_assumption": "metres (MUST be checked against original source metadata)",
         },
@@ -165,6 +201,12 @@ def analyze_terrain(geom_wgs84: dict[str, Any], raster_path: Path, source_metada
         "suitability_geojson": suitability["geojson"],
         "elevation_geojson": overlays["elevation_geojson"],
         "contours_geojson": overlays["contours_geojson"],
+        "quality": quality,
+        "source_file": provenance,
+        "qa_artifacts": {"projected_elevation": "elevation_utm.tif",
+                         "projected_slope": "slope_degrees_utm.tif",
+                         "qgis_verification": "pending_external_comparison"}
+        if artifacts_dir is not None else None,
         "warnings": warnings,
         "assessment_scope": "Terrain screening only; no planning-law compliance, hydrology, geotechnical, or development approval conclusion.",
     }
