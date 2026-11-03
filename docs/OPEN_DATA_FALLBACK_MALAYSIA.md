@@ -30,12 +30,13 @@ Use the `malaysia-singapore-brunei-latest-free.gpkg.zip` distribution.
    is hundreds of MB). Verify its origin and, where available, checksum.
 2. Unzip onto **persistent backend storage**, e.g. `/data/osm/`. Do not
    commit the dataset into this GitHub source repo.
-3. Identify the `.gpkg` file containing Geofabrik's free layer names:
-   `gis_osm_pois_free_1`, `gis_osm_roads_free_1`, etc. Keep the full region
-   GeoPackage, rather than an empty or unrelated cadastral export.
+3. Identify the `.gpkg` file(s) containing Geofabrik's free layer names:
+   `gis_osm_pois_free_1`, `gis_osm_roads_free_1`, etc. The configured path
+   may be a **single multi-layer GeoPackage or a folder containing GeoPackage
+   files**. Keep the regional dataset, not a cadastral export.
 4. Set backend-only environment variables:
 
-       PLANEXUS_OSM_GEOFABRIK_GPKG=/data/osm/malaysia-singapore-brunei.gpkg
+       PLANEXUS_OSM_GEOFABRIK_GPKG=/data/osm
        PLANEXUS_OSM_EXTRACT_DATE=2026-11-02T00:00:00Z
 
    Set the date to the **actual extract snapshot date**, not the date the
