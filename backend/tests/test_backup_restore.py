@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from shapely.geometry import Polygon, mapping
 
 import app.main as gis

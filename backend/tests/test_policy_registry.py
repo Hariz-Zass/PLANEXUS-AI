@@ -6,7 +6,7 @@ and Perak Housing (2023), PR1 p.5 are eligible for numeric comparison.
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from pydantic import ValidationError
 
 import app.main as main

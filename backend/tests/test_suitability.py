@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import rasterio
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from pyproj import Transformer
 from rasterio.transform import from_origin
 from shapely.geometry import Polygon, mapping, shape

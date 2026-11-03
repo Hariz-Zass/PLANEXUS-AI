@@ -5,7 +5,7 @@ import json
 import uuid
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from pydantic import ValidationError
 from shapely.geometry import Polygon, shape
 

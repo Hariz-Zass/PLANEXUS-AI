@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import rasterio
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from pyproj import Transformer
 from rasterio.transform import from_origin
 from shapely.geometry import Polygon, mapping
@@ -75,8 +75,9 @@ def test_api_health_and_inspect():
 def test_upload_and_save_and_fallback(tmp_path):
     raster, geom = synthetic(tmp_path)
     import json
+    project=client.post("/api/projects",json={"name":"Synthetic original raster test","geometry":geom}).json()
     with raster.open("rb") as f:
-        response = client.post("/api/terrain/upload", data={"geometry":json.dumps(geom),"source_name":"Synthetic local validation","vertical_unit":"metres","height_model":"DTM"}, files={"file":("test.tif",f,"image/tiff")})
+        response = client.post("/api/terrain/upload", data={"geometry":json.dumps(geom),"project_id":project["id"],"source_name":"Synthetic local validation","vertical_unit":"metres","height_model":"DTM"}, files={"file":("test.tif",f,"image/tiff")})
     assert response.status_code == 200, response.text
     analysis_id = response.json()["analysis_id"]
     assert client.get(f"/api/analyses/{analysis_id}").status_code == 200

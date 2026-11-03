@@ -6,7 +6,7 @@ import rasterio
 from rasterio.errors import RasterioIOError
 from rasterio.transform import from_origin
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 import app.sources as sources
 import app.main as main
 
@@ -61,7 +61,8 @@ def test_auto_api_report_and_copilot(monkeypatch,tmp_path):
     mock_cogs(monkeypatch,p30,p90)
     monkeypatch.setattr(main,"DATA_DIR",tmp_path/"jobs-root")
     with TestClient(main.app) as client:
-        response=client.post("/api/terrain/auto",json={"geometry":GEO})
+        project=client.post("/api/projects",json={"name":"Synthetic auto DSM test","geometry":GEO}).json()
+        response=client.post("/api/terrain/auto",json={"geometry":GEO,"project_id":project["id"]})
         assert response.status_code==200,response.text
         result=response.json()
         assert result["contours_geojson"]["features"]

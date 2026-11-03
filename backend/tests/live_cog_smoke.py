@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import rasterio
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 from app.sources import acquire_copernicus
 from app.terrain import analyze_terrain
 import app.main as gis_api

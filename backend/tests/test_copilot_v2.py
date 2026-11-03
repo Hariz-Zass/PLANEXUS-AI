@@ -9,7 +9,7 @@ import json
 import sys
 from types import SimpleNamespace
 
-from fastapi.testclient import TestClient
+from tests.client import TestClient
 import pytest
 
 from app import copilot as assistant
