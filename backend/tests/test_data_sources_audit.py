@@ -57,6 +57,7 @@ def test_real_osm_parser_classifies_and_attributes_without_inventing_features(mo
     class Response:
       content=json.dumps({"elements":elements}).encode()
       def raise_for_status(self):pass
+      def json(self):return {"elements":elements}
     class Stub:
       def __init__(self,**kwargs):pass
       def __enter__(self):return self
@@ -68,6 +69,7 @@ def test_real_osm_parser_classifies_and_attributes_without_inventing_features(mo
     monkeypatch.setattr(site_context.httpx,"Client",Stub)
     result=site_context.fetch_context(SITE,radius_m=1500)
     assert captured["url"]==site_context.OVERPASS_ENDPOINT
+    assert result["api_endpoint"]==site_context.OVERPASS_ENDPOINT
     assert "around:1500" in captured["query"]
     assert result["status"]=="retrieved"
     assert result["counts"]["roads"]==1

@@ -53,6 +53,11 @@ def test():
     }
     OUTPUT.write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding="utf-8")
     print(json.dumps(result["summary"],indent=2))
+    # Make inaccessible document URLs visible in the job log, not silently
+    # hidden behind a green mandatory build or a downloadable JSON artifact.
+    for item in result["sources"]:
+        print(item["id"],item["status"],item.get("status_code"),
+              item.get("redirect_location") or item.get("error_type") or "")
     if result["summary"]["unavailable_or_blocked"]:
         raise SystemExit(1)
 if __name__=="__main__":test()
