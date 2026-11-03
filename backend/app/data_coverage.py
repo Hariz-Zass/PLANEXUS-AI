@@ -24,8 +24,9 @@ def manifest():
         ("development","Scenario, housing yield, smart layout","tested_screening_only","user_assumptions_plus_limited_gpp","Not a PBT-authorized planning yield; actual RT, road, flood and DTM needed."),
         ("copilot","Evidence-grounded AI planning","deterministic_or_optional_llm","saved_terrain_evidence_only","No connected authoritative RT/RSN, flood or parcel zoning."),
     ]
+    from .postgis_context import configured as postgis_configured
     return {
-       "version":"2026-11-03-functional-evidence-audit-v1",
+       "version":"2026-11-03-functional-evidence-audit-v2",
        "generated_at_utc":datetime.now(timezone.utc).isoformat(),
        "not_a_complete_data_claim":True,
        "modules":[{"id":i,"name":n,"implementation":imp,"data_status":st,"limits":lim} for i,n,imp,st,lim in modules],
@@ -39,6 +40,11 @@ def manifest():
          {"name":"JPS InfoBanjir","url":"https://publicinfobanjir.water.gov.my/","reuse":"Live station measurements are NOT site flood-hazard certification."},
          {"name":"Malaysia official open API","url":"https://developer.data.gov.my/","reuse":"Only use dataset-specific licensed, location-relevant data."}],
        "open_source_fallbacks":[
+          {"id":"geofabrik_osm_postgis","source":"Geofabrik / OSM, private PostGIS snapshot",
+           "url":"https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
+           "license":"ODbL","configured":postgis_configured(),
+           "mode":"preferred_when_snapshot_ready",
+           "note":"Configured means connection string exists, NOT that a complete extract was imported. See operator guide and runtime readiness."},
           {"id":"geofabrik_osm_gpkg","source":"Geofabrik / OpenStreetMap",
            "url":"https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
            "license":"ODbL","configured":bool(os.getenv("PLANEXUS_OSM_GEOFABRIK_GPKG","").strip()
