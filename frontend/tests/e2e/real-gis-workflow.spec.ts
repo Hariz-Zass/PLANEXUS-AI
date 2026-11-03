@@ -44,6 +44,19 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   const apiResponse=await page.request.get(storedQualityHref!);
   expect(apiResponse.status()).toBe(200);
   expect(await apiResponse.text()).toContain("NOT performed");
+  // B3.4 protected ZIP contains REAL vector GeoPackage and UTM GeoTIFF
+  // assets; do not accept a button with an empty/placeholder download.
+  const bundleLink=page.getByRole("link",{name:"Complete GIS Package (.zip)"});
+  await expect(bundleLink).toBeVisible();
+  const bundleHref=await bundleLink.getAttribute("href");
+  expect(bundleHref).toMatch(/\/api\/projects\/[^/]+\/exports\/gis-package\.zip$/);
+  const bundle=await page.request.get(bundleHref!);
+  expect(bundle.status()).toBe(200);
+  expect(bundle.headers()["content-type"]).toContain("application/zip");
+  const bytes=await bundle.body();
+  expect(bytes.length).toBeGreaterThan(1000);
+  expect(bytes.subarray(0,2).toString()).toBe("PK");
+  await expect(page.getByRole("link",{name:"GIS Layers (.gpkg)"})).toBeVisible();
   await expect(page.locator(".terrain-map[data-slope-features]")).toBeVisible();
   // Copilot must read the saved, actual GIS result; without an AI key it must
   // label its deterministic fallback, never fabricate measured values.
