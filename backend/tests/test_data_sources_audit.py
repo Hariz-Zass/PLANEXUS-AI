@@ -167,3 +167,38 @@ def test_api_routes_real_no_placeholder_for_data_module(monkeypatch,tmp_path):
       "/api/capabilities/data"
     }
     assert expected.issubset(paths), expected-paths
+
+
+
+def test_context_survives_verified_backup_and_private_restore(tmp_path):
+    from app.backup import create_backup
+    from app.backup_restore import restore_backup
+    from app.project_store import create_project
+    data=tmp_path/"data"
+    project=create_project(data,"Persist live community metadata",geometry=SITE)
+    result={
+      "status":"retrieved","source_id":"openstreetmap-overpass-community",
+      "geometry_sha256":site_context.geometry_digest(SITE),
+      "source_quality":"community_unverified_not_official",
+      "retrieved_at_utc":"2026-11-03T00:00:00+00:00",
+      "counts":{"roads":3},"named_places":[]
+    }
+    site_context.save_context(data,project["id"],result)
+    assert site_context.get_cached_context(data,project["id"],SITE)["exists"] is True
+    archive=create_backup(data,tmp_path/"snapshots")
+    target=tmp_path/"new-recovered-volume"
+    restore_backup(archive,target)
+    recovered=site_context.get_cached_context(target,project["id"],SITE)
+    assert recovered["exists"] is True
+    assert recovered["context"]["counts"]["roads"]==3
+    assert recovered["context"]["source_quality"]=="community_unverified_not_official"
+    assert site_context.get_cached_context(target,project["id"],SITE2)["exists"] is False
+
+
+def test_osm_provider_key_is_only_sent_as_header_not_placed_in_url(monkeypatch):
+    monkeypatch.setenv("PLANEXUS_OVERPASS_CH_API_KEY","SYNTHETIC-NOT-A-REAL-KEY")
+    providers=site_context._providers()
+    assert providers[0][0]=="https://api.overpass.ch/v1/interpreter"
+    assert providers[0][1]=={"X-API-Key":"SYNTHETIC-NOT-A-REAL-KEY"}
+    assert all("SYNTHETIC-NOT-A-REAL-KEY" not in url for url,_ in providers)
+    assert len(providers)>=3
