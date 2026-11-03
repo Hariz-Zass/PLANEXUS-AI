@@ -37,14 +37,29 @@ def test():
                 record.update({"status":"disallowed_host"})
                 result["sources"].append(record)
                 continue
-            try:
-                response=client.head(url)
-                record.update({"status_code":response.status_code,
-                               "content_type":response.headers.get("content-type"),
-                               "redirect_location":response.headers.get("location") if 300<=response.status_code<400 else None,
-                               "status":"responding" if 200<=response.status_code<400 else "blocked_or_unavailable"})
-            except httpx.HTTPError as exc:
-                record.update({"status":"unavailable","error_type":type(exc).__name__})
+            attempts=[]
+            links=[("primary",url)]
+            alternative=src.get("alternate_official_url")
+            if alternative and allowed(alternative) and alternative!=url:
+                links.append(("alternate",alternative))
+            for label,link in links:
+                try:
+                    response=client.head(link)
+                    status="responding" if 200<=response.status_code<400 else "blocked_or_unavailable"
+                    attempts.append({
+                        "label":label,"url":link,"status_code":response.status_code,
+                        "content_type":response.headers.get("content-type"),
+                        "redirect_location":response.headers.get("location") if 300<=response.status_code<400 else None,
+                        "status":status,
+                    })
+                    if status=="responding":
+                        break
+                except httpx.HTTPError as exc:
+                    attempts.append({"label":label,"url":link,
+                                     "status":"unavailable","error_type":type(exc).__name__})
+            record["attempts"]=attempts
+            record["status"]="responding" if any(x["status"]=="responding" for x in attempts) else "unavailable_or_blocked"
+            record["usable_document_url"]=next((x["url"] for x in attempts if x["status"]=="responding"),None)
             result["sources"].append(record)
     result["summary"]={
         "responding":sum(x["status"]=="responding" for x in result["sources"]),
@@ -56,8 +71,9 @@ def test():
     # Make inaccessible document URLs visible in the job log, not silently
     # hidden behind a green mandatory build or a downloadable JSON artifact.
     for item in result["sources"]:
-        print(item["id"],item["status"],item.get("status_code"),
-              item.get("redirect_location") or item.get("error_type") or "")
+        print(item["id"],item["status"],
+              [(a["label"],a["status"],a.get("status_code"),a.get("error_type"))
+               for a in item.get("attempts",[])])
     if result["summary"]["unavailable_or_blocked"]:
         raise SystemExit(1)
 if __name__=="__main__":test()

@@ -4,7 +4,7 @@ import {AlertTriangle, Database, ExternalLink, ShieldCheck, LoaderCircle} from "
 import {api} from "@/lib/api";
 
 type Module={id:string;name:string;implementation:string;data_status:string;limits:string};
-type Source={id:string;title:string;status:string;url:string;evidence:string};
+type Source={id:string;title:string;status:string;url:string;alternate_official_url?:string|null;evidence:string};
 type Portal={name:string;url:string;reuse:string};
 type Ledger={
  version:string;modules:Module[];numeric_policy_documents:number;
@@ -50,6 +50,7 @@ export default function DataCoveragePanel({backendConnected}:{backendConnected:b
         <div><strong>{doc.title}</strong><small>{doc.evidence}</small></div>
         <span>{doc.status==="curated_rules"?"ANGKA DIINDEKS":"RUJUKAN SAHAJA"}</span>
         <a href={doc.url} target="_blank" rel="noopener noreferrer">Sumber <ExternalLink size={12}/></a>
+        {doc.alternate_official_url&&<a href={doc.alternate_official_url} target="_blank" rel="noopener noreferrer">Pautan alternatif rasmi <ExternalLink size={12}/></a>}
       </div>)}</div>
       <h2>Portal rasmi yang boleh dirujuk — bukan data yang telah diintegrasi</h2>
       <div className="source-audit-docs">{ledger.official_portals.map(source=><div key={source.url}>

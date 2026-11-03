@@ -29,7 +29,7 @@ def manifest():
        "modules":[{"id":i,"name":n,"implementation":imp,"data_status":st,"limits":lim} for i,n,imp,st,lim in modules],
        "numeric_policy_documents":len(curated),
        "catalogue_only_policy_documents":len(catalogue),
-       "policy_sources":[{"id":s["id"],"title":s["title"],"status":s["status"],"url":s["url"],"evidence":s["evidence"]} for s in docs],
+       "policy_sources":[{"id":s["id"],"title":s["title"],"status":s["status"],"url":s["url"],"alternate_official_url":s.get("alternate_official_url"),"evidence":s["evidence"]} for s in docs],
        "data_adapters":[{"id":s["id"],"name":s["name"],"reference":s["reference"],"type":s["data_type"],"mode":"automatic_when_accessible"} for s in SOURCE_CATALOG],
        "official_portals":[
          {"name":"PLANMalaysia I-Plan","url":"https://iplan.planmalaysia.gov.my/public/geoportal","reuse":"Official viewer; no presumption of extraction licence. Gazetted RT/PBT prevails."},
