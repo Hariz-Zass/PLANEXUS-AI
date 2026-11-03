@@ -229,7 +229,7 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
               out.write("## Live OSM data-source verification\\n\\n")
               out.write(f"**{message}**\\n\\n")
-              out.write(f"Status: \`{status}\`\\n\\n")
+              out.write(f"Status: `{status}`\\n\\n")
               out.write("A failure is not a zero-amenity result, and is not a successful one-stop planning data service.\\n")
           PY
       - if: always()
