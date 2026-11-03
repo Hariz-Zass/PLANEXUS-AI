@@ -23,13 +23,26 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await expect(page.getByText("PROJECT SAVED")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
 
+  // Unmocked API: Site Context is a WORKING module and Registry states precisely
+  // which official datasets are NOT connected. Do not invoke public Overpass
+  // in the deterministic CI browser test (live provider has its own diagnostic).
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Site Context/}).click();
+  await expect(page.getByRole("region",{name:"Automatically sourced nearby site evidence"})).toBeVisible({timeout:20000});
+  await expect(page.getByRole("button",{name:"Imbas sekitar 1.5 km"})).toBeEnabled();
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Data Registry/}).click();
+  await expect(page.getByRole("region",{name:"Actual source and module readiness"})).toBeVisible({timeout:20000});
+  await expect(page.getByText("Current gazetted RT/PBT zoning at coordinates")).toBeVisible();
+  await expect(page.getByText("BELUM DISAMBUNG").first()).toBeVisible();
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Terrain Intelligence/}).click();
+  await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:20000});
+
   // Actual GeoTIFF, deliberately synthetic elevation values. No API mocks.
   await page.getByRole("button",{name:/Configure Upload/}).click();
   await page.locator('input[type="file"][accept*=".tif"]').setInputFiles(path.join(fixture,"synthetic-elevation-ci.tif"));
   await page.getByPlaceholder("e.g. JUPEM site survey, 2025").fill("SYNTHETIC CI - NOT A SURVEY");
   await page.getByRole("checkbox",{name:/Saya sahkan nilai ketinggian raster/}).check();
   await page.getByRole("button",{name:"Analyse Uploaded GeoTIFF"}).click();
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:60000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:60000});
   await expect(page.locator(".results-card")).toContainText("SYNTHETIC CI - NOT A SURVEY");
   // Site-level computation QA, SHA-256 and actual downloadable UTM rasters.
   await expect(page.getByRole("region",{name:"GIS Data Quality Review"})).toBeVisible();
@@ -91,7 +104,7 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.reload();
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText(site,{timeout:30000});
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:30000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:30000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/GPP Knowledge Registry/}).click();
   await expect(page.locator(".gpp-library-source").first()).toBeVisible({timeout:20000});
@@ -130,7 +143,7 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Project Workspace/}).click();
   await page.locator(".project-entry").filter({hasText:site}).getByRole("button",{name:/Open/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText(site,{timeout:20000});
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:30000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:30000});
 });
 
 

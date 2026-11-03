@@ -141,7 +141,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.getByText("PROJECT SAVED")).toBeVisible();
 
   await page.getByRole("button",{name:/Get DEM & Run Analysis/}).click();
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:15000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:15000});
   await expect(page.getByText("4.20°")).toBeVisible();
   await expect(page.getByRole("heading",{name:/Terrain Suitability/})).toBeVisible();
   await expect(page.locator(".map-layer-controls").getByRole("button",{name:"Suitability",exact:true})).toHaveAttribute("aria-pressed","true");
@@ -160,13 +160,13 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   await expect(page.locator(".suitability-panel")).toContainText("PRELIMINARY GIS");
   await page.reload();
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Saved Analyses/}).click();
   await expect(page.getByText("E2E test DEM (mock, not real terrain)")).toBeVisible();
   await page.getByRole("button",{name:/Terrain Intelligence/}).click();
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible();
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible();
 
   await page.getByRole("button",{name:/Project Workspace/}).click();
   await page.getByRole("button",{name:"New project"}).click();
@@ -183,7 +183,7 @@ test("project survives refresh, associates DEM and restores layers; site isolati
   const alpha=page.locator(".project-entry").filter({hasText:"Terrain Site Alpha"});
   await alpha.getByRole("button",{name:/Open/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText("Terrain Site Alpha");
-  await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:20000});
+  await expect(page.getByText("Raster-Calculated Terrain Outputs")).toBeVisible({timeout:20000});
   await expect(page.locator(".terrain-map[data-site-rendered='true']")).toBeVisible({timeout:30000});
   await expect(page.locator(".terrain-map[data-suitability-rendered='true']")).toBeVisible({timeout:30000});
 });
