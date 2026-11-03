@@ -83,7 +83,7 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await expect(page.locator(".layout-map[data-road-count='1']")).toBeVisible({timeout:30000});
 
   // Independent project must have zero inherited layers, analyses or layouts.
-  await page.getByRole("button",{name:/Project Workspace/}).click();
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Project Workspace/}).click();
   await page.getByRole("button",{name:"New project"}).click();
   await page.getByPlaceholder("e.g. Meru Raya — Development Site A").fill(other);
   await page.getByRole("button",{name:"Create & open"}).click();
@@ -94,7 +94,7 @@ test("actual GIS API: create/site/raster/layers/GPP/scenario/layout/reopen @live
   await expect(page.locator(".proposal-scenario")).toHaveCount(0,{timeout:20000});
   await page.getByRole("button",{name:/Smart Layout Studio/}).click();
   await expect(page.locator(".layout-studio .proposal-empty")).toContainText("Open a project with a saved site boundary",{timeout:30000});
-  await page.getByRole("button",{name:/Project Workspace/}).click();
+  await page.getByRole("navigation",{name:"Modul PLANEXUS"}).getByRole("button",{name:/Project Workspace/}).click();
   await page.locator(".project-entry").filter({hasText:site}).getByRole("button",{name:/Open/}).click();
   await expect(page.locator(".active-project-text strong")).toHaveText(site,{timeout:20000});
   await expect(page.getByText("Verified Terrain Outputs")).toBeVisible({timeout:30000});
