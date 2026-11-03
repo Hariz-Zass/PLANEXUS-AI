@@ -33,14 +33,16 @@ export default function SiteContextPanel({
   const activeContextKey=identifier+"::"+String(boundaryRevision);
   const activeKeyRef=useRef(activeContextKey);
   activeKeyRef.current=activeContextKey;
+  const requestSequence=useRef(0);
   useEffect(()=>{
     let active=true;
     const requestedKey=activeContextKey;
+    const sequence=++requestSequence.current;
     setResult(null);setError("");
     if(!identifier||!project?.geometry||!backendConnected)return;
     void api<Response>("/api/projects/"+identifier+"/context").then(value=>{
-      if(active&&activeKeyRef.current===requestedKey)setResult(value);
-    }).catch(e=>{if(active&&activeKeyRef.current===requestedKey)setError(e instanceof Error?e.message:"Gagal membaca carian sekitar yang disimpan.");});
+      if(active&&activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setResult(value);
+    }).catch(e=>{if(active&&activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setError(e instanceof Error?e.message:"Gagal membaca carian sekitar yang disimpan.");});
     return()=>{active=false;};
   },[identifier,boundaryRevision,Boolean(project?.geometry),backendConnected]);
 
@@ -48,12 +50,13 @@ export default function SiteContextPanel({
   async function refresh(){
     if(!identifier||!project?.geometry||busy)return;
     const requestedKey=activeContextKey;
+    const sequence=++requestSequence.current;
     setBusy(true);setError("");
     try{
       const data=await api<Response>("/api/projects/"+identifier+"/context/refresh",{method:"POST"});
-      if(activeKeyRef.current===requestedKey)setResult(data);
+      if(activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setResult(data);
     }catch(e){
-      if(activeKeyRef.current===requestedKey)setError(e instanceof Error?e.message:"OSM tidak dapat diakses. Tiada hasil contoh dipaparkan.");
+      if(activeKeyRef.current===requestedKey&&requestSequence.current===sequence)setError(e instanceof Error?e.message:"OSM tidak dapat diakses. Tiada hasil contoh dipaparkan.");
     }finally{
       // Always unlock controls, including after a switch to another project.
       setBusy(false);
