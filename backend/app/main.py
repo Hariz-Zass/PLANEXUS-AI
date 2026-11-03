@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
@@ -27,6 +28,7 @@ from .project_store import (create_project, list_projects, get_project, update_p
                             attach_analysis, activate_analysis)
 from .settings import CORS_ORIGINS, DATA_DIR, MAX_UPLOAD_BYTES
 from .storage_health import check_storage
+from .gis_lock import acquire_data_lock, release_data_lock, LockBusy
 from . import auth
 from .sources import SOURCE_CATALOG, acquire_copernicus
 from .terrain import analyze_terrain
