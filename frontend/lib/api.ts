@@ -307,15 +307,31 @@ export type SavedLayout = {
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
+export type AuthUser = { id:string; email:string; display_name:string; role:"admin"|"planner" };
+export type AuthResponse = { user:AuthUser; csrf_token:string };
+let csrfToken:string|null = null;
+
+export function setAuthCsrf(value:string|null):void { csrfToken=value; }
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   if (!API_BASE) throw new Error("GIS backend belum disambungkan pada Vercel. Analisis topografi belum tersedia secara online.");
   let response: Response;
+  const method=(options?.method??"GET").toUpperCase();
+  const headers=new Headers(options?.headers);
+  if (["POST","PUT","PATCH","DELETE"].includes(method) && csrfToken) {
+    headers.set("X-CSRF-Token",csrfToken);
+  }
   try {
-    response = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...options });
+    response = await fetch(`${API_BASE}${path}`, {
+      cache:"no-store",...options,credentials:"include",headers
+    });
   } catch {
     throw new Error("GIS backend tidak dapat dihubungi. Semak sambungan dan konfigurasi API PLANEXUS.");
   }
   if (!response.ok) {
+    if(response.status===401 && !path.startsWith("/api/auth/") && typeof window!=="undefined"){
+      window.dispatchEvent(new Event("planexus:auth-expired"));
+    }
     let detail = `Ralat HTTP ${response.status}`;
     try {
       const body = await response.json();

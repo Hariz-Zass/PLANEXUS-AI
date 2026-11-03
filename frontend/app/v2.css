@@ -64,3 +64,27 @@
 @media(max-width:1230px){.shell-v2 .workspace-grid{grid-template-columns:1fr}.shell-v2 .copilot-card{position:relative;top:0;height:auto;min-height:540px}.shell-v2 .copilot-welcome{display:grid;grid-template-columns:180px 1fr;column-gap:18px;align-items:center}.copilot-orb{grid-row:span 3;width:180px}.site-ribbon{grid-template-columns:repeat(4,minmax(0,1fr))}.ribbon-context{grid-column:1/-1;border-right:0;border-bottom:1px solid #2a4250}.shell-v2 .map-wrapper{height:520px}}
 @media(max-width:760px){.shell-v2 .topbar{height:65px;padding:0 13px}.shell-v2 .sidebar{top:65px;height:calc(100vh - 65px)}.shell-v2 .brand-area{min-width:0}.shell-v2 .brand-icon{height:37px;width:37px}.shell-v2 .brand-name{font-size:16px}.shell-v2 .brand-sub{font-size:6.5px}.shell-v2 .topbar-right{gap:6px}.shell-v2 .user-avatar{width:30px;height:30px}.shell-v2 .version-pill{font-size:8px;padding:6px}.shell-v2 .main-area{padding:24px 13px 50px}.shell-v2 h1{font-size:clamp(31px,9vw,45px);letter-spacing:-1.7px}.shell-v2 .page-head p{font-size:11px}.site-ribbon{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}.ribbon-context{grid-column:1/-1}.ribbon-data:nth-child(3){border-right:0}.ribbon-data{padding:16px}.ribbon-value{font-size:26px}.shell-v2 .map-wrapper{height:455px}.shell-v2 .map-info-hud{bottom:17px;left:10px;padding:9px;max-width:calc(100% - 20px)}.map-coordinate-hud{display:none}.shell-v2 .map-bottom{padding:14px}.shell-v2 .map-credit{margin-top:12px}.site-intel-card{padding:20px;gap:17px}.intel-points{grid-template-columns:1fr 1fr}.intel-points>div:last-child{grid-column:1/-1}.workflow-steps{grid-template-columns:repeat(2,1fr);row-gap:16px}.workflow-step:nth-child(2):after{display:none}.shell-v2 .copilot-welcome{display:flex}.shell-v2 .copilot-orb{height:155px}.shell-v2 .card-meta{display:none}.shell-v2 .map-status{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.orbit-three{animation:none}.shell-v2 *{scroll-behavior:auto!important}}
+
+
+/* B3.2 private account gateway: mobile and desktop */
+.auth-root{min-height:100svh;background:radial-gradient(circle at 16% 0,#20423d 0,transparent 44%),linear-gradient(130deg,#081a1d,#142a2b 57%,#0b181d);display:flex;align-items:center;justify-content:center;padding:24px;color:#e1eede}
+.auth-card{width:min(100%,440px);padding:32px;border:1px solid #497462;border-radius:16px;background:#132b2e;box-shadow:0 22px 84px #0005;display:flex;flex-direction:column;gap:11px}
+.auth-card h1{font:800 34px/1.1 var(--display);letter-spacing:-1.4px;margin:6px 0;color:#e3f4d6}
+.auth-card h1 span{color:#89d6a6}
+.auth-card>p{color:#afc8bd;font:400 12px/1.7 var(--display);margin:0 0 7px}
+.auth-card .auth-mark{font:700 10px/1.3 var(--display);letter-spacing:1.3px;color:#a4cfb0;display:flex;align-items:center;gap:9px}
+.auth-choice{display:flex;gap:6px;padding:5px;border:1px solid #3f6058;border-radius:9px;background:#0c2024;margin:7px 0}
+.auth-choice button{flex:1;border:0;border-radius:6px;padding:10px;background:transparent;color:#b7d1c6;font:700 11px var(--display);cursor:pointer}
+.auth-choice button.active{background:#356a54;color:white}
+.auth-card label{font:700 11px var(--display);color:#d4e9db}
+.auth-card input{width:100%;min-width:0;border:1px solid #567469;border-radius:8px;background:#0a2125;color:#f2faee;padding:12px;font:500 13px var(--display);outline-offset:2px}
+.auth-card input:focus{outline:2px solid #7cce9d}
+.auth-card .auth-submit{padding:13px 15px;background:#a4dfb0;color:#112d20;border:0;border-radius:8px;cursor:pointer;font:800 12px var(--display);margin-top:6px}
+.auth-card .auth-submit:disabled{opacity:.55;cursor:not-allowed}
+.auth-card .auth-error{color:#ffb4a1;margin:0}
+.auth-card .auth-help{color:#a1bdaf;font-size:10px;line-height:1.7}
+.shell-v2 .account-label{font:700 10px var(--display);color:#c7dfc8;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shell-v2 .account-logout{border:1px solid #426a5e;border-radius:7px;color:#dcf1df;background:#17392f;padding:8px 10px;display:inline-flex;align-items:center;gap:5px;font:700 10px var(--display);cursor:pointer}
+.shell-v2 .account-logout:hover{background:#285440}
+.auth-alert{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#402524;color:#ffe0d5;border:1px solid #aa665f;padding:9px 13px;border-radius:9px;z-index:9999;max-width:95vw;font:600 11px var(--display)}
+@media(max-width:700px){.shell-v2 .account-label{display:none}.shell-v2 .account-logout{padding:7px;font-size:10px}.auth-card{padding:23px}.auth-root{padding:12px}}

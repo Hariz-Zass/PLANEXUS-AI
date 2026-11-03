@@ -8,7 +8,7 @@ import {
   Globe2, Info, Layers3, LoaderCircle, Map as MapIcon, MapPin, Menu, Mountain, Route,
   Plus, ScanSearch, Send, Settings2, ShieldCheck, Sparkles, Trash2, UploadCloud, X, Radar, Ruler, Crosshair, Orbit, ChevronRight, WandSparkles, CircleDot, MoveUpRight
 } from "lucide-react";
-import { API_BASE, api, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
+import { API_BASE, api, setAuthCsrf, type AuthResponse, type AuthUser, type FeatureGeometry, type SavedSummary, type TerrainReport, type ProjectSummary, type ProjectDetail } from "@/lib/api";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import SuitabilityPanel from "@/components/SuitabilityPanel";
 import ProposalStudio from "@/components/ProposalStudio";
@@ -117,7 +117,7 @@ function getFootprint(geometry: FeatureGeometry) {
   return { areaHa: Math.max(0, area / 10000), perimeterKm: perimeter / 1000 };
 }
 
-export default function Home() {
+function Workspace({user,onLogout}:{user:AuthUser;onLogout:()=>void}) {
   const [tab, setTab] = useState<SidebarTab>("projects");
   const [mobileNav, setMobileNav] = useState(false);
   const [drawing, setDrawing] = useState(false);
@@ -528,7 +528,8 @@ export default function Home() {
         <div className="topbar-right">
           <span className={"system-indicator "+(gisStatus === "online" ? "system-online" : "system-offline")}><i /> {gisStatus === "online" ? "GIS ENGINE CONNECTED" : gisStatus === "checking" ? "CHECKING GIS ENGINE" : "GIS ENGINE OFFLINE"}</span>
           <span className="version-pill">DESIGN 02 <span>/</span> TERRAIN V1</span>
-          <div className="user-avatar" aria-label="PLANEXUS workspace">PX</div>
+          <span className="account-label" title={user.email}>{user.display_name}</span>
+          <button type="button" className="account-logout" aria-label="Logout" onClick={onLogout}><ShieldCheck size={14}/> Logout</button>
         </div>
       </header>
 
@@ -722,4 +723,115 @@ export default function Home() {
       <input ref={tiffInput} hidden type="file" accept=".tif,.tiff,image/tiff" onChange={event=>setDemFile(event.target.files?.[0] || null)} />
     </div>
   );
+}
+
+
+// Authentication gates the entire GIS workspace. No project or raster API
+// effect mounts until /api/auth/me has validated the HttpOnly cookie session.
+export default function Home() {
+  const [account,setAccount]=useState<AuthUser|null>(null);
+  const [checking,setChecking]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [mode,setMode]=useState<"login"|"register">("login");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [displayName,setDisplayName]=useState("");
+  const [invitation,setInvitation]=useState("");
+  const [authError,setAuthError]=useState("");
+
+  const resetBrowserProject=useCallback(()=>{
+    // Browser backups from another session must not reveal the previous
+    // user's boundary. Durable project data remain in the owner's SQLite.
+    try{
+      window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+      window.localStorage.removeItem(SITE_STORAGE_KEY);
+    }catch{/* Private mode may block browser storage. */}
+  },[]);
+
+  useEffect(()=>{
+    let mounted=true;
+    const bootstrap=async()=>{
+      if(!API_BASE){if(mounted){setChecking(false);setAuthError("GIS backend belum disambungkan. Login dan projek tidak tersedia pada website ini.");}return;}
+      try{
+        const result=await api<AuthResponse>("/api/auth/me");
+        if(mounted){setAuthCsrf(result.csrf_token);setAccount(result.user);}
+      }catch{/* 401 is expected before the first login; don't render workspace. */}
+      finally{if(mounted)setChecking(false);}
+    };
+    void bootstrap();
+    const expired=()=>{
+      setAuthCsrf(null);setAccount(null);resetBrowserProject();
+      setAuthError("Sesi telah tamat. Login semula untuk melindungi data projek.");
+    };
+    window.addEventListener("planexus:auth-expired",expired);
+    return()=>{mounted=false;window.removeEventListener("planexus:auth-expired",expired);};
+  },[resetBrowserProject]);
+
+  const signIn=async()=>{
+    setBusy(true);setAuthError("");
+    try{
+      if(mode==="register"){
+        await api("/api/auth/register",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({email,password,display_name:displayName,invite_token:invitation})
+        });
+      }
+      const result=await api<AuthResponse>("/api/auth/login",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email,password})
+      });
+      resetBrowserProject();
+      setAuthCsrf(result.csrf_token);setAccount(result.user);setPassword("");
+      setInvitation("");
+    }catch(e){setAuthError(e instanceof Error?e.message:"Login tidak berjaya.");}
+    finally{setBusy(false);}
+  };
+  const signOut=async()=>{
+    setBusy(true);setAuthError("");
+    try{
+      await api<void>("/api/auth/logout",{method:"POST"});
+      setAuthCsrf(null);resetBrowserProject();setAccount(null);
+      setPassword("");setMode("login");
+    }catch(e){
+      // Do not falsely announce logout if revocation failed on the server.
+      setAuthError(e instanceof Error?e.message:"Tidak dapat menamatkan sesi. Cuba lagi.");
+    }finally{setBusy(false);}
+  };
+  if(checking){
+    return <main className="auth-root"><div className="auth-card"><h1>PLANEXUS AI</h1><p>Memeriksa sesi dan sambungan GIS…</p></div></main>;
+  }
+  if(account){
+    return <>
+      {authError&&<div role="alert" className="auth-alert">{authError}</div>}
+      <Workspace key={account.id} user={account} onLogout={()=>void signOut()}/>
+    </>;
+  }
+  return <main className="auth-root">
+    <form className="auth-card" onSubmit={e=>{e.preventDefault();void signIn();}}>
+      <div className="auth-mark"><ShieldCheck size={26}/> PRIVATE PLANNER WORKSPACE</div>
+      <h1>PLANEXUS <span>AI</span></h1>
+      <p>Akses GIS dan data projek hanya untuk akaun yang dibenarkan.</p>
+      <div className="auth-choice">
+        <button type="button" aria-pressed={mode==="login"} className={mode==="login"?"active":""} onClick={()=>{setMode("login");setAuthError("");}}>Login</button>
+        <button type="button" aria-pressed={mode==="register"} className={mode==="register"?"active":""} onClick={()=>{setMode("register");setAuthError("");}}>Daftar dengan jemputan</button>
+      </div>
+      {mode==="register"&&<>
+        <label htmlFor="planexus-display-name">Nama paparan</label>
+        <input id="planexus-display-name" value={displayName} onChange={e=>setDisplayName(e.target.value)} autoComplete="name" required minLength={2}/>
+      </>}
+      <label htmlFor="planexus-email">E-mel</label>
+      <input id="planexus-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" required/>
+      <label htmlFor="planexus-password">Kata laluan</label>
+      <input id="planexus-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} required minLength={mode==="register"?12:1}/>
+      {mode==="register"&&<>
+        <label htmlFor="planexus-invite">Kod jemputan sekali guna</label>
+        <input id="planexus-invite" value={invitation} onChange={e=>setInvitation(e.target.value)} required autoComplete="off"/>
+      </>}
+      {authError&&<p className="auth-error" role="alert">{authError}</p>}
+      <button type="submit" className="auth-submit" disabled={busy||!API_BASE}>
+        {busy?"Memproses…":mode==="login"?"Login ke Workspace":"Daftar & Login"}
+      </button>
+      <p className="auth-help">Akaun pertama diwujudkan melalui arahan pentadbir pada backend. Pendaftaran seterusnya memerlukan jemputan rasmi. Sesi dilindungi oleh cookie HttpOnly dan semakan akses pelayan.</p>
+    </form>
+  </main>;
 }
