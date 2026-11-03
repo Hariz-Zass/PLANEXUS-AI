@@ -121,3 +121,47 @@
 .project-gis-export p{margin:4px 0 0;font:500 11px/1.55 var(--display);color:#a5c8bb}
 .project-gis-export .btn{font-size:10px;min-height:34px}
 @media(max-width:650px){.project-gis-export .btn{flex:1 1 180px;justify-content:center}}
+
+
+/* Genuine site-context retrieval and explicit source maturity */
+.site-evidence-panel{margin:16px 0;padding:18px;border:1px solid #426b5f;border-radius:13px;background:linear-gradient(140deg,rgba(23,58,55,.54),rgba(10,30,41,.42));display:grid;gap:13px}
+.site-evidence-head{display:flex;align-items:start;justify-content:space-between;gap:16px}
+.site-evidence-head h2{font:800 19px var(--display);color:#dcefe0;margin:5px 0}
+.site-evidence-head h2 em{color:#9cdeb7}
+.site-evidence-head p,.site-evidence-actions p,.site-evidence-notice{font:500 11px/1.65 var(--display);color:#b2cfc4;margin:4px 0}
+.site-evidence-source-state{color:#f2d6b2;border:1px solid #8c785c;border-radius:6px;padding:8px;max-width:175px;font:800 10px var(--display)}
+.site-evidence-actions{display:flex;align-items:center;gap:12px}
+.site-evidence-actions p{flex:1}
+.site-evidence-counts,.source-audit-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.site-evidence-counts>div,.source-audit-summary>div{background:rgba(6,26,32,.5);border:1px solid #315651;border-radius:7px;padding:10px}
+.site-evidence-counts small,.source-audit-summary small{display:block;font:600 10px/1.5 var(--display);color:#acc8c0}
+.site-evidence-counts strong,.source-audit-summary strong{display:block;font:800 19px/1.4 var(--display);color:#e5f6dd}
+.site-evidence-provenance{display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:#bfdaca;font:500 10px/1.6 var(--display)}
+.site-evidence-provenance a{color:#a1e3be}
+.site-evidence-panel h3{font:800 13px var(--display);color:#e3f4df}
+.site-evidence-panel h3 small{font:500 10px var(--display);color:#acc7bd}
+.site-evidence-places{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:320px;overflow-y:auto}
+.site-evidence-places>a{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px;border:1px solid #355c54;border-radius:7px;background:#0c292a}
+.site-evidence-places strong{display:block;color:#daf1db;font:700 11px var(--display)}
+.site-evidence-places small{display:block;color:#aac7bd;font:500 10px var(--display);margin-top:3px}
+.site-evidence-error{color:#ffc3b3;font:600 11px var(--display);display:flex;align-items:center;gap:7px}
+.source-audit-page{padding:15px 0}
+.source-audit-lead{color:#afc9bf;max-width:850px;font:500 12px/1.7 var(--display);margin:10px 0 20px}
+.source-audit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:13px 0 24px}
+.source-audit-grid article{background:rgba(15,46,43,.5);border:1px solid #3d655e;border-radius:10px;padding:14px}
+.source-audit-grid article>div{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.source-audit-grid article strong{font:800 12px var(--display);color:#e8f3e1}
+.source-audit-grid article p{color:#b1cfc3;font:500 11px/1.6 var(--display);margin:9px 0 4px}
+.source-audit-grid article small{font:600 10px var(--display);color:#91c6b2}
+.source-audit-grid article span{margin-left:auto;border:1px solid #62877b;border-radius:5px;padding:5px 7px;font:700 9px var(--display);color:#d3efd9}
+.source-audit-grid article span.source-status-missing{border-color:#987d60;color:#ffcc9d}
+.source-audit-page h2{display:flex;align-items:center;gap:7px;font:800 16px var(--display);margin:20px 0 10px}
+.source-audit-docs{display:grid;gap:8px}
+.source-audit-docs>div{display:flex;align-items:center;gap:12px;padding:11px;border:1px solid #42685d;border-radius:7px}
+.source-audit-docs>div>div{flex:1}
+.source-audit-docs strong{font:700 11px var(--display);display:block}
+.source-audit-docs small{font:500 10px/1.5 var(--display);color:#abc8bc;display:block}
+.source-audit-docs span{font:700 10px var(--display);color:#f5d9ae}
+.source-audit-docs a{font:700 10px var(--display);color:#a2e6bb;display:flex;align-items:center;gap:4px}
+.source-audit-alert{padding:12px;border:1px solid #8f754d;border-radius:9px;color:#f7dcb6;display:flex;align-items:center;gap:9px;font:600 11px/1.6 var(--display);margin-top:14px}
+@media(max-width:700px){.site-evidence-head,.site-evidence-actions{flex-direction:column;align-items:stretch}.site-evidence-counts,.source-audit-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.site-evidence-places,.source-audit-grid{grid-template-columns:1fr}.source-audit-docs>div{flex-wrap:wrap}}

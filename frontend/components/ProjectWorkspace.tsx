@@ -102,6 +102,6 @@ export default function ProjectWorkspace({projects,activeId,geometry,backendConn
         </div>
       </article>)}
     </div>
-    <p className="project-footnote">Deleting a project removes its index and associations, not the archived raster/report files. This build does not include user accounts or project-level permissions. A durable backend volume and access controls are required before public or shared online use. Back up both the SQLite database and GIS files.</p>
+    <p className="project-footnote">Deleting a project removes its index and associations, not the archived raster/report files. Each project is protected by backend account ownership. Internet hosting still requires secure infrastructure and access controls. Back up both the SQLite database and GIS files.</p>
   </section>;
 }
