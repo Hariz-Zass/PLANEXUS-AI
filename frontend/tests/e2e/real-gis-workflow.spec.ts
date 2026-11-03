@@ -146,17 +146,13 @@ test("invite registration, logout and different accounts cannot view each other'
   await expect(page.getByRole("button",{name:"New project"})).toBeEnabled({timeout:30000});
   await page.getByRole("button",{name:"New project"}).click();
   await page.getByPlaceholder("e.g. Meru Raya — Development Site A").fill(projectName);
+  const createdResponse=page.waitForResponse(response=>
+    response.url().endsWith("/api/projects") && response.request().method()==="POST"
+  );
   await page.getByRole("button",{name:"Create & open"}).click();
+  const privateProject=await (await createdResponse).json() as {id:string;name:string};
+  expect(privateProject.name).toBe(projectName);
   await expect(page.locator(".active-project-text strong")).toHaveText(projectName,{timeout:20000});
-
-  // Use real cookie-authenticated API to retrieve test project's UUID.
-  const owned=await page.evaluate(async()=>{
-    const response=await fetch("http://127.0.0.1:8000/api/projects",{credentials:"include"});
-    if(!response.ok)throw Error("Cannot list my own private projects");
-    return response.json() as Promise<{projects:{id:string;name:string}[]}>;
-  });
-  const privateProject=owned.projects.find(p=>p.name===projectName);
-  expect(privateProject).toBeTruthy();
   await page.getByRole("button",{name:"Logout"}).click();
   await expect(page.getByRole("button",{name:"Login ke Workspace"})).toBeVisible({timeout:20000});
   await page.reload();
@@ -168,11 +164,11 @@ test("invite registration, logout and different accounts cannot view each other'
   await page.getByLabel("Kata laluan").fill("Synthetic-CI-2026-Private!");
   await page.getByRole("button",{name:"Login ke Workspace"}).click();
   await expect(page.getByRole("button",{name:"New project"})).toBeEnabled({timeout:30000});
-  const unauthorized=await page.evaluate(async id=>{
-    const result=await fetch("http://127.0.0.1:8000/api/projects/"+id,{credentials:"include"});
-    return result.status;
-  },privateProject!.id);
-  expect(unauthorized).toBe(404);
+  // BrowserContext's API client shares the currently logged-in user's
+  // cookies; directly test ownership without relying on cross-site fetch.
+  const apiHost=new URL(page.url()).hostname;
+  const unauthorized=await page.request.get("http://"+apiHost+":8000/api/projects/"+privateProject.id);
+  expect(unauthorized.status()).toBe(404);
   await expect(page.locator(".project-entry").filter({hasText:projectName})).toHaveCount(0);
   await page.getByRole("button",{name:"Logout"}).click();
 
