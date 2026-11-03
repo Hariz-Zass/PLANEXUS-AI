@@ -175,3 +175,49 @@ def test_qgis_qa_report_is_private_and_persists_with_project(monkeypatch,tmp_pat
             assert len(downloaded.content)>500
         missing=client.get("/api/analyses/00000000-0000-4000-8000-000000000000/slope-utm.tif")
         assert missing.status_code==404
+
+
+
+def test_contour_lines_match_reported_elevation_levels_on_projected_grid(tmp_path):
+    """Check line vertices' elevation against bilinear interpolation of saved UTM DEM."""
+    yy,xx=np.mgrid[:130,:130]
+    z=(15+xx*.62+yy*.39).astype("float32")
+    source=tmp_path/"contour-surface.tif"
+    geometry=synthetic_site(source,z=z)
+    directory=tmp_path/"contour-output"
+    report=analyze_terrain(geometry,source,{
+        "id":"synthetic-contour-check","name":"Synthetic smooth plane (not real land)",
+        "data_type":"DTM","nominal_resolution_m":10
+    },"contour-qa",artifacts_dir=directory)
+    features=report["contours_geojson"]["features"]
+    assert len(features)>0
+    interval=report["metrics"]["contour_interval_m"]
+    assert interval is not None and interval>0
+    to_utm=Transformer.from_crs("EPSG:4326","EPSG:32647",always_xy=True)
+    validated=0
+    with rasterio.open(directory/"elevation_utm.tif") as dem:
+        grid=dem.read(1,masked=True).filled(np.nan)
+        for feature in features[:40]:
+            expected=float(feature["properties"]["elevation_m"])
+            assert math.isclose(expected/interval,round(expected/interval),abs_tol=0.0001)
+            for lon,lat in feature["geometry"]["coordinates"][::max(1,len(feature["geometry"]["coordinates"])//8)]:
+                x,y=to_utm.transform(lon,lat)
+                # DEM pixel-centre fractional row/column in metre-based CRS.
+                c=(x-dem.transform.c)/dem.transform.a-.5
+                rr=(dem.transform.f-y)/abs(dem.transform.e)-.5
+                c0, r0=math.floor(c),math.floor(rr)
+                if r0<0 or c0<0 or r0+1>=dem.height or c0+1>=dem.width:
+                    continue
+                samples=grid[r0:r0+2,c0:c0+2]
+                if not np.isfinite(samples).all():
+                    continue
+                fx,fy=c-c0,rr-r0
+                interpolated=(samples[0,0]*(1-fx)*(1-fy)+
+                              samples[0,1]*fx*(1-fy)+
+                              samples[1,0]*(1-fx)*fy+
+                              samples[1,1]*fx*fy)
+                # WGS84 polygon geometry rounds to 6 decimals (~0.11 m):
+                # 0.3m vertical allowance covers quantization for steep planar trends.
+                assert abs(float(interpolated)-expected)<0.3
+                validated+=1
+    assert validated>=10
