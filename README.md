@@ -337,3 +337,14 @@ Read [the Smart Layout limits and QA guide](docs/LAYOUT_SCREENING.md). This feat
 Smart Layout Studio now screens road-sketch topology in projected UTM metres. It reports separately drawn road components, endpoint-based T-junction connections, **unconfirmed interior-only crossings**, close-but-unjoined lines, dangling sketch endpoints and outer site-boundary contact *candidates*. Matching map markers and a mobile-friendly diagnostics panel make disconnected conceptual alignments visible before any lot-generator work. A line crossing without an explicit endpoint is not assumed to be an at-grade road connection. A line touching the site edge is **not** proof of a legal/public road access point; grade, ownership, external streets, engineering design, accessibility and PBT review remain outside this check.
 
 Detailed method and local QA: [docs/LAYOUT_SCREENING.md](docs/LAYOUT_SCREENING.md). No automatic lot placement, no Vercel deployment, and no changes to GeoPilot.
+
+
+### Read-only one-click system check (Windows)
+
+After starting `START-PLANEXUS.bat`, double-click
+`CHECK-PLANEXUS.bat`. It checks that the local frontend and
+FastAPI health, project/report registries, GPP catalog and Copilot capabilities
+respond. This is a **read-only connection diagnostic**, not proof of a real
+DEM run or planning approval. For full verification, create a project, upload
+a documented GeoTIFF or run auto DEM, display both map layers, and reopen the
+project. Existing site data are not modified by this diagnostic.
