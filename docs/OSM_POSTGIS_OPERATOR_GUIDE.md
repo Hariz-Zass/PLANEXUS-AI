@@ -56,7 +56,10 @@ No need for planners to install PostGIS or upload OSM files per project.
    docker compose -f compose.gis.yml -f compose.osm.yml --profile osm-import run --rm osm-import
    ```
 
-6. Run a Site Context scan on a Malaysian project. It should return
+6. Visit the authenticated API endpoint `/api/osm/status` to confirm
+   `postgis.ready=true` and see the imported row count. Only then treat the
+   server-local extract as provisioned.
+7. Run a Site Context scan on a Malaysian project. It should return
    `source_id=geofabrik-osm-postgis-snapshot` and a real
    `dataset_timestamp_utc`. Data Registry advertises the configured
    provider; `app.postgis_context.readiness()` verifies a completed,
@@ -64,17 +67,31 @@ No need for planners to install PostGIS or upload OSM files per project.
 
 ## Keeping the dataset fresh
 
-The backend **does not download hundreds of MB during a user request**.
-Set up a trusted operator job (Windows Task Scheduler or Linux cron) that:
-- Downloads a fresh, validated Geofabrik extract to a separate folder.
-- Verifies content, source licence and actual snapshot date.
-- Executes the same `osm-import` one-shot job against the new extract.
-- Retains a local snapshot backup and alerts on failed import.
+The backend **never downloads the large regional archive during a planner
+request**. After the initial optional server setup, the operator can activate
+a weekly refresh worker. It downloads Geofabrik's HTTPS archive (bounded
+download and ZIP extraction), checks its publication time, skips unchanged
+sources and atomically imports a changed snapshot:
+
+```powershell
+docker compose -f compose.gis.yml -f compose.osm.yml --profile osm-refresh up -d osm-updater
+```
+
+The worker runs at start and repeats every seven days. It logs a warning on
+failure and retains the last fully imported snapshot. Source availability,
+disk space and network bandwidth still require monitoring.
+
+**Date caveat:** the automatic updater currently uses the ZIP archive's
+HTTP `Last-Modified` date as its snapshot publication timestamp. The exact
+cutoff of individual OSM edits can differ. Do not interpret this as a legally
+verified feature update time.
 
 The importer is transactional and repeatable; the previous valid snapshot
 remains when a refresh fails. The running Docker volume persists across
-container replacement; protect it with off-host backups. Do not automatically
-publish the database port.
+container replacement; protect it with off-host backups. The service uses a
+persistent temporary volume `planexus-osm-work`; ensure sufficient disk
+capacity for the archive and its decompressed GeoPackages. Do not publish
+the database port.
 
 ## Technical caveats
 
