@@ -92,6 +92,13 @@ jobs:
           docker run -d --name planexus-ci-api -p 127.0.0.1:18000:8000 -v planexus-ci-data:/data planexus-gis:ci
           python3 backend/tests/container_persistence_smoke.py wait
           python3 backend/tests/container_persistence_smoke.py verify
+          docker volume create planexus-ci-backups
+          docker run --rm -v planexus-ci-data:/data -v planexus-ci-backups:/backups \
+            planexus-gis:ci python -m app.backup_scheduler once \
+            --data-dir /data --output-dir /backups --keep 2 --restore-drill
+          docker run --rm -v planexus-ci-data:/data -v planexus-ci-backups:/backups \
+            planexus-gis:ci python -m app.backup_scheduler status \
+            --data-dir /data --output-dir /backups
           docker rm -f planexus-ci-api
           docker run -d --name planexus-ci-unmounted -p 127.0.0.1:18000:8000 planexus-gis:ci
           python3 backend/tests/container_persistence_smoke.py unmounted
@@ -100,6 +107,7 @@ jobs:
         run: |
           docker rm -f planexus-ci-api planexus-ci-unmounted 2>/dev/null || true
           docker volume rm planexus-ci-data 2>/dev/null || true
+          docker volume rm planexus-ci-backups 2>/dev/null || true
 
   real-gis-browser:
     runs-on: ubuntu-latest
